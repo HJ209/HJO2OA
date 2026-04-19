@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: hjo2oa
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hjo2oa
+    username: hjo2oa
+    password: hjo2oa
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+hjo2oa:
+  tenant:
+    enabled: true
+    ignore-tables:
+      - sys_config
+      - sys_dictionary
+  security:
+    jwt:
+      secret: change-me-in-production
+      expiration: 86400000
+  audit:
+    enabled: true
+  messaging:
+    outbox:
+      enabled: true
+      scan-interval: 5000
+  storage:
+    type: minio
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket: hjo2oa
+  cache:
+    type: redis

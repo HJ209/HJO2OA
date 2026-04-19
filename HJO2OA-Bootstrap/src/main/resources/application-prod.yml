@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://prod-db:5432/hjo2oa
+  data:
+    redis:
+      host: prod-redis
+  rabbitmq:
+    host: prod-mq
+
+logging:
+  level:
+    com.hjo2oa: WARN

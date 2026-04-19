@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hjo2oa</groupId>
+        <artifactId>hjo2oa</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>HJO2OA-Infrastructure</artifactId>
+    <packaging>pom</packaging>
+    <name>HJO2OA-Infrastructure</name>
+
+    <modules>
+        <module>HJO2OA-EventBus</module>
+        <module>HJO2OA-I18n</module>
+        <module>HJO2OA-Timezone</module>
+        <module>HJO2OA-DataI18n</module>
+        <module>HJO2OA-Attachment</module>
+        <module>HJO2OA-Dictionary</module>
+        <module>HJO2OA-Config</module>
+        <module>HJO2OA-Scheduler</module>
+        <module>HJO2OA-Audit</module>
+        <module>HJO2OA-Cache</module>
+        <module>HJO2OA-Tenant</module>
+        <module>HJO2OA-ErrorCode</module>
+        <module>HJO2OA-Security</module>
+    </modules>
+</project>

@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://dev-db:5432/hjo2oa_dev
+  data:
+    redis:
+      host: dev-redis
+  rabbitmq:
+    host: dev-mq
+
+logging:
+  level:
+    com.hjo2oa: INFO

@@ -1,0 +1,645 @@
+{
+  "metadata": {
+    "projectName": "HJO2OA",
+    "snapshotDate": "2026-04-19",
+    "stage": "M0 skeleton and architecture convergence",
+    "stageDescription": "仓库当前以架构文档、契约文档和工程骨架为主，真实业务实现仍集中在少数基础模块。",
+    "verificationCommand": "mvn -q test",
+    "summaryBullets": [
+      "根聚合工程可以通过 `mvn -q test`，说明 Maven 多模块骨架和最小测试链路已打通。",
+      "真实代码主要集中在 HJO2OA-Shared、HJO2OA-Infrastructure/HJO2OA-EventBus、HJO2OA-OrgPerm/HJO2OA-IdentityContext。",
+      "HJO2OA-Content、HJO2OA-Collaboration、HJO2OA-DataServices 目前基本仍是文档与 POM 骨架。",
+      "frontend 仅存在 apps/packages/public 目录骨架，尚无可运行应用。",
+      "自动化开发更适合从单模块、强契约、低外部依赖的切片切入。"
+    ],
+    "globalConstraints": [
+      "遵守 Java 17、Spring Boot 3.3.x、Maven 3.9+ 基线。",
+      "优先在单模块内完成闭环，跨模块写联动通过事件完成。",
+      "禁止直接依赖其他业务模块的持久化实现或越权写入其他模块主数据。",
+      "优先补齐最小可验证骨架，再扩展真实持久化、缓存和消息适配。",
+      "每个开发任务完成后至少执行其模块测试或根 `mvn -q test`。"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "INFRA-WEB-001",
+      "title": "补齐共享 Web 响应体与全局异常骨架",
+      "domain": "00-平台基础设施",
+      "module": "HJO2OA-Shared",
+      "priority": "P0",
+      "status": "done",
+      "dependsOn": [],
+      "goal": "在共享层建立统一响应体、基础业务异常和全局异常处理骨架，为后续业务模块暴露 REST API 提供一致的返回约定。",
+      "scope": "仅改动 HJO2OA-Shared 下的 shared.web / shared.kernel 等包，不扩展具体业务规则。",
+      "whyNow": "当前仓库已经开始出现 Controller，但还没有统一的 Web 契约实现；先统一横切层可以降低后续模块重复建设。",
+      "paths": [
+        "HJO2OA-Shared/src/main/java",
+        "docs/contracts/unified-api-contract.md",
+        "docs/engineering/m0-project-skeleton-plan.md"
+      ],
+      "acceptanceCriteria": [
+        "提供统一响应对象（例如 success/error/meta）和基础分页响应模型。",
+        "提供可复用的业务异常基类以及映射到 HTTP 状态码的全局异常处理器。",
+        "至少补充 1 组单元测试或 MVC 切片测试，证明异常到响应体的映射可用。",
+        "不在共享层引入具体业务错误码枚举，只保留可扩展抽象。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Shared -am test"
+      ]
+    },
+    {
+      "id": "ORG-CORE-001",
+      "title": "补齐 identity-context 最小会话骨架",
+      "domain": "01-组织与权限",
+      "module": "HJO2OA-OrgPerm/HJO2OA-IdentityContext",
+      "priority": "P0",
+      "status": "done",
+      "dependsOn": [],
+      "goal": "在现有 refresh 事件发布能力基础上，补齐 current、available、switch、reset-primary 四类最小会话接口，并保留后续接入缓存/数据库的抽象边界。",
+      "scope": "优先实现 application/domain/interfaces 的最小闭环，可先使用可替换的内存级仓储或 provider，暂不接真实组织主数据持久化。",
+      "whyNow": "identity-context 已具备真实事件和测试，是当前最接近业务实现的模块，也是一期其它模块的前置依赖。",
+      "paths": [
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/main/java",
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/api/identity-context.api.md",
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/events/identity-context.events.md",
+        "docs/contracts/identity-context-protocol.md",
+        "docs/implementation/phase-1-implementation-slice.md"
+      ],
+      "acceptanceCriteria": [
+        "新增 current / available / switch / reset-primary 的 application service 与 REST 接口骨架。",
+        "切换逻辑明确区分主岗与兼岗，并对无效目标返回稳定错误。",
+        "refresh 与 switch 共用一致的上下文表示，避免接口口径漂移。",
+        "至少补充 2 组测试，覆盖成功切换和非法切换场景。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test"
+      ]
+    },
+    {
+      "id": "WF-TODO-001",
+      "title": "搭建 todo-center 事件投影与查询骨架",
+      "domain": "02-流程与表单",
+      "module": "HJO2OA-WorkflowForm/HJO2OA-TodoCenter",
+      "priority": "P0",
+      "status": "done",
+      "dependsOn": [
+        "ORG-CORE-001"
+      ],
+      "goal": "围绕 `process.task.*` 事件建立待办投影抽象、幂等更新入口和基础查询接口，为门户工作台与消息提醒提供统一待办视图。",
+      "scope": "先完成事件对象、投影模型、repository 抽象和最小列表查询接口；不实现完整流程审批写操作。",
+      "whyNow": "todo-center 是一期闭环中的关键读模型，且其契约文档已经比较完整，适合在 identity-context 之后率先落地。",
+      "paths": [
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/docs/todo-center.overview.md",
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/events/todo-center.events.md",
+        "docs/contracts/unified-event-contract.md",
+        "docs/implementation/phase-1-implementation-slice.md"
+      ],
+      "acceptanceCriteria": [
+        "定义 todo 投影模型、状态枚举和 repository 抽象。",
+        "提供 process.task.created / completed / terminated / transferred 的消费入口骨架与幂等键约定。",
+        "提供至少 1 个待办列表查询接口或 facade，明确受当前 identity-context 约束。",
+        "补充单元测试覆盖重复事件不产生重复投影。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-WorkflowForm/HJO2OA-TodoCenter -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-READ-001",
+      "title": "建立门户首页聚合读模型骨架",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "ORG-CORE-001",
+        "WF-TODO-001"
+      ],
+      "goal": "建立仅面向门户首页的聚合读模型接口骨架，消费 identity-context、todo 统计和消息摘要，而不是承担开放 API 职责。",
+      "scope": "先完成只读 facade、缓存 key 约定和首页 DTO，不直接写其他模块主数据。",
+      "whyNow": "门户聚合层是一期用户侧闭环的关键读入口，但必须建立在身份上下文和待办读模型之上。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "docs/implementation/portal-aggregation-read-model.md",
+        "docs/architecture/backend-architecture-spec.md"
+      ],
+      "acceptanceCriteria": [
+        "聚合接口明确只读边界，不暴露通用开放 API。",
+        "首页 DTO 至少包含 identity、todo 统计和消息摘要三个区块。",
+        "缓存 key 设计包含 tenantId、personId、assignmentId 或等价上下文字段。",
+        "补充单元测试验证聚合服务对空数据和部分缺失数据的容错行为。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "MSG-TOUCH-001",
+      "title": "建立消息中心待办提醒消费骨架",
+      "domain": "06-消息移动与生态",
+      "module": "HJO2OA-Messaging/HJO2OA-MessageCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "WF-TODO-001"
+      ],
+      "goal": "消费 todo 与流程超时事件，建立站内消息与送达记录的最小模型，保持消息中心与渠道发送层解耦。",
+      "scope": "先落 message aggregate、delivery record 抽象和事件监听入口，不接短信/邮件等外部渠道。",
+      "whyNow": "消息模块的一期职责是触达而不是持有待办主数据，因此最合理的起点是从 todo 事件消费开始。",
+      "paths": [
+        "HJO2OA-Messaging/docs/development-tasks.md",
+        "docs/contracts/unified-event-contract.md",
+        "docs/implementation/phase-1-implementation-slice.md"
+      ],
+      "acceptanceCriteria": [
+        "消息中心消费 `todo.item.created` 和 `todo.item.overdue` 的监听骨架可用。",
+        "消息模型与渠道适配器分层清晰，不在同一类中混写。",
+        "送达记录保留可扩展状态机，但一期只实现站内消息。",
+        "至少补充 1 组测试证明重复事件不会生成重复消息记录。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Messaging/HJO2OA-MessageCenter -am test"
+      ]
+    },
+    {
+      "id": "BOOT-LOCAL-001",
+      "title": "补齐本地联调环境模板",
+      "domain": "Bootstrap / 工程化",
+      "module": "HJO2OA-Bootstrap",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [],
+      "goal": "为 PostgreSQL、Redis、RabbitMQ、MinIO 提供本地联调模板，明确 profile 用法和缺省配置来源，降低后续模块开发成本。",
+      "scope": "优先补齐 `application-local.yml` 说明文档、环境变量示例或容器编排模板，不扩展生产部署编排。",
+      "whyNow": "当前后端配置已经声明多个外部基础设施，但仓库里还没有统一的本地联调入口说明。",
+      "paths": [
+        "HJO2OA-Bootstrap/src/main/resources/application.yml",
+        "HJO2OA-Bootstrap/src/main/resources/application-local.yml",
+        "README.md"
+      ],
+      "acceptanceCriteria": [
+        "提供清晰的本地联调说明或模板文件，覆盖 PostgreSQL、Redis、RabbitMQ、MinIO。",
+        "明确 Spring profile 的推荐启动方式和必要环境变量。",
+        "不改动现有默认端口与核心配置命名约定。",
+        "验证根应用可以在不连接真实外部服务的前提下完成基础启动或测试。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Bootstrap -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-001",
+      "title": "建立 portal-home 页面装配骨架",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-READ-001"
+      ],
+      "goal": "建立门户首页、办公中心和移动工作台的最小页面装配层，只消费聚合卡片快照和静态模板结果，不直连业务模块。",
+      "scope": "优先实现 scene/layout/region/card 的只读装配模型、静态模板 provider 和最小 REST 接口；暂不引入真实 portal-model 与 personalization 持久化。",
+      "whyNow": "aggregation-api 已经具备首页三块读模型骨架，继续补 portal-home 可以把门户域推进到真正用户入口，而不是停留在内部聚合层。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalHome/docs/portal-home.overview.md",
+        "HJO2OA-Portal/docs/development-tasks.md"
+      ],
+      "acceptanceCriteria": [
+        "提供 HOME / OFFICE_CENTER / MOBILE_WORKBENCH 三类 scene 的页面装配 DTO 和应用服务。",
+        "portal-home 只通过 provider 消费 aggregation-api，不直连 todo-center、message-center、identity-context。",
+        "暴露最小只读页面接口并接入共享 Web 契约。",
+        "补充测试覆盖页面装配、局部降级和控制器响应契约。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-SNAPSHOT-001",
+      "title": "补 aggregation-api 快照状态与失效监听骨架",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-READ-001",
+        "PORTAL-HOME-001"
+      ],
+      "goal": "把 aggregation-api 的快照语义从当前的最小缓存提升到 READY / STALE / FAILED 与事件驱动失效骨架，支撑 portal-home 后续定向刷新。",
+      "scope": "优先补齐快照状态模型、失效入口、最小监听器和测试；暂不接真实 Redis 或跨进程通知。",
+      "whyNow": "portal-home 已经依赖聚合快照做页面装配，下一步最有价值的是让快照具备可失效、可降级、可刷新边界，而不是继续扩张前端外观层。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/events/aggregation-api.events.md",
+        "docs/implementation/portal-aggregation-read-model.md"
+      ],
+      "acceptanceCriteria": [
+        "快照状态至少覆盖 READY / STALE / FAILED 并有明确回退语义。",
+        "提供最小失效入口，可按 identity 或 cardType 定向标记快照过期。",
+        "消费至少一类门户相关事件完成失效骨架联动。",
+        "补充测试覆盖过期标记、失败降级和定向刷新入口。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-EVENT-001",
+      "title": "补 aggregation-api 快照刷新结果事件出口",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-SNAPSHOT-001"
+      ],
+      "goal": "把 aggregation-api 已声明的 `portal.snapshot.refreshed` 与 `portal.snapshot.failed` 变成真实可发布事件，支撑 portal-home 轮询刷新和诊断链路。",
+      "scope": "仅补快照刷新成功/失败事件模型、应用服务发布点与测试；不引入跨进程推送或前端订阅。",
+      "whyNow": "快照状态和失效语义已经具备，但没有刷新结果事件时，下游只能被动重拉，无法区分已刷新与刷新失败。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/events/aggregation-api.events.md"
+      ],
+      "acceptanceCriteria": [
+        "首次回源生成 READY 快照时发布 `portal.snapshot.refreshed`。",
+        "回源失败生成 FAILED 快照时发布 `portal.snapshot.failed`。",
+        "纯缓存命中不重复发布刷新结果事件。",
+        "补充测试覆盖成功发布、失败发布和 refresh endpoint 二次刷新。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "EVENT-WIRE-001",
+      "title": "把跨模块 DomainEvent 监听骨架接入 Spring 事件总线",
+      "domain": "00-平台基础设施",
+      "module": "Cross-Module",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "WF-TODO-001",
+        "MSG-TOUCH-001",
+        "PORTAL-SNAPSHOT-001"
+      ],
+      "goal": "让 todo-center、message-center、aggregation-api 中已经存在的 listener 骨架真正消费 Spring ApplicationEvent，避免事件链路只在单元测试中成立。",
+      "scope": "仅补 @EventListener 绑定和运行时分发测试，不引入外部消息中间件或异步消费器。",
+      "whyNow": "当前各模块已经通过 DomainEventPublisher 发布事件，但 listener 方法没有挂接到 Spring 事件总线，实际运行时链路是断的。",
+      "paths": [
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/src/main/java",
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/src/main/java",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "TodoProcessEventListener、TodoReminderEventListener、PortalSnapshotInvalidationListener 都通过 Spring 事件机制触发。",
+        "补充事件绑定测试，证明 publishEvent 后会进入对应应用服务。",
+        "不改变既有应用服务业务语义，只修正运行时接线。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-WorkflowForm/HJO2OA-TodoCenter -am test",
+        "mvn -q -pl HJO2OA-Messaging/HJO2OA-MessageCenter -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "MSG-READ-001",
+      "title": "补 message-center 单条已读闭环",
+      "domain": "06-消息移动与生态",
+      "module": "HJO2OA-Messaging/HJO2OA-MessageCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "MSG-TOUCH-001",
+        "EVENT-WIRE-001"
+      ],
+      "goal": "把 message-center 从只读查询推进到最小用户动作闭环，支持单条消息已读、审计记录与 msg.notification.read 事件发布。",
+      "scope": "仅实现单条已读动作、已读审计、读事件和门户消息卡片失效联动；不扩批量已读、归档或撤回。",
+      "whyNow": "门户消息卡片已经能展示未读数和最新消息，但没有已读动作就无法形成真实消费闭环，也无法产出 msg.notification.read 事件源。",
+      "paths": [
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/src/main/java",
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/api/message-center.api.md",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "新增单条已读应用服务和 POST /api/v1/msg/messages/{notificationId}/read 接口。",
+        "首次已读写入审计记录并发布 msg.notification.read；重复已读幂等。",
+        "aggregation-api 消费 msg.notification.read 后标记消息卡片快照过期。",
+        "补充测试覆盖已读成功、幂等重复读和门户失效联动。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Messaging/HJO2OA-MessageCenter -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-REFRESH-001",
+      "title": "补 aggregation-api 对 STALE 快照的按需重建协调",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-SNAPSHOT-001",
+        "PORTAL-EVENT-001",
+        "MSG-READ-001"
+      ],
+      "goal": "让 aggregation-api 在返回 STALE 快照时具备明确的按需重建策略，而不是只返回旧值不再推进刷新。",
+      "scope": "优先实现最小协调器、定向刷新入口复用和测试；暂不引入 Redis 分布式锁或后台任务编排。",
+      "whyNow": "消息已读和现有业务事件都已经能把快照打成 STALE，但读路径还没有真正的重建协调，事件失效链路仍只完成了一半。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "docs/implementation/portal-aggregation-read-model.md",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/events/aggregation-api.events.md"
+      ],
+      "acceptanceCriteria": [
+        "STALE 快照在 dashboard/card 读取时具备明确的重建或后台刷新策略。",
+        "不重复刷新 READY 快照，避免无意义回源。",
+        "补充测试覆盖 STALE 命中后的重建行为和事件发布。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "MSG-DETAIL-001",
+      "title": "补 message-center 单条消息详情查询",
+      "domain": "06-消息移动与生态",
+      "module": "HJO2OA-Messaging/HJO2OA-MessageCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "MSG-READ-001"
+      ],
+      "goal": "为消息中心补齐单条消息详情读取能力，统一复用当前身份可见性校验、来源快照和消息状态语义，支撑办公中心右侧详情区和后续批量动作前的单项查看。",
+      "scope": "优先实现 GET /api/v1/msg/messages/{notificationId}、最小详情 DTO 和测试；暂不实现归档、撤回或过期动作。",
+      "whyNow": "message-center 已经具备列表、未读汇总和单条已读动作，缺少详情读取时办公中心只能看到摘要，无法继续推进消息页闭环。",
+      "paths": [
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/src/main/java",
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/api/message-center.api.md"
+      ],
+      "acceptanceCriteria": [
+        "新增 GET /api/v1/msg/messages/{notificationId} 接口和最小详情 DTO。",
+        "详情读取只允许访问当前身份可见消息，不暴露跨身份或跨租户数据。",
+        "详情至少返回 sourceEventType、sourceBusinessId、readAt、expiredAt 等文档已声明的核心字段。",
+        "补充测试覆盖可见详情读取和无权/不存在时的 404。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Messaging/HJO2OA-MessageCenter -am test"
+      ]
+    },
+    {
+      "id": "WF-TODO-COMPLETED-001",
+      "title": "补 todo-center 已办列表最小闭环",
+      "domain": "02-流程与表单",
+      "module": "HJO2OA-WorkflowForm/HJO2OA-TodoCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "WF-TODO-001"
+      ],
+      "goal": "在当前待办投影骨架上补已办列表查询，让门户和办公中心具备 pending/completed 的最小双视图，而不引入审批写动作。",
+      "scope": "优先实现 completed 列表的 query/service/controller 与测试；暂不扩复杂筛选和分页元数据。",
+      "whyNow": "办公中心只靠 pending 无法形成完整事务处理视图，completed 是下一阶段列表聚合最必要的下游读模型。",
+      "paths": [
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/src/main/java",
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/docs/todo-center.overview.md"
+      ],
+      "acceptanceCriteria": [
+        "新增 completed 列表查询入口，受当前 identity-context 约束。",
+        "已办列表按完成时间稳定排序。",
+        "不改变现有待办投影写路径，只复用已完成状态数据。",
+        "补充测试覆盖 completed 可见性和排序。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-WorkflowForm/HJO2OA-TodoCenter -am test"
+      ]
+    },
+    {
+      "id": "WF-TODO-OVERDUE-001",
+      "title": "补 todo-center 超时投影与 todo.item.overdue 出口",
+      "domain": "02-流程与表单",
+      "module": "HJO2OA-WorkflowForm/HJO2OA-TodoCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "WF-TODO-001",
+        "EVENT-WIRE-001"
+      ],
+      "goal": "消费流程超时事件并在待办中心形成超时视图与 overdue 领域事件，为消息提醒和门户紧急卡片提供真实源头。",
+      "scope": "优先补最小超时状态、事件出口和测试；暂不实现调度器或 SLA 配置。",
+      "whyNow": "message-center 已有 overdue 提醒投影入口，但上游还没有稳定的 overdue 事件真相源。",
+      "paths": [
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/src/main/java",
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/events/todo-center.events.md"
+      ],
+      "acceptanceCriteria": [
+        "新增超时投影更新逻辑并发布 todo.item.overdue。",
+        "重复超时事件保持幂等，不重复发布提醒源事件。",
+        "超时数量可被后续聚合层读取。",
+        "补充测试覆盖首次超时与重复超时。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-WorkflowForm/HJO2OA-TodoCenter -am test"
+      ]
+    },
+    {
+      "id": "MSG-BULK-READ-001",
+      "title": "补 message-center 批量已读最小闭环",
+      "domain": "06-消息移动与生态",
+      "module": "HJO2OA-Messaging/HJO2OA-MessageCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "MSG-DETAIL-001"
+      ],
+      "goal": "在单条已读闭环之上补批量已读入口，返回部分成功/失败结果，复用单条已读的幂等、审计和事件模型。",
+      "scope": "仅实现 bulk-read 动作和测试；暂不扩展批量归档或撤回。",
+      "whyNow": "办公中心消息页需要在列表视角下执行批量已读，否则用户操作成本过高。",
+      "paths": [
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/src/main/java",
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/api/message-center.api.md"
+      ],
+      "acceptanceCriteria": [
+        "新增批量已读接口，限制最大批次大小。",
+        "逐条幂等处理，允许部分成功而不做整体回滚。",
+        "复用现有 read 审计和 msg.notification.read 事件语义。",
+        "补充测试覆盖部分成功和重复已读。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Messaging/HJO2OA-MessageCenter -am test"
+      ]
+    },
+    {
+      "id": "WF-TODO-COPIED-001",
+      "title": "补 todo-center 抄送列表与已阅标记",
+      "domain": "02-流程与表单",
+      "module": "HJO2OA-WorkflowForm/HJO2OA-TodoCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "WF-TODO-COMPLETED-001"
+      ],
+      "goal": "为待办中心补抄送列表与已阅动作，让事务读模型从 pending/completed 继续扩到 copied 视角。",
+      "scope": "优先实现 copied 列表和 copied read 动作；暂不扩展草稿或我发起。",
+      "whyNow": "办公中心要形成更完整的工作流事务入口，copied 是成本最低的第三视图。",
+      "paths": [
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/src/main/java",
+        "HJO2OA-WorkflowForm/HJO2OA-TodoCenter/docs/todo-center.overview.md"
+      ],
+      "acceptanceCriteria": [
+        "新增 copied 列表查询与 copied read 动作。",
+        "已阅动作天然幂等，不影响待办/已办主状态。",
+        "列表继续受当前 identity-context 约束。",
+        "补充测试覆盖 copied 可见性和重复已阅。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-WorkflowForm/HJO2OA-TodoCenter -am test"
+      ]
+    },
+    {
+      "id": "MSG-REMINDER-001",
+      "title": "补 message-center 超时待办催办提醒",
+      "domain": "06-消息移动与生态",
+      "module": "HJO2OA-Messaging/HJO2OA-MessageCenter",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "WF-TODO-OVERDUE-001",
+        "MSG-READ-001"
+      ],
+      "goal": "消费 todo.item.overdue 生成站内催办提醒，扩完整个消息中心从 created/read 到 overdue 的主链路。",
+      "scope": "仅实现 overdue 提醒消费、幂等和测试；不接外部渠道。",
+      "whyNow": "当前消息提醒主线只覆盖 created/read，缺少 overdue 时门户紧急感知仍是空的。",
+      "paths": [
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/src/main/java",
+        "HJO2OA-Messaging/HJO2OA-MessageCenter/events/message-center.events.md"
+      ],
+      "acceptanceCriteria": [
+        "消费 todo.item.overdue 并生成 TODO_OVERDUE 站内提醒。",
+        "重复 overdue 事件保持幂等，不重复落消息。",
+        "继续发布 msg.notification.sent 供门户快照失效。",
+        "补充测试覆盖首次 overdue 与重复 overdue。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Messaging/HJO2OA-MessageCenter -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-OFFICE-READ-001",
+      "title": "建立办公中心聚合读模型骨架",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-REFRESH-001",
+        "WF-TODO-COMPLETED-001",
+        "MSG-DETAIL-001"
+      ],
+      "goal": "在 aggregation-api 与 portal-home 之间补办公中心场景的只读聚合骨架，先整合 TODO 和 MESSAGE 两块。",
+      "scope": "优先实现 office-center DTO、application service 和最小接口；不扩成通用开放 API。",
+      "whyNow": "门户首页读模型已经成形，办公中心是下一个自然落点，但需要已办和消息详情两个下游基础能力先到位。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/docs/development-tasks.md"
+      ],
+      "acceptanceCriteria": [
+        "新增办公中心聚合 DTO 和最小读接口。",
+        "至少聚合 todo 和 message 两块，保持只读边界。",
+        "portal-home 可消费该聚合结果而不直连业务模块。",
+        "补充测试覆盖空数据与局部降级。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-TODO-LIST-001",
+      "title": "补门户待办列表卡片分页查询",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "pending",
+      "dependsOn": [
+        "PORTAL-OFFICE-READ-001",
+        "WF-TODO-COPIED-001"
+      ],
+      "goal": "在 aggregation-api 暴露可直接供办公中心消费的待办列表卡片查询，聚合 pending/completed/copied 三类最小视图。",
+      "scope": "优先实现分页读取和最小筛选；不扩展写动作。",
+      "whyNow": "办公中心骨架落地后，待办区域最先需要从计数卡片推进到真实列表。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "docs/implementation/portal-aggregation-read-model.md"
+      ],
+      "acceptanceCriteria": [
+        "新增待办列表分页查询接口和 DTO。",
+        "可选择 pending/completed/copied 最小视图。",
+        "保持聚合层不越权写入 todo-center 主数据。",
+        "补充测试覆盖分页与空结果。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MESSAGE-LIST-001",
+      "title": "补门户消息列表卡片分页查询",
+      "domain": "04-门户与工作台",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P1",
+      "status": "ready",
+      "dependsOn": [
+        "PORTAL-OFFICE-READ-001",
+        "MSG-BULK-READ-001",
+        "MSG-REMINDER-001"
+      ],
+      "goal": "在 aggregation-api 补消息列表分页和未读摘要刷新入口，让办公中心能通过聚合层拿到列表加动作后的刷新结果。",
+      "scope": "优先实现消息列表分页、未读摘要和最小筛选；不扩外部推送。",
+      "whyNow": "消息中心已有 created/read/overdue 主链路后，办公中心才值得接真实的消息列表卡片。",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "docs/implementation/portal-aggregation-read-model.md"
+      ],
+      "acceptanceCriteria": [
+        "新增消息列表分页查询接口和 DTO。",
+        "列表可反映 read/bulk-read/reminder 后的最新未读状态。",
+        "不在聚合层持有消息真相源，只读消费 message-center。",
+        "补充测试覆盖分页、空结果和未读摘要刷新。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "ORG-REFRESH-002",
+      "title": "稳定 identity-context refresh 结果语义",
+      "domain": "01-组织与权限",
+      "module": "HJO2OA-OrgPerm/HJO2OA-IdentityContext",
+      "priority": "P2",
+      "status": "pending",
+      "dependsOn": [
+        "ORG-CORE-001"
+      ],
+      "goal": "为 identity-context 的 refresh 结果补稳定语义，明确区分已恢复、回退主岗和必须重新登录三类结果，避免下游靠异常猜测状态。",
+      "scope": "优先改 application/domain 结果模型和测试；暂不接真实登录体系。",
+      "whyNow": "后续门户与移动端会更依赖 refresh 结果做用户态恢复，这条契约需要在更复杂场景前先稳定下来。",
+      "paths": [
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/main/java",
+        "docs/contracts/identity-context-protocol.md"
+      ],
+      "acceptanceCriteria": [
+        "refresh 返回结果能表达恢复成功、回退主岗和必须重新登录。",
+        "不依赖异常文本让下游判断会话状态。",
+        "保持现有事件发布边界不被破坏。",
+        "补充测试覆盖三类 refresh 结果。"
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test"
+      ]
+    }
+  ]
+}
