@@ -34,7 +34,7 @@ public record DictionaryType(
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
         items = sortItems(items == null ? List.of() : items);
-        validateItems(items);
+        validateItems(id, hierarchical, items);
     }
 
     public static DictionaryType create(
@@ -224,11 +224,11 @@ public record DictionaryType(
         }
     }
 
-    private void validateItems(List<DictionaryItem> validatedItems) {
+    private static void validateItems(UUID dictionaryTypeId, boolean hierarchical, List<DictionaryItem> validatedItems) {
         Map<UUID, DictionaryItem> itemsById = new HashMap<>();
         Set<String> itemCodes = new HashSet<>();
         for (DictionaryItem item : validatedItems) {
-            if (!id.equals(item.dictionaryTypeId())) {
+            if (!dictionaryTypeId.equals(item.dictionaryTypeId())) {
                 throw new IllegalArgumentException("Dictionary item does not belong to dictionary type");
             }
             if (!itemCodes.add(item.itemCode())) {
@@ -251,7 +251,7 @@ public record DictionaryType(
         }
     }
 
-    private void ensureAcyclic(UUID itemId, Map<UUID, DictionaryItem> itemsById) {
+    private static void ensureAcyclic(UUID itemId, Map<UUID, DictionaryItem> itemsById) {
         Set<UUID> visited = new HashSet<>();
         UUID currentItemId = itemId;
         while (currentItemId != null) {
