@@ -18,7 +18,6 @@ import com.hjo2oa.infra.config.domain.ResolvedValueSourceType;
 import com.hjo2oa.shared.kernel.BizException;
 import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
 import com.hjo2oa.shared.messaging.DomainEventPublisher;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -462,7 +461,7 @@ public class ConfigEntryApplicationService {
         if (percentage < 0 || percentage > 100) {
             return null;
         }
-        int bucket = Math.floorMod((subject + ":" + salt).getBytes(StandardCharsets.UTF_8).hashCode(), 100);
+        int bucket = Math.floorMod((subject + ":" + salt).hashCode(), 100);
         if (bucket >= percentage) {
             return null;
         }
@@ -482,8 +481,11 @@ public class ConfigEntryApplicationService {
         if (enabled != null) {
             return enabled;
         }
-        String value = readText(jsonNode, "value");
-        return value == null ? defaultValue : value;
+        JsonNode valueNode = jsonNode.get("value");
+        if (valueNode == null || valueNode.isNull()) {
+            return defaultValue;
+        }
+        return valueNode.isValueNode() ? valueNode.asText() : valueNode.toString();
     }
 
     private JsonNode tryReadJson(String rawValue) {

@@ -264,7 +264,8 @@ public record ConfigEntry(
                     return configOverride;
                 })
                 .sorted(Comparator
-                        .comparingInt(configOverride -> OVERRIDE_PRECEDENCE.indexOf(configOverride.scopeType()))
+                        .comparingInt((ConfigOverride configOverride) ->
+                                OVERRIDE_PRECEDENCE.indexOf(configOverride.scopeType()))
                         .thenComparing(ConfigOverride::scopeId))
                 .toList();
     }
@@ -285,29 +286,19 @@ public record ConfigEntry(
     }
 
     private static List<ConfigOverride> appendOverride(List<ConfigOverride> currentOverrides, ConfigOverride configOverride) {
-        return currentOverrides.stream()
-                .collect(java.util.stream.Collectors.collectingAndThen(
-                        java.util.stream.Collectors.toCollection(java.util.ArrayList::new),
-                        items -> {
-                            items.add(configOverride);
-                            items.sort(Comparator
-                                    .comparingInt(item -> OVERRIDE_PRECEDENCE.indexOf(item.scopeType()))
-                                    .thenComparing(ConfigOverride::scopeId));
-                            return List.copyOf(items);
-                        }
-                ));
+        java.util.ArrayList<ConfigOverride> items = new java.util.ArrayList<>(currentOverrides);
+        items.add(configOverride);
+        items.sort(Comparator
+                .comparingInt((ConfigOverride item) -> OVERRIDE_PRECEDENCE.indexOf(item.scopeType()))
+                .thenComparing(ConfigOverride::scopeId));
+        return List.copyOf(items);
     }
 
     private static List<FeatureRule> appendFeatureRule(List<FeatureRule> currentRules, FeatureRule featureRule) {
-        return currentRules.stream()
-                .collect(java.util.stream.Collectors.collectingAndThen(
-                        java.util.stream.Collectors.toCollection(java.util.ArrayList::new),
-                        items -> {
-                            items.add(featureRule);
-                            items.sort(Comparator.comparingInt(FeatureRule::sortOrder).thenComparing(FeatureRule::id));
-                            return List.copyOf(items);
-                        }
-                ));
+        java.util.ArrayList<FeatureRule> items = new java.util.ArrayList<>(currentRules);
+        items.add(featureRule);
+        items.sort(Comparator.comparingInt(FeatureRule::sortOrder).thenComparing(FeatureRule::id));
+        return List.copyOf(items);
     }
 
     private static String requireText(String value, String fieldName, int maxLength) {
