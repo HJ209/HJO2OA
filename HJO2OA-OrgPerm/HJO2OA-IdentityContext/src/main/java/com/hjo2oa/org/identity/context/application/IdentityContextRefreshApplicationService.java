@@ -44,11 +44,13 @@ public class IdentityContextRefreshApplicationService {
                 ? command.permissionSnapshotVersion()
                 : session.permissionSnapshotVersion() + 1;
 
+        RefreshIdentityContextOutcome outcome = RefreshIdentityContextOutcome.RELOGIN_REQUIRED;
         IdentityContextView currentContext = null;
         if (!command.forceLogout()) {
-            IdentityContextSession refreshedSession = refreshSession(session, command, nextVersion, occurredAt);
-            sessionRepository.save(refreshedSession);
-            currentContext = refreshedSession.currentContext();
+            RefreshSessionDecision decision = refreshSession(session, command, nextVersion, occurredAt);
+            sessionRepository.save(decision.session());
+            outcome = decision.outcome();
+            currentContext = decision.session().currentContext();
         }
 
         IdentityContextInvalidatedEvent event = new IdentityContextInvalidatedEvent(
@@ -73,11 +75,12 @@ public class IdentityContextRefreshApplicationService {
                 event.fallbackAssignmentId(),
                 event.forceLogout(),
                 event.permissionSnapshotVersion(),
+                outcome,
                 currentContext
         );
     }
 
-    private IdentityContextSession refreshSession(
+    private RefreshSessionDecision refreshSession(
             IdentityContextSession session,
             RefreshIdentityContextCommand command,
             long nextVersion,
@@ -88,7 +91,15 @@ public class IdentityContextRefreshApplicationService {
                     .filter(IdentityAssignment::active)
                     .orElse(null);
             if (fallbackAssignment != null) {
-                return session.withCurrentAssignment(fallbackAssignment.assignmentId(), nextVersion, occurredAt);
+                IdentityContextSession refreshedSession = session.withCurrentAssignment(
+                        fallbackAssignment.assignmentId(),
+                        nextVersion,
+                        occurredAt
+                );
+                RefreshIdentityContextOutcome outcome = fallbackAssignment.isPrimary()
+                        ? RefreshIdentityContextOutcome.FALLBACK_TO_PRIMARY
+                        : RefreshIdentityContextOutcome.RECOVERED;
+                return new RefreshSessionDecision(refreshedSession, outcome);
             }
         }
 
@@ -97,10 +108,22 @@ public class IdentityContextRefreshApplicationService {
                     .filter(IdentityAssignment::active)
                     .orElse(null);
             if (primaryAssignment != null && !primaryAssignment.assignmentId().equals(command.invalidatedAssignmentId())) {
-                return session.withCurrentAssignment(primaryAssignment.assignmentId(), nextVersion, occurredAt);
+                return new RefreshSessionDecision(
+                        session.withCurrentAssignment(primaryAssignment.assignmentId(), nextVersion, occurredAt),
+                        RefreshIdentityContextOutcome.FALLBACK_TO_PRIMARY
+                );
             }
         }
 
-        return session.withPermissionSnapshotVersion(nextVersion, occurredAt);
+        return new RefreshSessionDecision(
+                session.withPermissionSnapshotVersion(nextVersion, occurredAt),
+                RefreshIdentityContextOutcome.RECOVERED
+        );
+    }
+
+    private record RefreshSessionDecision(
+            IdentityContextSession session,
+            RefreshIdentityContextOutcome outcome
+    ) {
     }
 }

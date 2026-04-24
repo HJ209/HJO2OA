@@ -10,6 +10,8 @@ import com.hjo2oa.org.identity.context.application.IdentityContextRefreshApplica
 import com.hjo2oa.org.identity.context.application.IdentityContextSwitchApplicationService;
 import com.hjo2oa.org.identity.context.domain.IdentityContextSessionRepository;
 import com.hjo2oa.org.identity.context.infrastructure.InMemoryIdentityContextSessionRepository;
+import com.hjo2oa.shared.web.ResponseMetaFactory;
+import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,11 +39,12 @@ class IdentityContextControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.outcome").value("RECOVERED"))
-                .andExpect(jsonPath("$.forceLogout").value(false))
-                .andExpect(jsonPath("$.currentContext.currentAssignmentId").value("assignment-2"))
-                .andExpect(jsonPath("$.currentContext.currentPositionId").value("position-2"))
-                .andExpect(jsonPath("$.currentContext.permissionSnapshotVersion").value(42));
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.outcome").value("RECOVERED"))
+                .andExpect(jsonPath("$.data.forceLogout").value(false))
+                .andExpect(jsonPath("$.data.currentContext.currentAssignmentId").value("assignment-2"))
+                .andExpect(jsonPath("$.data.currentContext.currentPositionId").value("position-2"))
+                .andExpect(jsonPath("$.data.currentContext.permissionSnapshotVersion").value(42));
     }
 
     @Test
@@ -67,9 +70,10 @@ class IdentityContextControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.outcome").value("FALLBACK_TO_PRIMARY"))
-                .andExpect(jsonPath("$.currentContext.currentAssignmentId").value("assignment-1"))
-                .andExpect(jsonPath("$.currentContext.currentPositionId").value("position-1"));
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.outcome").value("FALLBACK_TO_PRIMARY"))
+                .andExpect(jsonPath("$.data.currentContext.currentAssignmentId").value("assignment-1"))
+                .andExpect(jsonPath("$.data.currentContext.currentPositionId").value("position-1"));
     }
 
     @Test
@@ -91,9 +95,10 @@ class IdentityContextControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.outcome").value("RELOGIN_REQUIRED"))
-                .andExpect(jsonPath("$.forceLogout").value(true))
-                .andExpect(jsonPath("$.currentContext").value(nullValue()));
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.outcome").value("RELOGIN_REQUIRED"))
+                .andExpect(jsonPath("$.data.forceLogout").value(true))
+                .andExpect(jsonPath("$.data.currentContext").value(nullValue()));
     }
 
     @Test
@@ -114,19 +119,25 @@ class IdentityContextControllerTest {
                                   "triggerEvent": "org.position.disabled"
                                 }
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     private static MockMvc mockMvc(IdentityContextSessionRepository sessionRepository) {
+        ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
         IdentityContextController controller = new IdentityContextController(
                 new IdentityContextQueryApplicationService(sessionRepository),
                 new IdentityContextSwitchApplicationService(sessionRepository, event -> {
                 }),
                 new IdentityContextRefreshApplicationService(event -> {
-                }, sessionRepository)
+                }, sessionRepository),
+                responseMetaFactory
         );
         return MockMvcBuilders.standaloneSetup(controller)
-                .setControllerAdvice(new IdentityContextExceptionHandler())
+                .setControllerAdvice(
+                        new IdentityContextExceptionHandler(responseMetaFactory),
+                        new SharedGlobalExceptionHandler(responseMetaFactory)
+                )
                 .build();
     }
 }
