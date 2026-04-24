@@ -217,7 +217,7 @@ com.hjo2oa.<module>.<submodule>
 
 - `infrastructure/`
   - MyBatis Mapper / Repository 实现
-  - Redis / RabbitMQ / MinIO / PostgreSQL 适配
+  - Redis / RabbitMQ / MinIO / SQL Server 适配
   - 外部服务客户端
   - Outbox、审计、缓存、第三方渠道实现
 
@@ -423,7 +423,7 @@ com.hjo2oa.shared.testing
 
 M0 必须至少打通以下接入：
 
-### 8.1 PostgreSQL
+### 8.1 SQL Server
 
 - 主业务数据库
 - 多租户字段注入

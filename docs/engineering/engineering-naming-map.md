@@ -26,6 +26,7 @@
   5. `docs/contracts/identity-context-protocol.md`
   6. 各模块 `docs/module-design.md` / `docs/domain-model.md`
   7. `docs/implementation/phase-1-implementation-slice.md`
+  8. `.windsurf/rules/project-conventions.md` / `.windsurf/rules/backend-rules.md` / `.windsurf/rules/frontend-rules.md`（可执行开发规则，与上位文档冲突时以上位文档为准）
 
  ## 3. 统一命名规则
 

@@ -25,7 +25,8 @@
 - `implementation/`
   - 一期实施切片、最终一致性、读模型与分层设计
 - `engineering/`
-  - 工程命名总表、M0 工程骨架方案
+  - 工程命名总表、M0 工程骨架方案、自动化开发分析
+  - 前后端开发规范已迁移至 `.windsurf/rules/`（Windsurf IDE 规则，含通用约定 + 后端 + 前端三文件）
 
 ## 命名规则
 
@@ -64,6 +65,9 @@
 - `engineering/m0-project-skeleton-plan.md`
 - `engineering/design-document-roadmap.md`
 - `engineering/automated-development-analysis.md`
+- `.windsurf/rules/project-conventions.md`（项目通用约定，always_on）
+- `.windsurf/rules/backend-rules.md`（后端开发规范，glob: **/*.java）
+- `.windsurf/rules/frontend-rules.md`（前端开发规范，glob: frontend/**/*.{ts,tsx}）
 
 ## 模块级导航
 

@@ -1,6 +1,6 @@
 # 自动化开发分析
 
-快照日期：`2026-04-19`
+快照日期：`2026-04-22`
 
 ## 1. 结论摘要
 
@@ -82,7 +82,7 @@
 
 - 需要完整主数据体系支撑的复杂写模型
 - 涉及多个业务域同时落地的大功能
-- 需要真实 PostgreSQL / Redis / RabbitMQ / MinIO 联调才能完成的端到端方案
+- 需要真实 SQL Server / Redis / RabbitMQ / MinIO 联调才能完成的端到端方案
 - 门户设计器、内容管理、协同办公应用等大体量二期或三期能力
 
 ## 4. 推荐主线
@@ -194,3 +194,28 @@ mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test
 HJO2OA 当前最适合的自动化开发策略不是“全面铺开”，而是按 **共享横切层 -> 身份上下文 -> 待办投影 -> 门户聚合 / 消息触达** 的顺序渐进推进。
 
 只要沿着这个顺序执行，既能持续把文档收敛成果转化为代码，又不会过早落入跨模块耦合和基础设施联调泥潭。
+
+## 9. 最新进展与下一轮任务
+
+截至 `2026-04-22`，portal 这一轮已确认完成并通过关键验证的 backlog 包括：
+
+- `PORTAL-MODEL-DRAFT-VERSIONING-001`：portal-model 草稿/已发布版本边界、并发保存校验与已发布只读约束已经稳定。
+- `PORTAL-DESIGNER-PUBLICATION-LIST-001`：designer 侧发布清单查询已经闭环，管理页不再需要直连 portal-model 拼装发布数据。
+- `PORTAL-IDENTITY-CONTEXT-CONSISTENCY-001`：preview、publication 与 portal-home 的 identity-context 口径与回退优先级已经收敛。
+- `PORTAL-MODEL-WIDGET-REFERENCE-ENFORCEMENT-001`：portal-model 已把挂件引用状态投影收紧到 draft save / publish 写路径。
+- `PORTAL-MODEL-PUBLICATION-AUDIENCE-001`：publication audience 元数据与 identity-aware 匹配逻辑已经成为稳定 source truth。
+- `PORTAL-RUNTIME-AUDIENCE-CONSUMER-001`：runtime 侧也已切换到消费 publication audience source truth，`personalization` 的 base publication 绑定与 `portal-home` 的运行态页面装配不再默认按租户级唯一发布处理。
+- `PORTAL-HOME-PERSONALIZATION-OVERLAY-001`：live portal-home 装配已经开始实际应用 personalization overlay，`widgetOrderOverride` 与 `hiddenPlacementCodes` 不再只是存储态偏好，而会改变最终运行态页面的顺序与显隐，并已完成对应回退语义覆盖。
+- `PORTAL-DESIGNER-PREVIEW-OVERLAY-CONSISTENCY-001`：designer preview 已完成对 live personalization overlay 语义的对齐，preview 侧排序与隐藏规则不再与运行态漂移，并且已经显式说明 preview 是否应用 overlay。
+
+这意味着 portal backlog 在 `2026-04-22` 已经进一步完成了“source audience -> runtime consumer -> live overlay application -> preview overlay consistency”的这一轮收口。接下来的重点不再是 preview/live 是否继续对齐，而是把 **personalization overlay 的 save-time validation** 前移为下一项 ready，避免非法或过期的 overlay 引用在保存阶段继续进入运行态。
+
+同时，上一项已完成回写为：
+
+- `PORTAL-DESIGNER-PREVIEW-OVERLAY-CONSISTENCY-001`：`done`。preview consistency 已完成，designer preview 与 live portal-home 在 overlay 排序、隐藏和应用标记上的语义已完成收敛。
+
+因此，下一项应推进的 ready backlog 调整为：
+
+- `PORTAL-PERSONALIZATION-OVERLAY-VALIDATION-001`：`ready`。下一轮聚焦 save-time 校验，专门处理非法 placement code、必保留卡片隐藏和跨发布错配等保存边界，把 overlay 结构性错误前移到保存入口暴露。
+
+这样整理后，`powershell -ExecutionPolicy Bypass -File tools\Invoke-AutoDev.ps1 -Command next` 应优先返回 save-validation；它保持了“runtime audience 已完成，live overlay 已完成，preview consistency 已完成，save-time validation 进入下一轮 ready”的顺序。

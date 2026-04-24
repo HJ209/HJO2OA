@@ -16,16 +16,27 @@
 
 ## 3. 推荐前端技术栈
 
-- Vue 3
+> 当前工程基线与可执行开发规则见 `.windsurf/rules/project-conventions.md` 和 `.windsurf/rules/frontend-rules.md`。
+
+### 3.1 当前工程基线（已集成）
+
+- React 18
 - TypeScript
 - Vite
-- Vue Router
-- Pinia
-- Axios 或同类请求封装方案
-- Element Plus、Naive UI 或企业内部设计系统
+- react-router-dom
+- Vitest + Testing Library
+- lucide-react（图标）
+- ESLint 9 + Prettier + Stylelint
+- npm workspaces（包管理）
+
+### 3.2 目标架构选型（后续按需引入）
+
+- 全局状态管理：待项目出现跨页面/跨区域状态需求时统一收敛，引入前必须确认项目已有统一方案，禁止并行引入多套状态管理库
+- 请求封装：统一通过 `services/` 层封装，具体 HTTP 库选型待业务增长后收敛
+- UI 组件库：待业务页面达到一定规模后统一选型，现阶段优先使用项目内可维护的 CSS 方案，禁止同时混用多套风格体系
 - ECharts 用于统计与图表展示
-- VueUse 等基础工具库
-- UnoCSS 或 TailwindCSS，用于提升样式组织效率
+- ahooks、TanStack Query 等基础工具库按需引入
+- UnoCSS 或 TailwindCSS 待设计系统明确后评估
 - PWA 能力用于移动办公增强
 
 ## 4. 前端应用形态
@@ -354,7 +365,7 @@
 
 - 全量 TypeScript 化
 - ESLint、Prettier、Stylelint 统一规范
-- 组件、页面、store、api、types、composables 目录职责清晰
+- 组件、页面、state、api、types、hooks 目录职责清晰
 - 严格禁止跨层级随意引用
 - 公共类型定义集中管理
 - 环境变量、接口地址、功能开关统一管理

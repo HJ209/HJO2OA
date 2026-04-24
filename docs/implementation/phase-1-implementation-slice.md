@@ -66,12 +66,15 @@
 
 ### M0：工程骨架与基础设施（2 周）
 
-- 模块化单体工程骨架搭建（Spring Boot 3.3.x + Java 17）
-- MyBatis Plus 多租户拦截器、审计字段填充、乐观锁插件
-- RabbitMQ + Outbox 事件总线框架
-- Redis 缓存与幂等键管理
+- 模块化单体工程骨架搭建（Spring Boot 3.3.6 + Java 17）
+- MyBatis-Plus 多租户拦截器、审计字段填充、乐观锁插件
+- Flyway 数据库迁移管理
+- springdoc OpenAPI 接口文档暴露
+- Checkstyle + JaCoCo + ArchUnit 质量门禁
 - 统一异常处理与错误码体系
-- 统一接口契约落地（请求头、响应体、分页、幂等）
+- 统一接口契约落地（请求头、响应体、分页、幂等、@UseSharedWebContract）
+- 事件总线框架（当前基于 Spring ApplicationEvent，后续按需迁移 RabbitMQ）
+- 缓存与幂等键管理（当前基于本地实现，后续按需迁移 Redis）
 
 ### M1：组织与权限闭环（3 周）
 
@@ -128,10 +131,11 @@
 ## 5. 一期技术约束
 
 - 模块化单体部署，不拆微服务
-- 工程基线统一使用 Spring Boot 3.3.x、Java 17、Maven 3.9+、UTF-8 与 `-parameters` 编译参数
+- 工程基线统一使用 Spring Boot 3.3.6、Java 17、Maven 3.9+、UTF-8 与 `-parameters` 编译参数
+- 数据库迁移统一使用 Flyway，禁止 ddl-auto 或手工改库
 - `HJO2OA-Bootstrap` 默认装配一期最小闭环子模块；一期后置与二期预留模块通过 Maven Profile 显式接入
-- 搜索使用 PostgreSQL 全文检索（pg_jieba），不引入 Elasticsearch
-- 流程引擎使用 Flowable 社区版，按 ADR-006 策略自主封装领域模型
-- ORM 使用 MyBatis Plus，多租户拦截器自动注入 tenantId
-- MQ 使用 RabbitMQ，事件总线基于 Spring AMQP 封装
-- 对象存储使用 MinIO 或兼容 S3 的服务
+- 搜索使用 SQL Server Full-Text Search，不引入 Elasticsearch
+- 流程引擎使用 Flowable 社区版，按 ADR-006 策略自主封装领域模型（后续按需集成）
+- ORM 使用 MyBatis-Plus，多租户拦截器自动注入 tenantId
+- MQ 目标使用 RabbitMQ，事件总线当前基于 Spring ApplicationEvent，后续按需迁移 Spring AMQP
+- 对象存储目标使用 MinIO 或兼容 S3 的服务（后续按需集成）

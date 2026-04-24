@@ -29,16 +29,27 @@
 ### 3.2 确定技术栈
 
 > 以下选型已通过 ADR 正式收敛，详见 `docs/decisions/adr-key-technology-selection.md`。
+> 当前工程基线与可执行开发规则见 `.windsurf/rules/project-conventions.md` 和 `.windsurf/rules/backend-rules.md`。
 
-- Java 17（当前工程骨架基线，后续如需升级应通过 ADR 单独收敛）
-- Spring Boot 3.x
+#### 当前工程基线（已集成）
+
+- Java 17
+- Spring Boot 3.3.6
 - Spring Security
-- MyBatis Plus（ADR-002）
-- PostgreSQL 作为主数据库（ADR-004 一期全文检索亦基于 PG）
+- MyBatis-Plus（ADR-002）
+- MapStruct（对象映射）
+- Lombok（辅助）
+- SQL Server 2017 作为主数据库（ADR-004 一期全文检索亦基于 SQL Server）
+- Flyway（数据库迁移，migration 统一放 `db/migration/sqlserver/`）
+- springdoc OpenAPI（接口文档暴露）
+- Checkstyle + JaCoCo + ArchUnit（质量门禁）
+
+#### 目标架构选型（后续按需集成）
+
 - Redis 作为缓存、会话、幂等、限流与临时状态存储
 - RabbitMQ 作为异步消息总线（ADR-003）
 - MinIO 或兼容 S3 的对象存储作为附件中心
-- 一期 PostgreSQL 全文检索，二期按需引入 Elasticsearch（ADR-004）
+- 一期基于 SQL Server Full-Text Search，二期按需引入 Elasticsearch（ADR-004）
 - Flowable 社区版作为流程引擎（ADR-001，使用方式受 ADR-006 约束）
 - Quartz 或 XXL-Job 作为任务调度能力
 - Docker + CI/CD 作为标准交付方式

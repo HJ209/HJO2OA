@@ -8,7 +8,7 @@
 
 - 采用 **模块化单体 + 独立基础设施服务** 的一期形态
 - 采用 **参考设计、自主实现** 的分析与落地策略
-- 工程骨架当前以 **Java 17 / Spring Boot 3.3.x / Maven 3.9+** 为真实基线
+- 工程骨架当前以 **Java 17 / Spring Boot 3.3.6 / Maven 3.9+** 为真实基线
 - 模块命名、目录命名和工程命名遵循当前 `HJO2OA-*` 约定
 
 ## 2. 当前文档现状盘点
@@ -80,8 +80,9 @@
 
 持续检查以下口径：
 
-- 工程基线：Java 17、Spring Boot 3.3.x、Maven 3.9+
-- 基础设施：PostgreSQL、Redis、RabbitMQ、MinIO / S3 兼容对象存储
+- 工程基线：Java 17、Spring Boot 3.3.6、Maven 3.9+、Flyway、MapStruct、springdoc OpenAPI、Checkstyle + JaCoCo + ArchUnit
+- 基础设施（已集成）：SQL Server 2017
+- 基础设施（目标）：Redis、RabbitMQ、MinIO / S3 兼容对象存储
 - 边界口径：
   - `03` 与 `05`
   - `04` 与 `07`
