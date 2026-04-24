@@ -461,5 +461,5 @@ TaskInstance      ──1:1──> TodoItem              (任务 -> 待办项)
 
 ### 8.3 大字段存储建议
 
-- `proc_definition.nodes`、`proc_definition.routes`、`form_metadata.fields`、`form_metadata.layout` 等 JSON 大字段建议使用 JSONB 类型（PostgreSQL）或压缩存储。
+- `proc_definition.nodes`、`proc_definition.routes`、`form_metadata.fields`、`form_metadata.layout` 等 JSON 大字段建议使用 JSON 文本列、`NVARCHAR(MAX)` 或压缩存储。
 - 流程定义和表单元数据的 JSON 数据在发布后不再变更，可考虑归档到独立存储。

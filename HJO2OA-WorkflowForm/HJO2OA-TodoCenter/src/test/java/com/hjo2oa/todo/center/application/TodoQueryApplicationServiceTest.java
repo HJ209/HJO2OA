@@ -1,5 +1,8 @@
 package com.hjo2oa.todo.center.application;
 
+import com.hjo2oa.todo.center.domain.CopiedTodoItem;
+import com.hjo2oa.todo.center.domain.CopiedTodoReadStatus;
+import com.hjo2oa.todo.center.domain.CopiedTodoSummary;
 import com.hjo2oa.todo.center.domain.TodoCounts;
 import com.hjo2oa.todo.center.domain.TodoIdentityContext;
 import com.hjo2oa.todo.center.domain.TodoIdentityContextProvider;
@@ -7,6 +10,7 @@ import com.hjo2oa.todo.center.domain.TodoItem;
 import com.hjo2oa.todo.center.domain.TodoItemRepository;
 import com.hjo2oa.todo.center.domain.TodoItemStatus;
 import com.hjo2oa.todo.center.domain.TodoItemSummary;
+import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
 import java.time.Instant;
 import java.util.List;
@@ -78,7 +82,11 @@ class TodoQueryApplicationServiceTest {
                 "position-1"
         );
 
-        TodoQueryApplicationService service = new TodoQueryApplicationService(repository, identityContextProvider);
+        TodoQueryApplicationService service = new TodoQueryApplicationService(
+                repository,
+                new InMemoryCopiedTodoRepository(),
+                identityContextProvider
+        );
 
         List<TodoItemSummary> pendingTodos = service.pendingTodos();
         List<TodoItemSummary> completedTodos = service.completedTodos();
@@ -140,7 +148,11 @@ class TodoQueryApplicationServiceTest {
                 "position-1"
         );
 
-        TodoQueryApplicationService service = new TodoQueryApplicationService(repository, identityContextProvider);
+        TodoQueryApplicationService service = new TodoQueryApplicationService(
+                repository,
+                new InMemoryCopiedTodoRepository(),
+                identityContextProvider
+        );
 
         List<TodoItemSummary> completedTodos = service.completedTodos();
 
@@ -211,7 +223,11 @@ class TodoQueryApplicationServiceTest {
                 "position-1"
         );
 
-        TodoQueryApplicationService service = new TodoQueryApplicationService(repository, identityContextProvider);
+        TodoQueryApplicationService service = new TodoQueryApplicationService(
+                repository,
+                new InMemoryCopiedTodoRepository(),
+                identityContextProvider
+        );
 
         List<TodoItemSummary> overdueTodos = service.overdueTodos();
         TodoCounts counts = service.counts();
@@ -220,5 +236,70 @@ class TodoQueryApplicationServiceTest {
         assertEquals("todo-2", overdueTodos.get(0).todoId());
         assertEquals("todo-1", overdueTodos.get(1).todoId());
         assertEquals(2L, counts.overdueCount());
+    }
+
+    @Test
+    void shouldReturnCopiedTodosFilteredByReadStatusAndExposeUnreadCount() {
+        TodoItemRepository repository = new InMemoryTodoItemRepository();
+        InMemoryCopiedTodoRepository copiedTodoRepository = new InMemoryCopiedTodoRepository();
+        copiedTodoRepository.save(CopiedTodoItem.unread(
+                "copied-1",
+                "task-1",
+                "instance-1",
+                "assignment-1",
+                "APPROVAL",
+                "EXPENSE",
+                "Newest copied todo",
+                "HIGH",
+                Instant.parse("2026-04-19T11:00:00Z")
+        ));
+        copiedTodoRepository.save(CopiedTodoItem.unread(
+                "copied-3",
+                "task-3",
+                "instance-3",
+                "assignment-2",
+                "APPROVAL",
+                "PROCUREMENT",
+                "Invisible copied todo",
+                "NORMAL",
+                Instant.parse("2026-04-19T10:30:00Z")
+        ));
+        copiedTodoRepository.save(CopiedTodoItem.unread(
+                "copied-2",
+                "task-2",
+                "instance-2",
+                "assignment-1",
+                "APPROVAL",
+                "PROCUREMENT",
+                "Older copied todo",
+                "NORMAL",
+                Instant.parse("2026-04-19T10:00:00Z")
+        ).markRead(Instant.parse("2026-04-19T10:15:00Z")));
+
+        TodoIdentityContextProvider identityContextProvider = () -> new TodoIdentityContext(
+                "tenant-1",
+                "person-1",
+                "assignment-1",
+                "position-1"
+        );
+        TodoQueryApplicationService service = new TodoQueryApplicationService(
+                repository,
+                copiedTodoRepository,
+                identityContextProvider
+        );
+
+        List<CopiedTodoSummary> copiedTodos = service.copiedTodos(null);
+        List<CopiedTodoSummary> unreadCopiedTodos = service.copiedTodos(CopiedTodoReadStatus.UNREAD);
+        List<CopiedTodoSummary> readCopiedTodos = service.copiedTodos(CopiedTodoReadStatus.READ);
+        TodoCounts counts = service.counts();
+
+        assertEquals(2, copiedTodos.size());
+        assertEquals("copied-1", copiedTodos.get(0).todoId());
+        assertEquals("copied-2", copiedTodos.get(1).todoId());
+        assertEquals(1, unreadCopiedTodos.size());
+        assertEquals("copied-1", unreadCopiedTodos.get(0).todoId());
+        assertEquals(1, readCopiedTodos.size());
+        assertEquals("copied-2", readCopiedTodos.get(0).todoId());
+        assertEquals(1L, counts.copiedUnreadCount());
     }
 }

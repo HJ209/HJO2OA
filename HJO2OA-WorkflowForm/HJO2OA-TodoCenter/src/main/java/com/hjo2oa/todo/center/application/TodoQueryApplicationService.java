@@ -1,5 +1,8 @@
 package com.hjo2oa.todo.center.application;
 
+import com.hjo2oa.todo.center.domain.CopiedTodoReadStatus;
+import com.hjo2oa.todo.center.domain.CopiedTodoRepository;
+import com.hjo2oa.todo.center.domain.CopiedTodoSummary;
 import com.hjo2oa.todo.center.domain.TodoCounts;
 import com.hjo2oa.todo.center.domain.TodoIdentityContext;
 import com.hjo2oa.todo.center.domain.TodoIdentityContextProvider;
@@ -23,15 +26,21 @@ public class TodoQueryApplicationService {
             Comparator.comparing(TodoItemSummary::overdueAt, Comparator.nullsLast(Comparator.reverseOrder()))
                     .thenComparing(TodoItemSummary::dueTime, Comparator.nullsLast(Comparator.naturalOrder()))
                     .thenComparing(TodoItemSummary::updatedAt, Comparator.reverseOrder());
+    private static final Comparator<CopiedTodoSummary> COPIED_ORDER =
+            Comparator.comparing(CopiedTodoSummary::createdAt, Comparator.reverseOrder())
+                    .thenComparing(CopiedTodoSummary::updatedAt, Comparator.reverseOrder());
 
     private final TodoItemRepository todoItemRepository;
+    private final CopiedTodoRepository copiedTodoRepository;
     private final TodoIdentityContextProvider identityContextProvider;
 
     public TodoQueryApplicationService(
             TodoItemRepository todoItemRepository,
+            CopiedTodoRepository copiedTodoRepository,
             TodoIdentityContextProvider identityContextProvider
     ) {
         this.todoItemRepository = todoItemRepository;
+        this.copiedTodoRepository = copiedTodoRepository;
         this.identityContextProvider = identityContextProvider;
     }
 
@@ -63,17 +72,27 @@ public class TodoQueryApplicationService {
                 .toList();
     }
 
+    public List<CopiedTodoSummary> copiedTodos(CopiedTodoReadStatus readStatus) {
+        TodoIdentityContext identityContext = identityContextProvider.currentContext();
+        return copiedTodoRepository.findByRecipientAssignmentId(identityContext.assignmentId()).stream()
+                .map(CopiedTodoSummary::from)
+                .filter(summary -> readStatus == null || summary.readStatus() == readStatus)
+                .sorted(COPIED_ORDER)
+                .toList();
+    }
+
     public TodoCounts counts() {
         TodoIdentityContext identityContext = identityContextProvider.currentContext();
         long pendingCount = todoItemRepository.countByAssigneeIdAndStatus(identityContext.assignmentId(), TodoItemStatus.PENDING);
         long completedCount = todoItemRepository.countByAssigneeIdAndStatus(identityContext.assignmentId(), TodoItemStatus.COMPLETED);
         long overdueCount = overdueTodos().size();
+        long copiedUnreadCount = copiedTodoRepository.countUnreadByRecipientAssignmentId(identityContext.assignmentId());
         return new TodoCounts(
                 pendingCount,
                 completedCount,
                 overdueCount,
                 0,
-                0,
+                copiedUnreadCount,
                 0,
                 0
         );
