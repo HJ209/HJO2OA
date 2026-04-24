@@ -3,7 +3,6 @@ package com.hjo2oa.msg.message.center.infrastructure;
 import com.hjo2oa.msg.message.center.domain.NotificationDeliveryChannel;
 import com.hjo2oa.msg.message.center.domain.NotificationDeliveryRecord;
 import com.hjo2oa.msg.message.center.domain.NotificationDeliveryRecordRepository;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

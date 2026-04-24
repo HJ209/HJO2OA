@@ -20,6 +20,8 @@ import com.hjo2oa.msg.message.center.domain.NotificationRepository;
 import com.hjo2oa.msg.message.center.infrastructure.InMemoryNotificationActionRepository;
 import com.hjo2oa.msg.message.center.infrastructure.InMemoryNotificationDeliveryRecordRepository;
 import com.hjo2oa.msg.message.center.infrastructure.InMemoryNotificationRepository;
+import com.hjo2oa.shared.web.ResponseMetaFactory;
+import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -89,16 +91,13 @@ class MessageCenterControllerTest {
                 )
                 .markDelivered(CREATED_AT));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MessageCenterController(
-                        queryApplicationService,
-                        actionApplicationService
-                ))
-                .build();
+        MockMvc mockMvc = mockMvc(queryApplicationService, actionApplicationService);
 
         mockMvc.perform(post("/api/v1/msg/messages/notification-1/read"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.notificationId").value("notification-1"))
-                .andExpect(jsonPath("$.inboxStatus").value("READ"));
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.notificationId").value("notification-1"))
+                .andExpect(jsonPath("$.data.inboxStatus").value("READ"));
     }
 
     @Test
@@ -180,11 +179,7 @@ class MessageCenterControllerTest {
                 )
                 .markDelivered(CREATED_AT));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MessageCenterController(
-                        queryApplicationService,
-                        actionApplicationService
-                ))
-                .build();
+        MockMvc mockMvc = mockMvc(queryApplicationService, actionApplicationService);
 
         mockMvc.perform(post("/api/v1/msg/messages/bulk-read")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -192,11 +187,12 @@ class MessageCenterControllerTest {
                                 {"notificationIds":["notification-1","notification-2","missing","notification-1"]}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.requestedCount").value(3))
-                .andExpect(jsonPath("$.readCount").value(1))
-                .andExpect(jsonPath("$.alreadyReadCount").value(1))
-                .andExpect(jsonPath("$.missingCount").value(1))
-                .andExpect(jsonPath("$.missingNotificationIds[0]").value("missing"));
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.requestedCount").value(3))
+                .andExpect(jsonPath("$.data.readCount").value(1))
+                .andExpect(jsonPath("$.data.alreadyReadCount").value(1))
+                .andExpect(jsonPath("$.data.missingCount").value(1))
+                .andExpect(jsonPath("$.data.missingNotificationIds[0]").value("missing"));
     }
 
     @Test
@@ -253,18 +249,15 @@ class MessageCenterControllerTest {
                 )
                 .markDelivered(CREATED_AT));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MessageCenterController(
-                        queryApplicationService,
-                        actionApplicationService
-                ))
-                .build();
+        MockMvc mockMvc = mockMvc(queryApplicationService, actionApplicationService);
 
         mockMvc.perform(get("/api/v1/msg/messages/notification-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.notificationId").value("notification-1"))
-                .andExpect(jsonPath("$.sourceEventType").value("todo.item.created"))
-                .andExpect(jsonPath("$.sourceBusinessId").value("todo-1"))
-                .andExpect(jsonPath("$.readAt").exists());
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.notificationId").value("notification-1"))
+                .andExpect(jsonPath("$.data.sourceEventType").value("todo.item.created"))
+                .andExpect(jsonPath("$.data.sourceBusinessId").value("todo-1"))
+                .andExpect(jsonPath("$.data.readAt").exists());
     }
 
     @Test
@@ -295,16 +288,14 @@ class MessageCenterControllerTest {
                         Clock.fixed(READ_AT, ZoneOffset.UTC)
                 );
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MessageCenterController(
-                        queryApplicationService,
-                        actionApplicationService
-                ))
-                .build();
+        MockMvc mockMvc = mockMvc(queryApplicationService, actionApplicationService);
 
         mockMvc.perform(post("/api/v1/msg/messages/missing/read"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
         mockMvc.perform(get("/api/v1/msg/messages/missing"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
     }
 
     @Test
@@ -338,15 +329,26 @@ class MessageCenterControllerTest {
                 .mapToObj(index -> "\"notification-" + index + "\"")
                 .collect(Collectors.joining(",", "{\"notificationIds\":[", "]}"));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MessageCenterController(
-                        queryApplicationService,
-                        actionApplicationService
-                ))
-                .build();
+        MockMvc mockMvc = mockMvc(queryApplicationService, actionApplicationService);
 
         mockMvc.perform(post("/api/v1/msg/messages/bulk-read")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    private static MockMvc mockMvc(
+            MessageNotificationQueryApplicationService queryApplicationService,
+            MessageNotificationActionApplicationService actionApplicationService
+    ) {
+        ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
+        return MockMvcBuilders.standaloneSetup(new MessageCenterController(
+                        queryApplicationService,
+                        actionApplicationService,
+                        responseMetaFactory
+                ))
+                .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
+                .build();
     }
 }
