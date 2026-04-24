@@ -1,0 +1,7 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "alpha-value-notation": null,
+    "color-function-notation": null
+  }
+}

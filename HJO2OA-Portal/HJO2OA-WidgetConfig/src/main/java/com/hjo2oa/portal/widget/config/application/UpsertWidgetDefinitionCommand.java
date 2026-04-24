@@ -1,0 +1,19 @@
+package com.hjo2oa.portal.widget.config.application;
+
+import com.hjo2oa.portal.widget.config.domain.WidgetCardType;
+import com.hjo2oa.portal.widget.config.domain.WidgetDataSourceType;
+import com.hjo2oa.portal.widget.config.domain.WidgetSceneType;
+
+public record UpsertWidgetDefinitionCommand(
+        String widgetId,
+        String widgetCode,
+        String displayName,
+        WidgetCardType cardType,
+        WidgetSceneType sceneType,
+        String sourceModule,
+        WidgetDataSourceType dataSourceType,
+        boolean allowHide,
+        boolean allowCollapse,
+        int maxItems
+) {
+}

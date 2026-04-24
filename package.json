@@ -1,0 +1,28 @@
+{
+  "name": "hjo2oa-workspace",
+  "private": true,
+  "workspaces": [
+    "frontend/apps/*",
+    "frontend/packages/*"
+  ],
+  "scripts": {
+    "frontend:lint": "npm run lint --workspace @hjo2oa/portal-web",
+    "frontend:stylelint": "npm run stylelint --workspace @hjo2oa/portal-web",
+    "frontend:typecheck": "npm run typecheck --workspace @hjo2oa/portal-web",
+    "frontend:test": "npm run test --workspace @hjo2oa/portal-web",
+    "frontend:build": "npm run build --workspace @hjo2oa/portal-web",
+    "frontend:format:check": "npm run format:check --workspace @hjo2oa/portal-web",
+    "frontend:verify": "npm run frontend:lint && npm run frontend:stylelint && npm run frontend:typecheck && npm run frontend:test && npm run frontend:build && npm run frontend:format:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.13.0",
+    "prettier": "^3.4.2",
+    "stylelint": "^16.12.0",
+    "stylelint-config-standard": "^36.0.1",
+    "typescript-eslint": "^8.18.0"
+  }
+}
