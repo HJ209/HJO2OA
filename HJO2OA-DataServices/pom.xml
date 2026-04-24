@@ -16,6 +16,7 @@
     <name>HJO2OA-DataServices</name>
 
     <modules>
+        <module>HJO2OA-DataCommon</module>
         <module>HJO2OA-OpenApi</module>
         <module>HJO2OA-Connector</module>
         <module>HJO2OA-DataSync</module>

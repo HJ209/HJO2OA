@@ -4,6 +4,7 @@ import com.hjo2oa.data.data.sync.application.SyncExecutionApplicationService;
 import com.hjo2oa.data.data.sync.domain.SyncExchangeTask;
 import com.hjo2oa.data.data.sync.domain.SyncExchangeTaskRepository;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class DataSyncSchedulePoller {
+
+    private static final Duration SCHEDULE_LOOKBACK = Duration.ofMinutes(2);
 
     private final SyncExchangeTaskRepository taskRepository;
     private final SyncExecutionApplicationService executionApplicationService;
@@ -40,9 +43,8 @@ public class DataSyncSchedulePoller {
                     : ZoneId.of(task.scheduleConfig().zoneId());
             ZonedDateTime now = ZonedDateTime.now(clock).withZoneSameInstant(zoneId);
             CronExpression cronExpression = CronExpression.parse(task.scheduleConfig().cron());
-            ZonedDateTime previousWindow = now.minusNanos(1);
-            ZonedDateTime scheduledAt = cronExpression.next(previousWindow);
-            if (scheduledAt == null || scheduledAt.isAfter(now)) {
+            ZonedDateTime scheduledAt = latestScheduledAt(cronExpression, now);
+            if (scheduledAt == null) {
                 continue;
             }
             Map<String, Object> triggerContext = new LinkedHashMap<>();
@@ -55,6 +57,19 @@ public class DataSyncSchedulePoller {
                     "cron:" + task.taskId() + ":" + scheduledAt.toInstant().toEpochMilli(),
                     triggerContext
             );
+        }
+    }
+
+    private ZonedDateTime latestScheduledAt(CronExpression cronExpression, ZonedDateTime now) {
+        ZonedDateTime cursor = now.minus(SCHEDULE_LOOKBACK);
+        ZonedDateTime latest = null;
+        while (true) {
+            ZonedDateTime next = cronExpression.next(cursor);
+            if (next == null || next.isAfter(now)) {
+                return latest;
+            }
+            latest = next;
+            cursor = next;
         }
     }
 }
