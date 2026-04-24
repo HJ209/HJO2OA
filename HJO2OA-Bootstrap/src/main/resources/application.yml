@@ -5,10 +5,16 @@ spring:
   application:
     name: hjo2oa
   datasource:
-    url: jdbc:postgresql://localhost:5432/hjo2oa
-    username: hjo2oa
-    password: hjo2oa
-    driver-class-name: org.postgresql.Driver
+    url: "${HJO2OA_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=hjo2oa;encrypt=true;trustServerCertificate=true}"
+    username: ${HJO2OA_DB_USERNAME:sa}
+    password: ${HJO2OA_DB_PASSWORD:123456}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    default-schema: dbo
+    locations: classpath:db/migration/sqlserver
   data:
     redis:
       host: localhost
@@ -18,6 +24,19 @@ spring:
     port: 5672
     username: guest
     password: guest
+  task:
+    scheduling:
+      pool:
+        size: 4
+      thread-name-prefix: hjo2oa-schedule-
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
 
 mybatis-plus:
   configuration:
@@ -52,3 +71,21 @@ hjo2oa:
     bucket: hjo2oa
   cache:
     type: redis
+  data-services:
+    sync:
+      schedule-poller-interval: 60000
+    report:
+      refresh-cron: "0 0/30 * * * *"
+      refresh-batch-size: 10
+    governance:
+      health-check-cron: "0 0/5 * * * *"
+      alert-dedup-minutes: 30
+      trace-auto-resolve-minutes: 60
+    openapi:
+      auth:
+        signature-algorithm: HmacSHA256
+        clock-skew-seconds: 300
+      quota:
+        default-window-value: 1
+        default-window-unit: HOURS
+        default-threshold: 1000

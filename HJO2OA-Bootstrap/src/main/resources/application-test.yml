@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://test-db:5432/hjo2oa_test
+    url: "jdbc:sqlserver://test-db:1433;databaseName=hjo2oa_test;encrypt=true;trustServerCertificate=true"
   data:
     redis:
       host: test-redis

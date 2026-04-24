@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://prod-db:5432/hjo2oa
+    url: "jdbc:sqlserver://prod-db:1433;databaseName=hjo2oa;encrypt=true;trustServerCertificate=true"
   data:
     redis:
       host: prod-redis

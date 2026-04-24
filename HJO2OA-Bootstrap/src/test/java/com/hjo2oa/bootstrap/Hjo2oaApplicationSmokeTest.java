@@ -17,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
                 "spring.autoconfigure.exclude="
                         + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration,"
+                        + "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,"
                         + "com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration"
@@ -32,10 +33,32 @@ class Hjo2oaApplicationSmokeTest {
     void shouldLoadBootstrapContextWithLocalProfileDefaults() {
         assertThat(environment.getActiveProfiles()).contains("local");
         assertThat(environment.getProperty("spring.datasource.url"))
-                .isEqualTo("jdbc:postgresql://localhost:5432/hjo2oa_local");
+                .isEqualTo("jdbc:sqlserver://localhost:1433;databaseName=hjo2oa_dev;encrypt=true;trustServerCertificate=true");
         assertThat(environment.getProperty("spring.rabbitmq.host")).isEqualTo("localhost");
         assertThat(environment.getProperty("hjo2oa.storage.endpoint"))
                 .isEqualTo("http://localhost:9000");
         assertThat(environment.getProperty("hjo2oa.storage.bucket")).isEqualTo("hjo2oa-local");
+    }
+
+    @Test
+    void shouldLoadDataServicesConfigurationDefaults() {
+        assertThat(environment.getProperty("hjo2oa.data-services.sync.schedule-poller-interval"))
+                .isEqualTo("300000");
+        assertThat(environment.getProperty("hjo2oa.data-services.report.refresh-cron"))
+                .isEqualTo("0 0 * * * *");
+        assertThat(environment.getProperty("hjo2oa.data-services.governance.health-check-cron"))
+                .isEqualTo("0 0/10 * * * *");
+        assertThat(environment.getProperty("hjo2oa.data-services.openapi.auth.signature-algorithm"))
+                .isEqualTo("HmacSHA256");
+        assertThat(environment.getProperty("hjo2oa.data-services.openapi.quota.default-threshold"))
+                .isEqualTo("1000");
+    }
+
+    @Test
+    void shouldConfigureSchedulingThreadPool() {
+        assertThat(environment.getProperty("spring.task.scheduling.pool.size"))
+                .isEqualTo("4");
+        assertThat(environment.getProperty("spring.task.scheduling.thread-name-prefix"))
+                .isEqualTo("hjo2oa-schedule-");
     }
 }

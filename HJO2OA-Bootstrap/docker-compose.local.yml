@@ -1,20 +1,37 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: hjo2oa-local-postgres
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2017-latest-ubuntu
+    container_name: hjo2oa-local-sqlserver
     environment:
-      POSTGRES_DB: hjo2oa_local
-      POSTGRES_USER: hjo2oa
-      POSTGRES_PASSWORD: hjo2oa
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: 'Hjo2oa@2026!'
     ports:
-      - "5432:5432"
+      - "1433:1433"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - sqlserver-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hjo2oa -d hjo2oa_local"]
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Hjo2oa@2026!' -Q \"SELECT 1\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2017-latest-ubuntu
+    container_name: hjo2oa-local-sqlserver-init
+    depends_on:
+      - sqlserver
+    environment:
+      MSSQL_SA_PASSWORD: 'Hjo2oa@2026!'
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        until /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "SELECT 1" > /dev/null 2>&1; do
+          sleep 2
+        done
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "IF DB_ID(N'hjo2oa_local') IS NULL CREATE DATABASE [hjo2oa_local];"
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -67,7 +84,7 @@ services:
     restart: "no"
 
 volumes:
-  postgres-data:
+  sqlserver-data:
   redis-data:
   rabbitmq-data:
   minio-data:

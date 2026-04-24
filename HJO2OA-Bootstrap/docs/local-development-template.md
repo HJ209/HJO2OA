@@ -4,7 +4,7 @@
 
 `HJO2OA-Bootstrap` 统一承载本地联调所需的基础设施模板、环境变量清单和推荐启动方式。当前模板覆盖：
 
-- PostgreSQL
+- SQL Server 2017
 - Redis
 - RabbitMQ
 - MinIO
@@ -21,9 +21,9 @@
 
 | 变量 | 默认值 |
 |------|--------|
-| `HJO2OA_LOCAL_DB_URL` | `jdbc:postgresql://localhost:5432/hjo2oa_local` |
-| `HJO2OA_LOCAL_DB_USERNAME` | `hjo2oa` |
-| `HJO2OA_LOCAL_DB_PASSWORD` | `hjo2oa` |
+| `HJO2OA_LOCAL_DB_URL` | `jdbc:sqlserver://localhost:1433;databaseName=hjo2oa_local;encrypt=true;trustServerCertificate=true` |
+| `HJO2OA_LOCAL_DB_USERNAME` | `sa` |
+| `HJO2OA_LOCAL_DB_PASSWORD` | `Hjo2oa@2026!` |
 | `HJO2OA_LOCAL_REDIS_HOST` | `localhost` |
 | `HJO2OA_LOCAL_REDIS_PORT` | `6379` |
 | `HJO2OA_LOCAL_REDIS_PASSWORD` | 空 |
@@ -44,7 +44,7 @@ docker compose --env-file HJO2OA-Bootstrap/.env.local.example -f HJO2OA-Bootstra
 
 本地模板默认开放以下端口：
 
-- PostgreSQL: `5432`
+- SQL Server: `1433`
 - Redis: `6379`
 - RabbitMQ AMQP: `5672`
 - RabbitMQ 管理台: `15672`
@@ -66,7 +66,7 @@ java -jar HJO2OA-Bootstrap/target/HJO2OA-Bootstrap-0.1.0-SNAPSHOT.jar --spring.p
 
 ## 无外部依赖验证
 
-如果当前机器没有启动 PostgreSQL、Redis、RabbitMQ 和 MinIO，仍可先跑 Bootstrap 烟雾测试验证主应用配置装配：
+如果当前机器没有启动 SQL Server、Redis、RabbitMQ 和 MinIO，仍可先跑 Bootstrap 烟雾测试验证主应用配置装配：
 
 ```powershell
 mvn -q -pl HJO2OA-Bootstrap -am test

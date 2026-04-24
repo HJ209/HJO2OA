@@ -192,17 +192,66 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- HJO2OA-DataServices 子模块 -->
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-DataCommon</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-OpenApi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-Connector</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-DataSync</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-DataService</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-Report</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-Governance</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
 
-        <!-- PostgreSQL -->
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-sqlserver</artifactId>
         </dependency>
 
         <!-- Test -->
@@ -315,36 +364,6 @@
                 <dependency>
                     <groupId>com.hjo2oa</groupId>
                     <artifactId>HJO2OA-CrossAppLinkage</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-OpenApi</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-Connector</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-DataSync</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-DataService</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-Report</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-Governance</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>
