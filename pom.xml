@@ -25,9 +25,15 @@
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.site.plugin.version>3.12.1</maven.site.plugin.version>
+        <maven.checkstyle.plugin.version>3.6.0</maven.checkstyle.plugin.version>
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.34</lombok.version>
+        <springdoc.version>2.6.0</springdoc.version>
+        <jacoco.version>0.8.12</jacoco.version>
+        <checkstyle.version>10.18.2</checkstyle.version>
+        <archunit.version>1.3.0</archunit.version>
+        <argLine/>
     </properties>
 
     <modules>
@@ -49,6 +55,11 @@
             <dependency>
                 <groupId>com.hjo2oa</groupId>
                 <artifactId>HJO2OA-Shared</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hjo2oa</groupId>
+                <artifactId>HJO2OA-DataCommon</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -77,6 +88,18 @@
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -87,6 +110,16 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
                     <version>${maven.site.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${maven.checkstyle.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -141,8 +174,54 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <useModulePath>false</useModulePath>
-                    <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
+                    <argLine>@{argLine} -Dfile.encoding=${project.build.sourceEncoding}</argLine>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>${maven.multiModuleProjectDirectory}/tools/checkstyle/checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkstyle-verify</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
