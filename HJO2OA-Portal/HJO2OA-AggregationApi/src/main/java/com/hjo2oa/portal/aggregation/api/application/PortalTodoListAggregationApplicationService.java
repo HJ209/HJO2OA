@@ -12,7 +12,6 @@ import com.hjo2oa.todo.center.domain.CopiedTodoSummary;
 import com.hjo2oa.todo.center.domain.TodoCounts;
 import com.hjo2oa.todo.center.domain.TodoItemSummary;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;

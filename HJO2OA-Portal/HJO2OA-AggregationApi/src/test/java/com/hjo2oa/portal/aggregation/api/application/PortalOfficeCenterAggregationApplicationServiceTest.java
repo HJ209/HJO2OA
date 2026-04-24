@@ -22,6 +22,7 @@ import com.hjo2oa.todo.center.domain.TodoIdentityContext;
 import com.hjo2oa.todo.center.domain.TodoIdentityContextProvider;
 import com.hjo2oa.todo.center.domain.TodoItem;
 import com.hjo2oa.todo.center.domain.TodoItemStatus;
+import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -140,7 +141,11 @@ class PortalOfficeCenterAggregationApplicationServiceTest {
                 "assignment-1",
                 "position-1"
         );
-        return new TodoQueryApplicationService(repository, identityContextProvider);
+        return new TodoQueryApplicationService(
+                repository,
+                new InMemoryCopiedTodoRepository(),
+                identityContextProvider
+        );
     }
 
     private MessageNotificationQueryApplicationService messageQueryApplicationService() {

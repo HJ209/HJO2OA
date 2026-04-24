@@ -6,7 +6,8 @@ public record PortalSnapshotScope(
         String tenantId,
         String personId,
         String assignmentId,
-        String positionId
+        String positionId,
+        PortalSceneType sceneType
 ) {
 
     public PortalSnapshotScope {
@@ -22,11 +23,23 @@ public record PortalSnapshotScope(
             String assignmentId,
             String positionId
     ) {
-        return new PortalSnapshotScope(tenantId, personId, assignmentId, positionId);
+        return new PortalSnapshotScope(tenantId, personId, assignmentId, positionId, null);
     }
 
     public static PortalSnapshotScope ofAssignment(String tenantId, String assignmentId) {
-        return new PortalSnapshotScope(tenantId, null, assignmentId, null);
+        return new PortalSnapshotScope(tenantId, null, assignmentId, null, null);
+    }
+
+    public static PortalSnapshotScope ofScene(String tenantId, PortalSceneType sceneType) {
+        return new PortalSnapshotScope(tenantId, null, null, null, sceneType);
+    }
+
+    public static PortalSnapshotScope ofPersonScene(String tenantId, String personId, PortalSceneType sceneType) {
+        return new PortalSnapshotScope(tenantId, personId, null, null, sceneType);
+    }
+
+    public static PortalSnapshotScope ofTenant(String tenantId) {
+        return new PortalSnapshotScope(tenantId, null, null, null, null);
     }
 
     public boolean matches(PortalAggregationSnapshotKey snapshotKey) {
@@ -40,7 +53,10 @@ public record PortalSnapshotScope(
         if (assignmentId != null && !assignmentId.equals(snapshotKey.assignmentId())) {
             return false;
         }
-        return positionId == null || positionId.equals(snapshotKey.positionId());
+        if (positionId != null && !positionId.equals(snapshotKey.positionId())) {
+            return false;
+        }
+        return sceneType == null || sceneType == snapshotKey.sceneType();
     }
 
     private static String requireText(String value, String fieldName) {

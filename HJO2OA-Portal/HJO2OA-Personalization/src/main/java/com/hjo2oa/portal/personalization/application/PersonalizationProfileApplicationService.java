@@ -286,10 +286,6 @@ public class PersonalizationProfileApplicationService {
         return PersonalizationProfileKey.ofGlobal(context.tenantId(), context.personId(), sceneType);
     }
 
-    private String resolveBasePublicationId(PersonalizationSceneType sceneType) {
-        return resolveBasePublicationId(sceneType, null);
-    }
-
     private String resolveBasePublicationId(
             PersonalizationSceneType sceneType,
             PersonalizationIdentityContext identityContext

@@ -1,5 +1,24 @@
 # portal-model API 合同
 
+## 当前已落地接口
+
+- `POST /api/v1/portal/model/templates`
+  创建模板源记录，并按场景初始化默认画布骨架。
+- `GET /api/v1/portal/model/templates/{templateId}`
+  返回当前模板元数据和版本时间线。
+- `GET /api/v1/portal/model/templates/{templateId}/canvas`
+  返回当前模板画布骨架，包含页面、区域和卡片布置。
+- `PUT /api/v1/portal/model/templates/{templateId}/canvas`
+  保存指定模板的当前画布结构，按整幅画布替换方式更新页面、区域和卡片布置。
+- `PUT /api/v1/portal/model/templates/{templateId}/publish`
+  按顺序发布模板版本。
+- `POST /api/v1/portal/model/templates/{templateId}/versions/{versionNo}/deprecate`
+  废弃指定模板版本。
+- `GET /api/v1/portal/model/resolutions/active?sceneType=...&clientType=...`
+  解析当前生效发布及其关联模板元数据。
+
+当前 `canvas` 已支持最小保存边界，但仍不在本阶段引入拖拽编辑、多用户协同、预览渲染或版本分支工作流。
+
 ## API 定位
 
 `portal-model` API 负责门户模板设计时模型和模板发布模型的管理接口，覆盖模板、页面、区域、卡片布置、版本链和发布范围。它不提供聚合读模型，也不承担设计器独立持久化接口。
@@ -48,3 +67,70 @@
 | 已发布版本被直接修改 | 返回只读错误，要求基于新草稿版本调整。 |
 | 引用的卡片定义不存在或已停用 | 拒绝保存/发布，提示修复卡片引用。 |
 | 发布时间窗冲突或范围裁决不合法 | 拒绝发布，要求调整时间窗、优先级或范围规则。 |
+## Incremental Delivery Notes
+
+- `GET /api/v1/portal/model/templates`
+  Returns current-tenant portal templates and supports optional `sceneType` filtering.
+- Current results are ordered by `templateCode` and then `templateId` for deterministic reads.
+- `GET /api/v1/portal/model/publications`
+  Returns current-tenant publications and supports optional `sceneType`, `clientType`, and `status` filtering.
+
+## Draft And Published Snapshot Notes
+
+- `GET /api/v1/portal/model/templates/{templateId}/canvas` remains the mutable draft canvas endpoint for design-time save/read flows.
+- `PUT /api/v1/portal/model/templates/{templateId}/publish` now freezes the current draft canvas into the published version snapshot at publish time.
+- Draft saves after a publish update only the working canvas. They do not change the live published snapshot until the next publish.
+- `PUT /api/v1/portal/model/templates/{templateId}/canvas` and `PUT /api/v1/portal/model/templates/{templateId}/publish` now fail fast with `BUSINESS_RULE_VIOLATION` when any draft placement references a widget whose widget-reference state is `REPAIR_REQUIRED`.
+- The validation message is stable and includes the affected `widgetCode`, `placementCode`, `pageCode`, and `regionCode` so callers can surface concrete repair targets.
+
+## Audience Increment (2026-04-21)
+
+- `PUT /api/v1/portal/model/publications/{publicationId}/activate`
+  accepts optional `assignmentId`, `positionId`, and `personId`.
+- Publication activation may specify at most one audience scope.
+- If all audience fields are omitted, the stored publication audience is explicitly `tenant-default`.
+- `GET /api/v1/portal/model/publications`
+  now returns `audience` for every publication row.
+- `GET /api/v1/portal/model/publications/{publicationId}`
+  now returns `audience`.
+- `GET /api/v1/portal/model/publications/active`
+  accepts optional explicit identity query params `assignmentId`, `positionId`, and `personId`, and returns the selected publication `audience`.
+- `GET /api/v1/portal/model/resolutions/active`
+  accepts optional explicit identity query params `assignmentId`, `positionId`, and `personId`, and returns the selected publication `audience`.
+- Active selection is deterministic and uses this precedence:
+  `assignment > person > position > tenant-default`.
+- Event payloads are unchanged in this increment. Audience metadata is source-contract/read-model only.
+
+### Audience Response Shape
+
+```json
+{
+  "audience": {
+    "type": "tenant-default|assignment|person|position",
+    "subjectId": "optional for scoped audience"
+  }
+}
+```
+
+### Activate Request Examples
+
+Tenant default publication:
+
+```json
+{
+  "templateId": "template-home-default",
+  "sceneType": "HOME",
+  "clientType": "PC"
+}
+```
+
+Person-scoped publication:
+
+```json
+{
+  "templateId": "template-home-person",
+  "sceneType": "HOME",
+  "clientType": "PC",
+  "personId": "person-1"
+}
+```

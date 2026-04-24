@@ -1,5 +1,26 @@
 # portal-designer API 合同
 
+## 当前已落地接口
+
+- `GET /api/v1/portal/designer/templates/{templateId}/status`
+  返回模板时间线和当前线上发布状态摘要。
+- `GET /api/v1/portal/designer/templates/{templateId}/widget-palette`
+  返回按模板场景过滤后的组件面板元数据。
+- `GET /api/v1/portal/designer/templates/{templateId}/init`
+  返回设计器初始化载荷，组合模板状态、当前画布结构和模板范围组件面板。
+- `PUT /api/v1/portal/designer/templates/{templateId}/draft`
+  保存设计器草稿画布，并返回刷新后的初始化载荷。
+- `PUT /api/v1/portal/designer/templates/{templateId}/publish`
+  发起指定版本的模板发布，并返回刷新后的设计器状态摘要。
+- `PUT /api/v1/portal/designer/templates/{templateId}/publications/{publicationId}/activate`
+  触发指定发布标识的线上生效，并返回刷新后的设计器状态摘要。
+- `POST /api/v1/portal/designer/templates/{templateId}/publications/{publicationId}/offline`
+  触发指定发布标识的线上下线，并返回刷新后的设计器状态摘要。
+- `GET /api/v1/portal/designer/templates/{templateId}/preview`
+  基于当前草稿画布返回预览页面视图，可按 `clientType` 指定预览端上下文。
+
+当前设计器已支持最小草稿保存、模板发布、发布生效、下线与草稿预览边界，但仍不在本阶段引入发布审批或多人协作副作用。
+
 ## API 定位
 
 `portal-designer` API 是设计器工具层的交互合同，用于加载草稿、保存画布、执行结构校验、预览和发起发布。设计器不拥有独立持久化真相源，所有保存和发布都必须回写 `portal-model`。
@@ -47,3 +68,17 @@
 | 引用的卡片定义已停用 | 拒绝保存或预览，提示修复组件引用。 |
 | 并发编辑导致草稿版本冲突 | 返回版本冲突错误，要求重新加载最新草稿。 |
 | 预览客户端与模板布局模式不匹配 | 返回预览校验错误。 |
+## Incremental Delivery Notes
+
+- `GET /api/v1/portal/designer/templates`
+  Returns current-tenant designer template draft statuses and supports optional `sceneType` filtering.
+- Current results are ordered by `templateCode` and then `templateId` for deterministic reads.
+- `GET /api/v1/portal/designer/templates/{templateId}/publications`
+  Returns only current-tenant publications for the requested template and supports optional `clientType` and `status` filters.
+- Publication query results are ordered by `publicationId` for deterministic panel refreshes.
+- `GET /api/v1/portal/designer/templates/{templateId}/preview`
+  Supports optional `tenantId`, `personId`, `accountId`, `assignmentId`, and `positionId` preview-context parameters and returns the effective preview identity explicitly.
+- Preview responses now include a dedicated `overlay` block with `status` (`applied`/`bypassed`), `baselinePublicationId`, `resolvedLivePublicationId`, and `reason`.
+- Preview overlay lookup is read-only and identity-bound: the personalization profile is resolved from the explicit preview identity, and overlay rules are bypassed unless `profile.basePublicationId` matches the live publication resolved for that preview identity.
+- `PUT /api/v1/portal/designer/templates/{templateId}/draft`, `PUT /api/v1/portal/designer/templates/{templateId}/publish`, and `GET /api/v1/portal/designer/templates/{templateId}/preview` now reuse portal-model widget-reference enforcement and return `BUSINESS_RULE_VIOLATION` when the draft canvas contains `REPAIR_REQUIRED` widget references.
+- The shared validation message includes `widgetCode`, `placementCode`, `pageCode`, and `regionCode` for each blocked placement so the designer can guide targeted repair.

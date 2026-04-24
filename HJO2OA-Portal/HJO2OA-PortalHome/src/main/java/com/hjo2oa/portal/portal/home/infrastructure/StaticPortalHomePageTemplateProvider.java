@@ -13,9 +13,7 @@ import com.hjo2oa.portal.portal.home.domain.PortalHomeSceneType;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 
-@Component
 public class StaticPortalHomePageTemplateProvider implements PortalHomePageTemplateProvider {
 
     private final Map<PortalHomeSceneType, PortalHomePageTemplate> templates = buildTemplates();

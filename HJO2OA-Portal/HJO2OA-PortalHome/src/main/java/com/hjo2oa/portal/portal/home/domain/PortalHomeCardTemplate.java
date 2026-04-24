@@ -8,8 +8,20 @@ public record PortalHomeCardTemplate(
         PortalCardType cardType,
         String title,
         String description,
-        String actionLink
+        String actionLink,
+        String sourcePlacementCode,
+        String sourceWidgetCode
 ) {
+
+    public PortalHomeCardTemplate(
+            String cardCode,
+            PortalCardType cardType,
+            String title,
+            String description,
+            String actionLink
+    ) {
+        this(cardCode, cardType, title, description, actionLink, null, null);
+    }
 
     public PortalHomeCardTemplate {
         cardCode = requireText(cardCode, "cardCode");
@@ -17,6 +29,8 @@ public record PortalHomeCardTemplate(
         title = requireText(title, "title");
         description = requireText(description, "description");
         actionLink = requireText(actionLink, "actionLink");
+        sourcePlacementCode = normalizeOptional(sourcePlacementCode);
+        sourceWidgetCode = normalizeOptional(sourceWidgetCode);
     }
 
     private static String requireText(String value, String fieldName) {
@@ -25,5 +39,13 @@ public record PortalHomeCardTemplate(
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return value;
+    }
+
+    private static String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

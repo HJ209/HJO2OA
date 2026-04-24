@@ -11,8 +11,23 @@ public record PortalHomePageView(
         List<PortalHomeNavigationItem> navigation,
         List<PortalHomeRegionView> regions,
         PortalHomeFooter footer,
+        PortalHomeRefreshState refreshState,
+        PortalHomeSourceTemplateMetadata sourceTemplateMetadata,
         Instant assembledAt
 ) {
+
+    public PortalHomePageView(
+            PortalHomeSceneType sceneType,
+            PortalHomeLayoutType layoutType,
+            PortalHomeBranding branding,
+            List<PortalHomeNavigationItem> navigation,
+            List<PortalHomeRegionView> regions,
+            PortalHomeFooter footer,
+            PortalHomeRefreshState refreshState,
+            Instant assembledAt
+    ) {
+        this(sceneType, layoutType, branding, navigation, regions, footer, refreshState, null, assembledAt);
+    }
 
     public PortalHomePageView {
         Objects.requireNonNull(sceneType, "sceneType must not be null");
@@ -21,6 +36,7 @@ public record PortalHomePageView(
         navigation = List.copyOf(Objects.requireNonNullElse(navigation, List.of()));
         regions = List.copyOf(Objects.requireNonNullElse(regions, List.of()));
         Objects.requireNonNull(footer, "footer must not be null");
+        Objects.requireNonNull(refreshState, "refreshState must not be null");
         Objects.requireNonNull(assembledAt, "assembledAt must not be null");
     }
 }

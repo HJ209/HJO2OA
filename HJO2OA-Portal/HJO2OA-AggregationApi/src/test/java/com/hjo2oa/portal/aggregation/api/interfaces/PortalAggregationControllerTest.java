@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.hjo2oa.portal.aggregation.api.application.PortalDashboardAggregationApplicationService;
 import com.hjo2oa.portal.aggregation.api.application.PortalMessageListAggregationApplicationService;
 import com.hjo2oa.portal.aggregation.api.application.PortalOfficeCenterAggregationApplicationService;
+import com.hjo2oa.portal.aggregation.api.application.PortalTodoListAggregationApplicationService;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalMessageCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalMessageItem;
@@ -26,10 +27,12 @@ import com.hjo2oa.msg.message.center.infrastructure.InMemoryNotificationReposito
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import com.hjo2oa.todo.center.application.TodoQueryApplicationService;
+import com.hjo2oa.todo.center.domain.CopiedTodoItem;
 import com.hjo2oa.todo.center.domain.TodoIdentityContext;
 import com.hjo2oa.todo.center.domain.TodoIdentityContextProvider;
 import com.hjo2oa.todo.center.domain.TodoItem;
 import com.hjo2oa.todo.center.domain.TodoItemStatus;
+import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -96,6 +99,36 @@ class PortalAggregationControllerTest {
                 .andExpect(jsonPath("$.data.messages.items[0].notificationId").value("notification-1"))
                 .andExpect(jsonPath("$.data.messages.items[0].inboxStatus").value("UNREAD"))
                 .andExpect(jsonPath("$.meta.requestId").value("req-office-msg-1"));
+    }
+
+    @Test
+    void shouldReturnOfficeCenterTodoListUsingSharedResponseContract() throws Exception {
+        MockMvc mockMvc = buildMockMvc();
+
+        mockMvc.perform(get("/api/v1/portal/aggregation/office-center/todos")
+                        .param("viewType", "COPIED")
+                        .param("copiedReadStatus", "UNREAD")
+                        .param("page", "1")
+                        .param("size", "1")
+                        .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-office-todo-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.viewType").value("COPIED"))
+                .andExpect(jsonPath("$.data.summary.copiedUnreadCount").value(1))
+                .andExpect(jsonPath("$.data.todos.pagination.total").value(1))
+                .andExpect(jsonPath("$.data.todos.items[0].todoId").value("copied-1"))
+                .andExpect(jsonPath("$.data.todos.items[0].status").value("UNREAD"))
+                .andExpect(jsonPath("$.meta.requestId").value("req-office-todo-1"));
+    }
+
+    @Test
+    void shouldMapInvalidTodoListPageSizeToBadRequest() throws Exception {
+        MockMvc mockMvc = buildMockMvc();
+
+        mockMvc.perform(get("/api/v1/portal/aggregation/office-center/todos")
+                        .param("size", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }
 
     @Test
@@ -198,12 +231,18 @@ class PortalAggregationControllerTest {
                         messageQueryApplicationService,
                         Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
                 );
+        PortalTodoListAggregationApplicationService todoListAggregationApplicationService =
+                new PortalTodoListAggregationApplicationService(
+                        todoQueryApplicationService,
+                        Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+                );
         ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
 
         return MockMvcBuilders.standaloneSetup(new PortalAggregationController(
                         service,
                         officeCenterAggregationApplicationService,
                         messageListAggregationApplicationService,
+                        todoListAggregationApplicationService,
                         responseMetaFactory
                 ))
                 .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
@@ -263,6 +302,29 @@ class PortalAggregationControllerTest {
                 FIXED_TIME.minusSeconds(180),
                 null
         ));
+        InMemoryCopiedTodoRepository copiedTodoRepository = new InMemoryCopiedTodoRepository();
+        copiedTodoRepository.save(CopiedTodoItem.unread(
+                "copied-1",
+                "task-4",
+                "instance-4",
+                "assignment-1",
+                "APPROVAL",
+                "approval",
+                "Copied travel notice",
+                "HIGH",
+                FIXED_TIME.minusSeconds(90)
+        ));
+        copiedTodoRepository.save(CopiedTodoItem.unread(
+                "copied-2",
+                "task-5",
+                "instance-5",
+                "assignment-1",
+                "APPROVAL",
+                "approval",
+                "Read copied notice",
+                "NORMAL",
+                FIXED_TIME.minusSeconds(120)
+        ).markRead(FIXED_TIME.minusSeconds(30)));
 
         TodoIdentityContextProvider identityContextProvider = () -> new TodoIdentityContext(
                 "tenant-1",
@@ -270,7 +332,11 @@ class PortalAggregationControllerTest {
                 "assignment-1",
                 "position-1"
         );
-        return new TodoQueryApplicationService(repository, identityContextProvider);
+        return new TodoQueryApplicationService(
+                repository,
+                copiedTodoRepository,
+                identityContextProvider
+        );
     }
 
     private MessageNotificationQueryApplicationService messageQueryApplicationService() {

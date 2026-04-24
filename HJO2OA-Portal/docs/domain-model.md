@@ -527,7 +527,7 @@ AggregationCardSnapshot ──M:1──> PersonalizationProfile (个性化视图
 
 ### 8.3 大字段与缓存建议
 
-- `layoutProps`、`overrideProps`、`requestSchema`、`responseSchema`、`layoutOverride`、`payload` 等建议采用 JSONB 存储。
+- `layoutProps`、`overrideProps`、`requestSchema`、`responseSchema`、`layoutOverride`、`payload` 等建议采用 JSON 文本或 `NVARCHAR(MAX)` 存储。
 - `portal_agg_snapshot` 可持久化到数据库，同时在 Redis 中保留热点缓存，以支持失效与回源。
 - 模板版本发布后，可为前端渲染输出一份压缩后的渲染协议快照，避免每次动态拼装完整结构。
 

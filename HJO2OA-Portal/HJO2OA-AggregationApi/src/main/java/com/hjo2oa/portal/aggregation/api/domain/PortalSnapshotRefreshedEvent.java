@@ -9,6 +9,8 @@ public record PortalSnapshotRefreshedEvent(
         UUID eventId,
         Instant occurredAt,
         String tenantId,
+        String personId,
+        String assignmentId,
         String snapshotKey,
         PortalSceneType sceneType,
         PortalCardType cardType,
@@ -21,6 +23,8 @@ public record PortalSnapshotRefreshedEvent(
         Objects.requireNonNull(eventId, "eventId must not be null");
         Objects.requireNonNull(occurredAt, "occurredAt must not be null");
         tenantId = requireText(tenantId, "tenantId");
+        personId = requireText(personId, "personId");
+        assignmentId = requireText(assignmentId, "assignmentId");
         snapshotKey = requireText(snapshotKey, "snapshotKey");
         Objects.requireNonNull(sceneType, "sceneType must not be null");
         Objects.requireNonNull(cardType, "cardType must not be null");
@@ -34,6 +38,8 @@ public record PortalSnapshotRefreshedEvent(
                 UUID.randomUUID(),
                 snapshot.refreshedAt(),
                 snapshotKey.tenantId(),
+                snapshotKey.personId(),
+                snapshotKey.assignmentId(),
                 snapshotKey.asCacheKey(),
                 snapshotKey.sceneType(),
                 snapshot.cardType(),

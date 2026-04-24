@@ -1,7 +1,9 @@
 package com.hjo2oa.portal.portal.home.interfaces;
 
 import com.hjo2oa.portal.portal.home.application.PortalHomePageAssemblyApplicationService;
+import com.hjo2oa.portal.portal.home.application.PortalHomeRefreshStateApplicationService;
 import com.hjo2oa.portal.portal.home.domain.PortalHomePageView;
+import com.hjo2oa.portal.portal.home.domain.PortalHomeRefreshState;
 import com.hjo2oa.portal.portal.home.domain.PortalHomeSceneType;
 import com.hjo2oa.shared.web.ApiResponse;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
@@ -18,13 +20,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class PortalHomeController {
 
     private final PortalHomePageAssemblyApplicationService pageAssemblyApplicationService;
+    private final PortalHomeRefreshStateApplicationService refreshStateApplicationService;
     private final ResponseMetaFactory responseMetaFactory;
 
     public PortalHomeController(
             PortalHomePageAssemblyApplicationService pageAssemblyApplicationService,
+            PortalHomeRefreshStateApplicationService refreshStateApplicationService,
             ResponseMetaFactory responseMetaFactory
     ) {
         this.pageAssemblyApplicationService = pageAssemblyApplicationService;
+        this.refreshStateApplicationService = refreshStateApplicationService;
         this.responseMetaFactory = responseMetaFactory;
     }
 
@@ -35,5 +40,14 @@ public class PortalHomeController {
     ) {
         PortalHomePageView pageView = pageAssemblyApplicationService.page(sceneType);
         return ApiResponse.success(pageView, responseMetaFactory.create(request));
+    }
+
+    @GetMapping("/refresh-state")
+    public ApiResponse<PortalHomeRefreshState> refreshState(
+            @RequestParam(name = "sceneType", defaultValue = "HOME") PortalHomeSceneType sceneType,
+            HttpServletRequest request
+    ) {
+        PortalHomeRefreshState refreshState = refreshStateApplicationService.currentState(sceneType);
+        return ApiResponse.success(refreshState, responseMetaFactory.create(request));
     }
 }

@@ -3,12 +3,15 @@ package com.hjo2oa.portal.aggregation.api.interfaces;
 import com.hjo2oa.portal.aggregation.api.application.PortalDashboardAggregationApplicationService;
 import com.hjo2oa.portal.aggregation.api.application.PortalMessageListAggregationApplicationService;
 import com.hjo2oa.portal.aggregation.api.application.PortalOfficeCenterAggregationApplicationService;
+import com.hjo2oa.portal.aggregation.api.application.PortalTodoListAggregationApplicationService;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
 import com.hjo2oa.portal.aggregation.api.domain.PortalDashboardView;
 import com.hjo2oa.portal.aggregation.api.domain.PortalMessageListView;
 import com.hjo2oa.portal.aggregation.api.domain.PortalOfficeCenterView;
 import com.hjo2oa.portal.aggregation.api.domain.PortalSceneType;
+import com.hjo2oa.portal.aggregation.api.domain.PortalTodoListView;
+import com.hjo2oa.portal.aggregation.api.domain.PortalTodoListViewType;
 import com.hjo2oa.msg.message.center.domain.NotificationCategory;
 import com.hjo2oa.msg.message.center.domain.NotificationInboxStatus;
 import com.hjo2oa.shared.web.ApiResponse;
@@ -18,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import com.hjo2oa.todo.center.domain.CopiedTodoReadStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,17 +36,20 @@ public class PortalAggregationController {
     private final PortalDashboardAggregationApplicationService aggregationApplicationService;
     private final PortalOfficeCenterAggregationApplicationService officeCenterAggregationApplicationService;
     private final PortalMessageListAggregationApplicationService messageListAggregationApplicationService;
+    private final PortalTodoListAggregationApplicationService todoListAggregationApplicationService;
     private final ResponseMetaFactory responseMetaFactory;
 
     public PortalAggregationController(
             PortalDashboardAggregationApplicationService aggregationApplicationService,
             PortalOfficeCenterAggregationApplicationService officeCenterAggregationApplicationService,
             PortalMessageListAggregationApplicationService messageListAggregationApplicationService,
+            PortalTodoListAggregationApplicationService todoListAggregationApplicationService,
             ResponseMetaFactory responseMetaFactory
     ) {
         this.aggregationApplicationService = aggregationApplicationService;
         this.officeCenterAggregationApplicationService = officeCenterAggregationApplicationService;
         this.messageListAggregationApplicationService = messageListAggregationApplicationService;
+        this.todoListAggregationApplicationService = todoListAggregationApplicationService;
         this.responseMetaFactory = responseMetaFactory;
     }
 
@@ -79,6 +86,29 @@ public class PortalAggregationController {
                 keyword
         );
         return ApiResponse.success(messageList, responseMetaFactory.create(request));
+    }
+
+    @GetMapping("/office-center/todos")
+    public ApiResponse<PortalTodoListView> officeCenterTodos(
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size,
+            @RequestParam(name = "viewType", defaultValue = "PENDING") PortalTodoListViewType viewType,
+            @RequestParam(name = "todoCategory", required = false) String todoCategory,
+            @RequestParam(name = "urgentOnly", defaultValue = "false") boolean urgentOnly,
+            @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "copiedReadStatus", required = false) CopiedTodoReadStatus copiedReadStatus,
+            HttpServletRequest request
+    ) {
+        PortalTodoListView todoList = todoListAggregationApplicationService.officeCenterTodos(
+                page,
+                size,
+                viewType,
+                todoCategory,
+                urgentOnly,
+                keyword,
+                copiedReadStatus
+        );
+        return ApiResponse.success(todoList, responseMetaFactory.create(request));
     }
 
     @GetMapping("/card/{cardType}")

@@ -5,6 +5,7 @@ import java.util.Objects;
 public record PortalHomeNavigationItem(
         String code,
         String title,
+        Long badgeCount,
         String actionLink
 ) {
 
@@ -12,6 +13,10 @@ public record PortalHomeNavigationItem(
         code = requireText(code, "code");
         title = requireText(title, "title");
         actionLink = requireText(actionLink, "actionLink");
+    }
+
+    public PortalHomeNavigationItem(String code, String title, String actionLink) {
+        this(code, title, null, actionLink);
     }
 
     private static String requireText(String value, String fieldName) {

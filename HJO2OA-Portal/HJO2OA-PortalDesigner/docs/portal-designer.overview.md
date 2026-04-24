@@ -10,6 +10,7 @@
 - 提供组件面板、属性面板和多端预览入口。
 - 对设计结果执行结构校验，并调用 `portal-model` 保存草稿和触发发布。
 - 在设计阶段消费 `widget-config` 卡片定义，保证设计器与运行时卡片协议一致。
+- 预览查询直接基于当前草稿画布组装页面视图，不依赖当前线上生效发布。
 
 ## 上下游边界
 
@@ -46,3 +47,14 @@
 - 一期只支持基础画布、属性编辑、草稿保存和多端预览。
 - 不支持脚本、资源文件、复杂多端联动和多人实时协同编辑。
 - 设计器中的发布动作本质上是调用 `portal-model` 的发布接口，而不是自行改变线上状态。
+## Incremental Delivery Notes
+
+- Designer now exposes a local template draft list query backed by the template projection.
+- The list query is tenant-aware and supports optional `sceneType` filtering for list-page hydration.
+- Designer publication panel queries now reuse the current-tenant portal publication read path and additionally constrain results to the requested template.
+- Publication panel reads support optional `clientType` and `status` filters and preserve deterministic ordering by `publicationId`.
+- Preview queries can now override `tenantId`, `personId`, `accountId`, `assignmentId`, and `positionId` as a synthetic identity context without mutating draft or personalization state.
+- Preview assembly now resolves personalization overlays against the explicit preview identity instead of the current session, and returns a separate overlay-status block that explains whether rules were applied or bypassed.
+- Preview overlay application is aligned with live semantics: rules only apply when the profile baseline publication matches the live publication resolved for the preview identity, while draft save-validation remains unchanged.
+- Save, publish, and preview now share the same widget-reference guard from `portal-model`; drafts that still reference `REPAIR_REQUIRED` widgets are blocked before mutation or preview assembly.
+- Blocked operations surface stable business validation errors that enumerate the affected `widgetCode`, `placementCode`, `pageCode`, and `regionCode`.

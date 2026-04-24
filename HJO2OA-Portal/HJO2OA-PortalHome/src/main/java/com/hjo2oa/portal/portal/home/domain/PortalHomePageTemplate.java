@@ -11,8 +11,20 @@ public record PortalHomePageTemplate(
         PortalHomeBranding branding,
         List<PortalHomeNavigationItem> navigation,
         List<PortalHomeRegionTemplate> regions,
-        PortalHomeFooter footer
+        PortalHomeFooter footer,
+        PortalHomeSourceTemplateMetadata sourceTemplateMetadata
 ) {
+
+    public PortalHomePageTemplate(
+            PortalHomeSceneType sceneType,
+            PortalHomeLayoutType layoutType,
+            PortalHomeBranding branding,
+            List<PortalHomeNavigationItem> navigation,
+            List<PortalHomeRegionTemplate> regions,
+            PortalHomeFooter footer
+    ) {
+        this(sceneType, layoutType, branding, navigation, regions, footer, null);
+    }
 
     public PortalHomePageTemplate {
         Objects.requireNonNull(sceneType, "sceneType must not be null");

@@ -8,6 +8,7 @@ import com.hjo2oa.portal.aggregation.api.domain.PortalCardState;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalMessageCard;
+import com.hjo2oa.portal.aggregation.api.domain.PortalSceneType;
 import com.hjo2oa.portal.aggregation.api.domain.PortalSnapshotScope;
 import com.hjo2oa.portal.aggregation.api.domain.PortalTodoCard;
 import com.hjo2oa.portal.aggregation.api.infrastructure.InMemoryPortalCardSnapshotRepository;
@@ -26,13 +27,13 @@ class PortalSnapshotInvalidationApplicationServiceTest {
         InMemoryPortalCardSnapshotRepository repository = new InMemoryPortalCardSnapshotRepository();
         PortalIdentityCard identity = identity();
         repository.save(PortalCardSnapshot.ready(
-                PortalAggregationSnapshotKey.of(identity, com.hjo2oa.portal.aggregation.api.domain.PortalSceneType.HOME, PortalCardType.TODO),
+                PortalAggregationSnapshotKey.of(identity, PortalSceneType.HOME, PortalCardType.TODO),
                 PortalCardType.TODO,
                 PortalTodoCard.empty(),
                 FIXED_TIME
         ));
         repository.save(PortalCardSnapshot.ready(
-                PortalAggregationSnapshotKey.of(identity, com.hjo2oa.portal.aggregation.api.domain.PortalSceneType.HOME, PortalCardType.MESSAGE),
+                PortalAggregationSnapshotKey.of(identity, PortalSceneType.HOME, PortalCardType.MESSAGE),
                 PortalCardType.MESSAGE,
                 PortalMessageCard.empty(),
                 FIXED_TIME
@@ -56,6 +57,45 @@ class PortalSnapshotInvalidationApplicationServiceTest {
                 .containsExactly(PortalCardState.READY);
         assertThat(repository.findAll())
                 .filteredOn(snapshot -> snapshot.cardType() == PortalCardType.MESSAGE)
+                .extracting(PortalCardSnapshot::state)
+                .containsExactly(PortalCardState.STALE);
+    }
+
+    @Test
+    void shouldMarkOnlyMatchingSceneSnapshotsAsStale() {
+        InMemoryPortalCardSnapshotRepository repository = new InMemoryPortalCardSnapshotRepository();
+        PortalIdentityCard identity = identity();
+        repository.save(PortalCardSnapshot.ready(
+                PortalAggregationSnapshotKey.of(identity, PortalSceneType.HOME, PortalCardType.TODO),
+                PortalCardType.TODO,
+                PortalTodoCard.empty(),
+                FIXED_TIME
+        ));
+        repository.save(PortalCardSnapshot.ready(
+                PortalAggregationSnapshotKey.of(identity, PortalSceneType.OFFICE_CENTER, PortalCardType.TODO),
+                PortalCardType.TODO,
+                PortalTodoCard.empty(),
+                FIXED_TIME
+        ));
+
+        PortalSnapshotInvalidationApplicationService service = new PortalSnapshotInvalidationApplicationService(
+                repository,
+                Clock.fixed(FIXED_TIME.plusSeconds(180), ZoneOffset.UTC)
+        );
+
+        int markedCount = service.markStale(
+                PortalSnapshotScope.ofScene("tenant-1", PortalSceneType.OFFICE_CENTER),
+                EnumSet.of(PortalCardType.TODO),
+                "portal.publication.activated"
+        );
+
+        assertThat(markedCount).isEqualTo(1);
+        assertThat(repository.findAll())
+                .filteredOn(snapshot -> snapshot.snapshotKey().sceneType() == PortalSceneType.HOME)
+                .extracting(PortalCardSnapshot::state)
+                .containsExactly(PortalCardState.READY);
+        assertThat(repository.findAll())
+                .filteredOn(snapshot -> snapshot.snapshotKey().sceneType() == PortalSceneType.OFFICE_CENTER)
                 .extracting(PortalCardSnapshot::state)
                 .containsExactly(PortalCardState.STALE);
     }

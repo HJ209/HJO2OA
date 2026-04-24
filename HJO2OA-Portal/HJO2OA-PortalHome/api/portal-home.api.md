@@ -1,5 +1,14 @@
 # portal-home API 合同
 
+## 当前已落地接口
+
+- `GET /api/v1/portal/home/page?sceneType=...`
+  返回指定场景的门页装配结果。
+- `GET /api/v1/portal/home/refresh-state?sceneType=...`
+  返回指定场景的刷新状态。
+
+当前 page 装配会优先复用 `portal-model` 的 source template 解析结果；当可用的 source canvas 存在时，页面 layout、region 顺序和 card 顺序按 source canvas 装配；当 source state 或 canvas 缺失时，仍安全回退到静态模板骨架。
+
 ## API 定位
 
 `portal-home` 不拥有独立领域主数据接口，本文件定义的是页面装配与前端集成所需的组合查询契约。其核心目标是把模板解析、个性化视图和聚合卡片拼装成页面渲染上下文。
@@ -46,3 +55,9 @@
 | 卡片快照部分失败 | 允许局部降级，不阻塞页面其余区域渲染。 |
 | 身份切换后仍使用旧页面壳 | 强制丢弃旧上下文并重新装配。 |
 | 试图通过 portal-home 获取原始业务明细接口 | 拒绝受理，要求走 `aggregation-api` 或原业务模块。 |
+
+## Published Snapshot Consumption Notes
+
+- `portal-home` now resolves runtime structure from the active template's published canvas snapshot instead of the mutable draft canvas.
+- After a template is published, continuing to save draft changes does not affect the current live page structure.
+- Live structure changes only after the next successful publish of that template. When no published snapshot is available, `portal-home` falls back to the static skeleton template.
