@@ -1,7 +1,7 @@
 {
   "metadata": {
     "projectName": "HJO2OA",
-    "snapshotDate": "2026-04-19",
+    "snapshotDate": "2026-04-22",
     "stage": "M0 skeleton and architecture convergence",
     "stageDescription": "仓库当前以架构文档、契约文档和工程骨架为主，真实业务实现仍集中在少数基础模块。",
     "verificationCommand": "mvn -q test",
@@ -169,7 +169,7 @@
       "priority": "P1",
       "status": "done",
       "dependsOn": [],
-      "goal": "为 PostgreSQL、Redis、RabbitMQ、MinIO 提供本地联调模板，明确 profile 用法和缺省配置来源，降低后续模块开发成本。",
+      "goal": "为 SQL Server、Redis、RabbitMQ、MinIO 提供本地联调模板，明确 profile 用法和缺省配置来源，降低后续模块开发成本。",
       "scope": "优先补齐 `application-local.yml` 说明文档、环境变量示例或容器编排模板，不扩展生产部署编排。",
       "whyNow": "当前后端配置已经声明多个外部基础设施，但仓库里还没有统一的本地联调入口说明。",
       "paths": [
@@ -178,7 +178,7 @@
         "README.md"
       ],
       "acceptanceCriteria": [
-        "提供清晰的本地联调说明或模板文件，覆盖 PostgreSQL、Redis、RabbitMQ、MinIO。",
+        "提供清晰的本地联调说明或模板文件，覆盖 SQL Server、Redis、RabbitMQ、MinIO。",
         "明确 Spring profile 的推荐启动方式和必要环境变量。",
         "不改动现有默认端口与核心配置命名约定。",
         "验证根应用可以在不连接真实外部服务的前提下完成基础启动或测试。"
@@ -563,7 +563,7 @@
       "domain": "04-门户与工作台",
       "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
       "priority": "P1",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "PORTAL-OFFICE-READ-001",
         "WF-TODO-COPIED-001"
@@ -591,7 +591,7 @@
       "domain": "04-门户与工作台",
       "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
       "priority": "P1",
-      "status": "ready",
+      "status": "done",
       "dependsOn": [
         "PORTAL-OFFICE-READ-001",
         "MSG-BULK-READ-001",
@@ -620,7 +620,7 @@
       "domain": "01-组织与权限",
       "module": "HJO2OA-OrgPerm/HJO2OA-IdentityContext",
       "priority": "P2",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "ORG-CORE-001"
       ],
@@ -639,6 +639,1397 @@
       ],
       "verifyCommands": [
         "mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test"
+      ]
+    },
+    {
+      "id": "ORG-REFRESH-API-001",
+      "title": "Lock identity-context refresh HTTP contract",
+      "domain": "01-org-and-permission",
+      "module": "HJO2OA-OrgPerm/HJO2OA-IdentityContext",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "ORG-REFRESH-002"
+      ],
+      "goal": "Freeze the refresh outcome semantics at the HTTP layer so downstream clients can rely on the API response instead of service-only tests.",
+      "scope": "Add controller MockMvc coverage and request validation coverage without introducing real auth or gateway integration.",
+      "whyNow": "Portal and mobile flows consume the HTTP response shape, so the explicit refresh outcome must be stable there before more consumers are added.",
+      "paths": [
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/main/java/com/hjo2oa/org/identity/context/interfaces",
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/test/java/com/hjo2oa/org/identity/context/interfaces"
+      ],
+      "acceptanceCriteria": [
+        "POST /api/org-perm/identity-context/refresh returns outcome values RECOVERED, FALLBACK_TO_PRIMARY, and RELOGIN_REQUIRED.",
+        "forceLogout=true returns currentContext as null in the HTTP response.",
+        "MockMvc covers request validation failure for refresh.",
+        "Tests stay local to the module and do not require external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test"
+      ]
+    },
+    {
+      "id": "ORG-UPSTREAM-EVENT-001",
+      "title": "Add upstream invalidation listeners for identity-context",
+      "domain": "01-org-and-permission",
+      "module": "HJO2OA-OrgPerm/HJO2OA-IdentityContext",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "ORG-REFRESH-002",
+        "ORG-REFRESH-API-001"
+      ],
+      "goal": "Let identity-context consume upstream org assignment, position, person, and account invalidation events and route them into the unified refresh flow.",
+      "scope": "Implement local listeners, minimal event DTO adapters, and tests without wiring real cross-module publishers.",
+      "whyNow": "The refresh outcome is now stable, and the next missing boundary is the upstream event input side described in the module contracts.",
+      "paths": [
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/main/java",
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/test/java",
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/events/identity-context.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Listeners consume assignment removed or expired, position disabled, person disabled, and account locked events.",
+        "Listeners map all supported cases into RefreshIdentityContextCommand instead of duplicating fallback logic.",
+        "Tests cover fallback versus force-logout behavior.",
+        "Binding tests verify @EventListener wiring."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-CONFIG-EVENT-001",
+      "title": "Add portal config-driven snapshot invalidation",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-SNAPSHOT-001"
+      ],
+      "goal": "Make aggregation-api consume publication and personalization events so portal snapshots are invalidated when page structure or personalization changes.",
+      "scope": "Add listeners, invalidation mapping, and tests without integrating real portal-model or personalization modules.",
+      "whyNow": "Snapshot state and invalidation already exist, but the config-driven invalidation branch described in the docs is still missing.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "Listeners consume publication activated or offlined and personalization saved or reset events.",
+        "Affected portal snapshots are marked STALE instead of being hard-deleted.",
+        "AggregationApi remains read-side only and does not become a portal-model source of truth.",
+        "Tests cover event binding and invalidation scope."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-EVENT-001",
+      "title": "Add portal-home snapshot event consumption",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-HOME-001",
+        "PORTAL-EVENT-001",
+        "PORTAL-CONFIG-EVENT-001"
+      ],
+      "goal": "Let portal-home consume snapshot refreshed and failed events so the page assembly layer can expose minimal refresh feedback instead of ignoring those events.",
+      "scope": "Add listeners, a minimal in-memory state holder, and tests without implementing frontend push.",
+      "whyNow": "AggregationApi already publishes snapshot events, but the portal-home side of that chain is still missing.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "Listeners consume portal.snapshot.refreshed and portal.snapshot.failed.",
+        "Portal-home keeps minimal page-level refresh diagnostics or status.",
+        "Portal-home does not take ownership of aggregation snapshot truth.",
+        "Tests cover both refreshed and failed branches."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-WIDGET-EVENT-001",
+      "title": "Add widget-driven snapshot invalidation",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-AggregationApi",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-CONFIG-EVENT-001"
+      ],
+      "goal": "Make aggregation-api consume portal.widget.updated and portal.widget.disabled so card-level snapshot invalidation follows widget definition changes.",
+      "scope": "Add lightweight widget event DTOs, listener mapping, and tests without implementing widget-config persistence or designer write paths.",
+      "whyNow": "Publication and personalization changes already invalidate snapshots, but widget definition changes would still leave stale card snapshots cached.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "Listeners consume portal.widget.updated and portal.widget.disabled.",
+        "Widget events invalidate only the affected card type instead of all cards.",
+        "Scene-scoped widget events only invalidate matching scenes, while null sceneType can invalidate all tenant scenes.",
+        "Tests cover both direct listener behavior and Spring event binding."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-WIDGET-EVENT-001",
+      "title": "Add portal-home widget event consumption",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-HOME-EVENT-001",
+        "PORTAL-WIDGET-EVENT-001"
+      ],
+      "goal": "Let portal-home treat widget updates and disables as reload-required refresh-state signals without taking ownership of widget truth.",
+      "scope": "Extend the existing refresh-state listener and tests without adding realtime push or frontend persistence.",
+      "whyNow": "Portal-home already consumes snapshot, publication, and personalization events; widget changes are the next missing refresh-state input.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "portal-home consumes portal.widget.updated and portal.widget.disabled.",
+        "Scene-scoped widget events mark only the matching scene as RELOAD_REQUIRED.",
+        "Null-scoped widget disable events mark all scenes as RELOAD_REQUIRED.",
+        "Tests cover both target-scene and all-scene branches."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-REFRESH-API-001",
+      "title": "Expose portal-home refresh-state polling endpoint",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-HOME-EVENT-001"
+      ],
+      "goal": "Expose the current portal-home refresh state through a lightweight read endpoint so callers can poll refresh diagnostics without reassembling the whole page.",
+      "scope": "Extend the existing controller and MockMvc tests without adding auth, push channels, or new storage.",
+      "whyNow": "The page response already embeds refresh state, but polling the whole page is wasteful once the sidecar state exists independently.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "GET /api/v1/portal/home/refresh-state returns the current scene refresh state.",
+        "The endpoint uses the shared web contract.",
+        "The response can expose non-IDLE states produced by the refresh-state application service.",
+        "MockMvc covers a non-IDLE response branch."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-OFFICE-001",
+      "title": "Route OFFICE_CENTER page assembly through office-center aggregation",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-OFFICE-READ-001",
+        "PORTAL-HOME-001"
+      ],
+      "goal": "Let the OFFICE_CENTER scene consume the dedicated office-center aggregate instead of only the generic dashboard snapshot, so page navigation and summary areas can reflect office-specific counts.",
+      "scope": "Add a narrow provider or assembly extension plus tests without redesigning the full page model or implementing frontend widgets.",
+      "whyNow": "Aggregation-api already has an office-center aggregate, but portal-home still assembles OFFICE_CENTER from the generic dashboard-only provider.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-AggregationApi/src/main/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "OFFICE_CENTER assembly consumes office-center aggregate data through a portal-home boundary provider.",
+        "Office navigation or summary data reflects dynamic counts instead of only static template links.",
+        "HOME and MOBILE_WORKBENCH flows keep their existing assembly path.",
+        "Tests cover the office-center-specific assembly branch."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-AggregationApi -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-MOBILE-001",
+      "title": "Add dynamic badge counts to mobile workbench navigation",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-HOME-OFFICE-001"
+      ],
+      "goal": "Use the existing dashboard snapshot to expose todo and message counts in the MOBILE_WORKBENCH navigation so the mobile scene reflects current workload at a glance.",
+      "scope": "Extend page assembly and tests using the existing page DTOs and snapshot data without introducing new providers or frontend push.",
+      "whyNow": "Navigation badges were introduced for office-center, and mobile can reuse the same page contract with lower implementation cost because the required counts already exist in dashboard snapshots.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "MOBILE_WORKBENCH navigation exposes todo and message badge counts.",
+        "Badge counts come from the current dashboard snapshot rather than static template values.",
+        "HOME and OFFICE_CENTER navigation behavior remains stable.",
+        "Tests cover page assembly and controller response for the mobile scene."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-PERSONALIZATION-001",
+      "title": "Build personalization save/reset skeleton and event output",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-Personalization",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-CONFIG-EVENT-001",
+        "PORTAL-HOME-EVENT-001"
+      ],
+      "goal": "Implement a minimal personalization profile save/reset flow that emits portal.personalization.saved and portal.personalization.reset from the source module instead of only consuming those events downstream.",
+      "scope": "Add a lightweight profile model, in-memory repository, application service, REST API, and tests without implementing full drag-drop layout editing or persistent storage.",
+      "whyNow": "Aggregation-api and portal-home already consume personalization events, but the source module that should produce them is still an empty skeleton.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-Personalization/src/main/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md",
+        "HJO2OA-Portal/docs/development-tasks.md"
+      ],
+      "acceptanceCriteria": [
+        "Provide save and reset application services plus REST endpoints for a minimal personalization profile.",
+        "Saving emits portal.personalization.saved and reset emits portal.personalization.reset.",
+        "The module keeps portal-model as the template source of truth and only stores limited user overrides.",
+        "Tests cover save, reset, and event publication without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-WIDGET-SOURCE-001",
+      "title": "Build widget-config update/disable source skeleton and event output",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-WidgetConfig",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-WIDGET-EVENT-001"
+      ],
+      "goal": "Implement a minimal widget definition update/disable flow that emits portal.widget.updated and portal.widget.disabled from the source module instead of only consuming those events downstream.",
+      "scope": "Add a lightweight widget definition model, in-memory repository, application service, REST API, and tests without building a full schema designer or persistence layer.",
+      "whyNow": "Aggregation-api and portal-home already consume widget events, but the widget-config module that should produce them is still an empty skeleton.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-WidgetConfig/src/main/java",
+        "HJO2OA-Portal/HJO2OA-WidgetConfig/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md",
+        "HJO2OA-Portal/docs/development-tasks.md"
+      ],
+      "acceptanceCriteria": [
+        "Provide update and disable application services plus REST endpoints for a minimal widget definition.",
+        "Updating emits portal.widget.updated and disabling emits portal.widget.disabled.",
+        "The module stores only source-side widget metadata needed by current portal consumers.",
+        "Tests cover update, disable, and event publication without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-WidgetConfig -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-PUBLICATION-SOURCE-001",
+      "title": "Build portal-model publication activation/offline source skeleton and event output",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-SNAPSHOT-001",
+        "PORTAL-WIDGET-SOURCE-001"
+      ],
+      "goal": "Implement a minimal publication activation/offline flow that emits portal.publication.activated and portal.publication.offlined from the source module instead of only consuming those events downstream.",
+      "scope": "Add a lightweight publication model, in-memory repository, application service, REST API, and tests without building full template version management or scheduling.",
+      "whyNow": "personalization, aggregation-api, and portal-home already consume publication events, but the portal-model source module still has no runnable implementation to produce them.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/docs/module-design.md",
+        "HJO2OA-Portal/docs/development-tasks.md"
+      ],
+      "acceptanceCriteria": [
+        "Provide activation and offline application services plus REST endpoints for a minimal portal publication.",
+        "Activation emits portal.publication.activated and offlining emits portal.publication.offlined.",
+        "The module stores only source-side publication state needed by current portal consumers.",
+        "Tests cover activation, offline, and event publication without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-PERSONALIZATION-PUBLICATION-LISTENER-001",
+      "title": "Add personalization publication listener and mutable base publication resolver",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-Personalization",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-PERSONALIZATION-001",
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001"
+      ],
+      "goal": "Make personalization react to portal-model publication activation/offline events so base publication bindings stop relying on fixed hard-coded defaults.",
+      "scope": "Introduce a lightweight mutable base publication resolver, add publication event listeners, and cover the new behavior with focused tests without implementing full template parsing.",
+      "whyNow": "portal-model can now emit publication source events, but personalization still resolves basePublicationId from a static scene switch and cannot follow source-side publication changes.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-Personalization/src/main/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/src/test/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/events/personalization.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Personalization consumes portal.publication.activated and updates the scene base publication binding.",
+        "Personalization consumes portal.publication.offlined and clears or resets affected scene bindings safely.",
+        "Current/read, save, and reset flows continue to resolve basePublicationId without external infrastructure.",
+        "Tests cover resolver updates and event listener behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-WIDGET-LISTENER-001",
+      "title": "Add portal-model widget reference invalidation listener skeleton",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001",
+        "PORTAL-WIDGET-SOURCE-001"
+      ],
+      "goal": "Make portal-model consume widget-config update and disable events so template-side widget reference status can be invalidated from source-side widget changes.",
+      "scope": "Add a lightweight in-memory reference status projection or invalidation tracker, event listeners, and tests without implementing full template/page/version persistence.",
+      "whyNow": "portal-model event contracts already declare widget-config as an upstream event source, but the module still has no runtime behavior when widget definitions change or are disabled.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/events/portal-model.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model consumes portal.widget.updated and portal.widget.disabled events from widget-config.",
+        "Widget change events update an in-memory invalidation/status projection keyed by widgetId or affected scope.",
+        "The listener does not rewrite template structure automatically; it only updates reference-status side effects.",
+        "Tests cover event dispatch and invalidation behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-PUBLICATION-QUERY-001",
+      "title": "Expose current active portal publication query from source module",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001",
+        "PORTAL-PERSONALIZATION-PUBLICATION-LISTENER-001"
+      ],
+      "goal": "Provide a lightweight source-side query for the currently active portal publication by scene and client type so downstream modules can stop depending only on hard-coded publication IDs.",
+      "scope": "Add query service and REST read endpoint over the existing in-memory publication repository without implementing audience matching, template parsing, or page assembly.",
+      "whyNow": "portal-model can already activate/offline publications and downstream modules now react to publication events, but there is still no source-side read API for the active publication state.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model exposes a query for the current active publication by sceneType and clientType.",
+        "Offlined publications are no longer returned by the active publication query.",
+        "The query reuses the existing source-side in-memory repository and shared web contract.",
+        "Tests cover the query service and endpoint behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-WIDGET-REFERENCE-QUERY-001",
+      "title": "Expose portal-model widget reference status query from source projection",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-WIDGET-LISTENER-001"
+      ],
+      "goal": "Provide a lightweight read endpoint for the widget reference invalidation projection so downstream tools can inspect whether a widget change left template references stale or requiring repair.",
+      "scope": "Expose the existing in-memory widget reference status projection by widgetId through a shared-web-contract REST endpoint without implementing template editing or batch search.",
+      "whyNow": "portal-model already consumes widget-config events and keeps a projection, but there was still no source-side way to read that projection.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/events/portal-model.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model exposes the current widget reference status by widgetId.",
+        "The endpoint returns RESOURCE_NOT_FOUND when no projection exists for the widget.",
+        "The query reuses the existing in-memory projection and shared web contract.",
+        "Tests cover both successful reads and missing-status cases."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-PERSONALIZATION-PUBLICATION-BOOTSTRAP-001",
+      "title": "Bootstrap personalization base publication from portal-model active query",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-Personalization",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-PERSONALIZATION-PUBLICATION-LISTENER-001",
+        "PORTAL-MODEL-PUBLICATION-QUERY-001"
+      ],
+      "goal": "Make personalization resolve its base publication from the portal-model active publication query so it can recover source truth after startup or missed events instead of relying only on seeded default IDs.",
+      "scope": "Introduce a lightweight active publication provider and wire it into the mutable base publication resolver or read path without implementing remote HTTP clients or full template parsing.",
+      "whyNow": "portal-model now exposes the current active publication state, and personalization already reacts to publication events, so the remaining gap is source-driven bootstrap and resynchronization.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-Personalization/src/main/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "Personalization can resolve basePublicationId from portal-model active publication state when no local override is bound.",
+        "Event-driven updates continue to work and override bootstrap state when newer source events arrive.",
+        "Current/read, save, and reset flows still work without external infrastructure.",
+        "Tests cover bootstrap resolution and fallback behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-TEMPLATE-SOURCE-001",
+      "title": "Build portal-model template create/publish/deprecate source skeleton",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001"
+      ],
+      "goal": "Implement a minimal template and version lifecycle in portal-model so the module can publish portal.template.created, portal.template.published, and portal.template.deprecated from source state instead of treating templateId as a write-only placeholder.",
+      "scope": "Add lightweight template/version domain models, in-memory repository, application service, REST API, and tests without implementing page trees, region editing, preview rendering, or audience resolution.",
+      "whyNow": "portal-model already owns publication source events, but template lifecycle events and source-side version state are still missing, which blocks designer-side timeline and published-baseline behaviors.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/events/portal-model.events.md",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model provides minimal create, publish, and deprecate commands for template source state.",
+        "Template create publishes portal.template.created, publish emits portal.template.published, and deprecate emits portal.template.deprecated.",
+        "The module keeps template version state in its own in-memory repository and can query the current template record.",
+        "Tests cover lifecycle transitions, duplicate template code rejection, and controller behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-TEMPLATE-TIMELINE-001",
+      "title": "Add portal-designer template timeline and publication status projection",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-TEMPLATE-SOURCE-001",
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001"
+      ],
+      "goal": "Make portal-designer consume template and publication source events so it can expose a minimal version timeline and online publication status panel instead of remaining an empty shell.",
+      "scope": "Add lightweight in-memory projection models, event listeners, read application service, and tests without implementing canvas editing, multi-user collaboration, or preview rendering.",
+      "whyNow": "portal-designer is currently only package placeholders, and the newly added portal-model source events provide exactly the minimal upstream data needed for a designer status view.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/events/portal-designer.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer consumes portal.template.created, portal.template.published, and portal.template.deprecated into a template timeline projection.",
+        "Portal-designer consumes portal.publication.activated and portal.publication.offlined into a publication status projection.",
+        "A lightweight read API or application service can return the current timeline and online status for a template.",
+        "Tests cover event dispatch, repeated updates, and read behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-SOURCE-TEMPLATE-RESOLUTION-001",
+      "title": "Route portal-home template provider through portal-model source resolution",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-TEMPLATE-SOURCE-001",
+        "PORTAL-MODEL-PUBLICATION-QUERY-001"
+      ],
+      "goal": "Replace portal-home's static page template dependency with a source-backed template provider that resolves the active publication and current template metadata from portal-model before applying scene-specific assembly.",
+      "scope": "Add a narrow provider and tests that bridge portal-home to portal-model source queries without implementing full page/region modeling or frontend rendering changes.",
+      "whyNow": "portal-home still assembles pages from hard-coded templates even though portal-model now owns publication state and will own minimal template lifecycle state after the next source task.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/docs/module-design.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-home resolves page template metadata through a provider backed by portal-model source state instead of only static literals.",
+        "The provider combines active publication resolution with current template lookup and falls back safely when source state is missing.",
+        "Existing scene assembly behavior remains stable for HOME, OFFICE_CENTER, and MOBILE_WORKBENCH.",
+        "Tests cover source-backed resolution and fallback behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-ACTIVE-RESOLUTION-QUERY-001",
+      "title": "Expose portal-model active template resolution query",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-TEMPLATE-SOURCE-001",
+        "PORTAL-MODEL-PUBLICATION-QUERY-001"
+      ],
+      "goal": "Provide a source-side read model that resolves the currently active publication together with its template metadata by sceneType and clientType so downstream modules stop reassembling this join ad hoc.",
+      "scope": "Add a lightweight application query and REST endpoint over the existing in-memory template and publication repositories without implementing audience matching, page trees, or preview rendering.",
+      "whyNow": "portal-home already bridges publication and template state internally, but the source module still lacks a first-class active resolution contract for designer, preview, and downstream consumers.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model can resolve the active publication and template metadata in one query by sceneType and clientType.",
+        "The query returns RESOURCE_NOT_FOUND when the active publication or linked template is missing.",
+        "The endpoint reuses existing source-side repositories and the shared web contract.",
+        "Tests cover application and controller behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-WIDGET-PALETTE-001",
+      "title": "Add portal-designer widget palette projection from widget-config events",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-TEMPLATE-TIMELINE-001",
+        "PORTAL-WIDGET-SOURCE-001"
+      ],
+      "goal": "Make portal-designer consume widget-config source events so it can expose a minimal widget palette and disabled-state projection instead of only template timeline status.",
+      "scope": "Add lightweight in-memory palette projection, event listeners, read API, and tests without implementing drag-drop canvas editing or widget schema composition.",
+      "whyNow": "portal-designer contracts explicitly depend on portal.widget.updated and portal.widget.disabled, but the module still ignores widget source events and has no component panel state.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/events/portal-designer.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer consumes portal.widget.updated and portal.widget.disabled into a widget palette projection.",
+        "The palette can return active and disabled widget entries with latest metadata.",
+        "Repeated widget events update the same projection entry instead of creating duplicates.",
+        "Tests cover event dispatch and read behavior without external infrastructure."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-RESOLUTION-METADATA-001",
+      "title": "Expose resolved source template metadata in portal-home page response",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-ACTIVE-RESOLUTION-QUERY-001",
+        "PORTAL-HOME-SOURCE-TEMPLATE-RESOLUTION-001"
+      ],
+      "goal": "Include source-side template/publication resolution metadata in portal-home page responses so callers can diagnose which template is currently driving a rendered scene without recomputing it out of band.",
+      "scope": "Extend portal-home read DTOs and tests using the existing provider chain without redesigning page regions or frontend rendering.",
+      "whyNow": "portal-home now resolves source template metadata internally, but none of that information is exposed in the page contract for diagnostics or downstream UI hints.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "Portal-home page responses include source template/publication metadata when available.",
+        "Missing source resolution still falls back safely without breaking existing scenes.",
+        "Current HOME, OFFICE_CENTER, and MOBILE_WORKBENCH assembly behavior remains stable.",
+        "Tests cover both resolved and fallback response branches."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-WIDGET-LIST-QUERY-001",
+      "title": "Expose widget-config list query filtered by scene and status",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-WidgetConfig",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-WIDGET-SOURCE-001"
+      ],
+      "goal": "Provide a source-side list query over widget definitions so designer and downstream modules can read rich widget metadata without reconstructing a palette from sparse events.",
+      "scope": "Extend the in-memory widget definition repository, application service, controller, and tests with a lightweight list endpoint using optional sceneType and status filters.",
+      "whyNow": "portal-designer now has a minimal event palette projection, but the source module still lacks a first-class list contract for rich palette rendering and scene-aware widget discovery.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-WidgetConfig/src/main/java",
+        "HJO2OA-Portal/HJO2OA-WidgetConfig/src/test/java"
+      ],
+      "acceptanceCriteria": [
+        "Widget-config can list widget definitions for the current tenant with optional sceneType and status filters.",
+        "The list query returns each widget once with the latest definition metadata after repeated upserts.",
+        "The endpoint reuses the shared web contract and keeps existing single-widget behavior unchanged.",
+        "Tests cover repository-backed application and controller filtering behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-WidgetConfig -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-TEMPLATE-WIDGET-PALETTE-QUERY-001",
+      "title": "Add template-scoped designer widget palette query from widget-config source",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-TEMPLATE-TIMELINE-001",
+        "PORTAL-WIDGET-LIST-QUERY-001"
+      ],
+      "goal": "Expose a designer-friendly widget palette for a template scene by reading source widget definitions instead of relying only on sparse widget-config events.",
+      "scope": "Add a read-only application service and controller query in portal-designer that resolves template scene type and returns filtered widget definition metadata without implementing drag-drop or canvas placement.",
+      "whyNow": "the current event palette projection is sufficient for change tracking, but not for a real component panel because it lacks displayName, sourceModule, dataSourceType, and policy flags.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-WidgetConfig/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer can return a template-scoped widget palette using rich widget definition metadata from widget-config.",
+        "The query filters widgets by the template scene type and preserves widget status information.",
+        "Missing template projections still return RESOURCE_NOT_FOUND without breaking existing designer status endpoints.",
+        "Tests cover both the template-scoped palette response and the missing-template branch."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-TEMPLATE-CANVAS-SOURCE-001",
+      "title": "Add portal-model default template canvas skeleton and query",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-TEMPLATE-SOURCE-001",
+        "PORTAL-WIDGET-LIST-QUERY-001"
+      ],
+      "goal": "Make portal-model own a minimal page/region/widget-placement structure per template so designer and downstream modules can stop relying on hard-coded static layouts.",
+      "scope": "Add lightweight default canvas domain records, scene-based skeleton generation on template creation, a read-only query endpoint, and tests without implementing save/edit commands, multi-page authoring, or placement validation workflows.",
+      "whyNow": "portal-model already owns template lifecycle and widget reference boundaries, but it still lacks the page tree and placement source structure that the module contract reserves for it.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Creating a template initializes a scene-appropriate default canvas with page, regions, and widget placements.",
+        "Portal-model exposes the current template canvas through a shared-web-contract read endpoint.",
+        "HOME, OFFICE_CENTER, and MOBILE_WORKBENCH templates each return a stable default skeleton matching their current layout intent.",
+        "Tests cover application and controller behavior without introducing save/edit commands."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-DRAFT-INITIALIZATION-001",
+      "title": "Add designer draft initialization query from portal-model canvas and widget source",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-TEMPLATE-TIMELINE-001",
+        "PORTAL-DESIGNER-TEMPLATE-WIDGET-PALETTE-QUERY-001",
+        "PORTAL-MODEL-TEMPLATE-CANVAS-SOURCE-001"
+      ],
+      "goal": "Expose a minimal designer initialization payload that combines template status, scene-scoped widget palette, and current canvas structure so the designer can load a real draft shell instead of stitched ad hoc requests.",
+      "scope": "Add a read-only application service and controller query in portal-designer that composes existing template status, widget palette, and portal-model canvas data without implementing save, preview, or publish commands.",
+      "whyNow": "portal-designer already has the status panel and component palette pieces, but it still lacks a first-class draft initialization contract for the canvas itself.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer can load a draft initialization payload by templateId containing status, widget palette, and canvas structure.",
+        "Missing upstream template canvas or template projection returns RESOURCE_NOT_FOUND instead of partial success.",
+        "The initialization contract stays read-only and does not introduce draft save side effects.",
+        "Tests cover both the assembled success path and the missing-template branch."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-SOURCE-CANVAS-ASSEMBLY-001",
+      "title": "Assemble portal-home layouts from portal-model canvas source",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalHome",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-HOME-SOURCE-TEMPLATE-RESOLUTION-001",
+        "PORTAL-HOME-RESOLUTION-METADATA-001",
+        "PORTAL-MODEL-TEMPLATE-CANVAS-SOURCE-001"
+      ],
+      "goal": "Replace portal-home's remaining static page and region skeleton with a source-backed assembly path that reads page, region, and widget placement structure from portal-model canvas data.",
+      "scope": "Adapt the existing page template provider and assembly flow to consume portal-model canvas views, preserve current aggregation card mapping, and keep a safe fallback path without adding personalization writes or frontend rendering changes.",
+      "whyNow": "portal-model now exposes a stable default canvas skeleton and portal-home already resolves source template metadata, so the next gap is eliminating the remaining hard-coded scene layouts in the runtime page assembler.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-home derives page codes, region codes, and placement order from portal-model canvas source for HOME, OFFICE_CENTER, and MOBILE_WORKBENCH.",
+        "Existing aggregation card payloads still map into the assembled regions without breaking current scene responses.",
+        "When source canvas data is missing or incomplete, portal-home falls back safely instead of failing the page query.",
+        "Tests cover source-backed assembly and fallback behavior for at least one scene."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-TEMPLATE-CANVAS-SAVE-001",
+      "title": "Add portal-model minimal template canvas save command",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-TEMPLATE-CANVAS-SOURCE-001",
+        "PORTAL-DESIGNER-DRAFT-INITIALIZATION-001"
+      ],
+      "goal": "Introduce a minimal source-side save command for template canvas structure so designer can eventually persist page, region, and widget placement edits back into portal-model.",
+      "scope": "Implement a single full-canvas replace/update command with basic validation and read-after-write coverage, without adding diff merge, collaboration, preview, or version branching workflows.",
+      "whyNow": "designer can now load a real initialization payload, but it still cannot persist any canvas edits, so the next source capability should be a constrained save path with clear validation boundaries.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model accepts a minimal canvas save command for an existing template and updates the current canvas structure.",
+        "The save flow validates duplicate page or region codes and preserves stable placement ordering.",
+        "Reading template canvas after save returns the updated structure without introducing side effects on publication state.",
+        "Tests cover successful save, validation failure, and missing-template behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-DRAFT-SAVE-001",
+      "title": "Add designer draft save command backed by portal-model canvas save",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-DRAFT-INITIALIZATION-001",
+        "PORTAL-MODEL-TEMPLATE-CANVAS-SAVE-001"
+      ],
+      "goal": "Expose a minimal designer-side draft save command that persists canvas structure back into portal-model and returns an updated designer initialization payload.",
+      "scope": "Add a write application service and controller endpoint in portal-designer that forwards a full canvas payload to portal-model save, then reloads status, canvas, and widget palette without implementing preview or publish flows.",
+      "whyNow": "designer can now load a real draft shell and portal-model can persist full canvas structure, so the next missing link is a designer-owned save path.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer exposes a draft save endpoint that accepts a full canvas payload for a template.",
+        "Saving delegates to portal-model canvas save and returns the refreshed designer initialization payload.",
+        "Missing template or invalid canvas still returns the shared business error contract instead of partial success.",
+        "Tests cover successful save and validation failure behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PUBLISH-REQUEST-001",
+      "title": "Add designer publish request command over template lifecycle source",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-DRAFT-SAVE-001",
+        "PORTAL-MODEL-TEMPLATE-SOURCE-001"
+      ],
+      "goal": "Let portal-designer trigger the minimal template publish flow after draft save, while still delegating actual source-of-truth state to portal-model.",
+      "scope": "Add a narrow write command and response assembly in portal-designer that invokes portal-model publish and then returns refreshed designer status without implementing preview approval or multi-version branching.",
+      "whyNow": "once designer can load and save draft structure, the next natural step is closing the loop into publish initiation.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer can request publish for a template version via portal-model source services.",
+        "The publish response refreshes designer-side status and active publication indicators.",
+        "Missing template or invalid version uses the shared error contract.",
+        "Tests cover successful publish and invalid-version failure behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PUBLICATION-ACTIVATE-001",
+      "title": "Add designer publication activation command backed by portal-model source",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-PUBLISH-REQUEST-001",
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001"
+      ],
+      "goal": "Let portal-designer move a published template into active publication state through portal-model so the designer status panel can reflect real online publication identifiers.",
+      "scope": "Add a narrow designer-side activation command and refreshed status response over the existing portal-model publication activation service without implementing preview approval, offline management, or audience scheduling.",
+      "whyNow": "designer can now save drafts and publish template versions, but it still cannot trigger the publication activation step that actually drives online state and downstream publication events.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer exposes a publication activation endpoint scoped by templateId and publicationId.",
+        "Activation resolves sceneType from source template data and delegates to portal-model publication activation.",
+        "The response refreshes designer-side active publication indicators after activation.",
+        "Tests cover successful activation and unpublished-template rejection behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PUBLICATION-OFFLINE-001",
+      "title": "Add designer publication offline command backed by portal-model source",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-PUBLICATION-ACTIVATE-001",
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001"
+      ],
+      "goal": "Let portal-designer take an active publication offline through portal-model so the designer status panel can clear real online publication identifiers.",
+      "scope": "Add a narrow designer-side offline command and refreshed status response over the existing portal-model publication offline service without implementing preview approval, audience scheduling, or publication history management.",
+      "whyNow": "designer can now trigger publication activation, but it still lacks the inverse lifecycle action needed to complete the minimal online publication control loop.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer exposes a publication offline endpoint scoped by templateId and publicationId.",
+        "The offline flow validates that the publication belongs to the specified template before delegating to portal-model.",
+        "The response refreshes designer-side active publication indicators after offlining.",
+        "Tests cover successful offline and mismatched template/publication failure behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PREVIEW-QUERY-001",
+      "title": "Add designer preview query backed by current draft canvas assembly",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-DRAFT-SAVE-001",
+        "PORTAL-DESIGNER-PUBLICATION-OFFLINE-001",
+        "PORTAL-HOME-SOURCE-CANVAS-ASSEMBLY-001"
+      ],
+      "goal": "Expose a designer-side preview query that assembles a portal page view from the current draft canvas so the designer can validate rendering before publish without relying on active publication state.",
+      "scope": "Add a read-only preview application service and controller in portal-designer that composes current template metadata and canvas into a page preview using portal-home assembly semantics and placeholder card snapshots, without implementing identity-targeted preview or live publication resolution.",
+      "whyNow": "designer now supports draft save, publish, activation, and offline flows, but preview still exists only in contracts and has no runnable backend path.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/docs/portal-designer.overview.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/frontend/portal-designer.frontend.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer exposes a preview query by templateId with an optional clientType preview context.",
+        "Preview assembles the current draft canvas into a page response without requiring an active publication.",
+        "The preview response reuses portal-home page view semantics and returns placeholder ready card snapshots instead of failing empty cards.",
+        "Tests cover preview assembled from saved draft canvas and missing-template failure behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-TEMPLATE-LIST-001",
+      "title": "Add portal template list query for current tenant",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [],
+      "goal": "Expose a source-side template collection query so portal management and designer entry flows can browse existing templates without relying on direct repository access.",
+      "scope": "Add a narrow list query in portal-model that returns current-tenant template metadata with optional sceneType filtering, without introducing pagination, category search, or write-side status derivation beyond the existing template view.",
+      "whyNow": "portal-model contracts and frontend notes already reference a template list capability, but the backend currently only supports create, current-by-id, publish, and deprecate operations.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model exposes a template collection query endpoint for the current tenant.",
+        "The list query supports optional filtering by sceneType.",
+        "Returned templates are ordered deterministically and include the existing PortalTemplateView payload.",
+        "Tests cover unfiltered list, sceneType filtering, and tenant isolation behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-TEMPLATE-LIST-001",
+      "title": "Add portal-designer template draft list query",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-PREVIEW-QUERY-001",
+        "PORTAL-MODEL-TEMPLATE-LIST-001"
+      ],
+      "goal": "Expose a designer-side template collection query so the template draft list page can browse current-tenant templates without calling portal-model directly.",
+      "scope": "Add a narrow list query in portal-designer backed by the local template projection, including tenant-aware filtering and optional sceneType selection, without introducing pagination, keyword search, or derived workflow states beyond the existing status view.",
+      "whyNow": "portal-designer contracts already mention a template draft list, but the module still only exposes per-template status and preview endpoints.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/docs/portal-designer.overview.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/frontend/portal-designer.frontend.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer exposes a template collection query endpoint for the current tenant.",
+        "The list query supports optional filtering by sceneType.",
+        "Results are ordered deterministically and reuse the existing designer template status view payload.",
+        "Tests cover unfiltered list, sceneType filtering, and tenant isolation behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-PUBLICATION-LIST-001",
+      "title": "Add portal-model publication list query",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [],
+      "goal": "Expose a publication catalog query so portal management and designer status flows can inspect current-tenant publications without enumerating ids one by one.",
+      "scope": "Add a narrow list query in portal-model that returns current-tenant publication metadata with optional sceneType, clientType, and status filtering, without introducing pagination, publish-mode filters, or audience resolution.",
+      "whyNow": "portal-model contracts already mention publication lists, but the backend currently only supports current-by-id, current active, activate, and offline operations.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model exposes a publication collection query endpoint for the current tenant.",
+        "The list query supports optional filtering by sceneType, clientType, and status.",
+        "Returned publications are ordered deterministically and reuse the existing PortalPublicationView payload.",
+        "Tests cover unfiltered list, filter combinations, and tenant isolation behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PREVIEW-IDENTITY-001",
+      "title": "Add designer preview identity context query support",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-PREVIEW-QUERY-001"
+      ],
+      "goal": "Let portal-designer preview run against an explicit target identity context so designers can inspect draft rendering under different preview identities without touching live identity state.",
+      "scope": "Extend the existing preview query with optional identity context parameters and an explicit preview identity payload in the response, without introducing live identity resolution, personalization writes, or publication-scope evaluation.",
+      "whyNow": "designer preview is now functional, but frontend and domain notes already imply target-identity preview switching while the backend still hardcodes a synthetic preview identity.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/docs/portal-designer.overview.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/frontend/portal-designer.frontend.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer preview accepts optional identity-context query parameters.",
+        "Preview uses the provided identity context when assembling synthetic card snapshots and falls back to stable defaults when omitted.",
+        "The preview response returns the effective preview identity context explicitly.",
+        "Tests cover explicit identity override and default fallback behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-DRAFT-VERSIONING-001",
+      "title": "Harden portal-model draft and published version boundaries",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-TEMPLATE-SOURCE-001",
+        "PORTAL-MODEL-TEMPLATE-CANVAS-SAVE-001",
+        "PORTAL-MODEL-PUBLICATION-SOURCE-001"
+      ],
+      "goal": "Tighten portal-model source semantics so draft editing, published snapshots, and concurrent saves have explicit boundaries instead of sharing one loosely mutable version path.",
+      "scope": "Add minimal source-side version metadata, optimistic concurrency checks, and published-version read-only guards to the existing template and canvas save flows without introducing approval workflow, distributed locking, or persistence migrations.",
+      "whyNow": "designer can already save drafts, publish versions, and control publication lifecycle, but the underlying source model still lacks a clear writable-draft versus immutable-published contract, which makes save collisions and post-publish edits ambiguous.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model maintains an explicit writable draft versus read-only published version boundary for each template.",
+        "Canvas save and related lifecycle writes require a current revision token or equivalent version guard and reject stale concurrent updates through the shared business error contract.",
+        "Attempts to modify an already published version are rejected, while publish continues to produce or preserve an immutable published snapshot instead of mutating history in place.",
+        "Tests cover concurrent save rejection, published-version read-only behavior, and draft continuity after publish."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PUBLICATION-LIST-001",
+      "title": "Add portal-designer publication list query",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalDesigner",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-DESIGNER-TEMPLATE-LIST-001",
+        "PORTAL-MODEL-PUBLICATION-LIST-001"
+      ],
+      "goal": "Expose a designer-side publication collection query so template management views can browse published, active, and offline publication records without calling portal-model directly.",
+      "scope": "Add a narrow portal-designer read endpoint backed by source publication list data and local designer-facing view assembly, with optional templateId, sceneType, clientType, and status filters, without pagination, scheduling history, or audience resolution.",
+      "whyNow": "portal-model already provides a publication list source query and designer already owns template list and publication control endpoints, so the remaining read-side gap is a designer publication list tailored for management pages.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/docs/portal-designer.overview.md",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/frontend/portal-designer.frontend.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-designer exposes a publication collection query endpoint for the current tenant.",
+        "The query supports optional filtering by templateId, sceneType, clientType, and publication status.",
+        "Results are ordered deterministically and return a designer-facing publication view without forcing the UI to join template status and source publication data on its own.",
+        "Tests cover unfiltered list, filter combinations, and tenant isolation behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-WIDGET-REFERENCE-ENFORCEMENT-001",
+      "title": "Enforce widget reference status on portal-model draft save and publish",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-DRAFT-VERSIONING-001",
+        "PORTAL-MODEL-WIDGET-REFERENCE-QUERY-001"
+      ],
+      "goal": "Turn the existing widget reference status projection into write-side validation so disabled or stale widgets cannot continue to flow through draft save and publish transitions silently.",
+      "scope": "Reuse the current reference-status projection inside portal-model save and publish validation paths, surfacing repair-oriented errors without auto-rewriting canvases, batch migrations, or historical publication mutation.",
+      "whyNow": "portal-model already tracks widget reference invalidation and exposes it for inspection, but the write path still has no enforcement boundary, so stale widget references can remain embedded until a later manual diagnosis step.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalModel/events/portal-model.events.md"
+      ],
+      "acceptanceCriteria": [
+        "Draft save and publish validate referenced widgets against the existing reference-status projection before committing source changes.",
+        "Disabled, missing, or otherwise unrecoverable widget references are rejected with explicit affected widget identifiers or placements in the shared error payload.",
+        "Validation rules distinguish between mutable draft repair scenarios and immutable published history so enforcement does not rewrite historical snapshots in place.",
+        "Tests cover save rejection, publish rejection, and a non-impacted update path."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-IDENTITY-CONTEXT-CONSISTENCY-001",
+      "title": "Align portal identity-context semantics across preview, publication, and runtime assembly",
+      "domain": "04-portal-and-workbench",
+      "module": "Cross-Module",
+      "priority": "P3",
+      "status": "done",
+      "dependsOn": [
+        "ORG-CORE-001",
+        "PORTAL-DESIGNER-PREVIEW-IDENTITY-001",
+        "PORTAL-MODEL-DRAFT-VERSIONING-001",
+        "PORTAL-DESIGNER-PUBLICATION-LIST-001"
+      ],
+      "goal": "Unify how portal preview, published template resolution, and portal-home runtime assembly interpret identity-context fields so tenant, person, assignment, and preview overrides follow one consistent cross-module contract.",
+      "scope": "Align designer preview inputs, source publication metadata, and portal-home/runtime resolution semantics across the involved modules without adding live identity writes, audience scheduling, or end-user personalization changes.",
+      "whyNow": "designer preview identity overrides now exist and publication capabilities are broad enough to expose mismatched context assumptions, so the next cross-module gap is making preview-time identity and runtime identity resolution follow the same contract.",
+      "paths": [
+        "HJO2OA-OrgPerm/HJO2OA-IdentityContext/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Preview identity parameters, publication metadata, and runtime resolution all use the same required and optional identity-context fields.",
+        "Portal-designer, portal-model, and portal-home document the same fallback and override precedence for tenantId, personId, assignmentId, and related context fields.",
+        "Cross-module tests or contract-level coverage demonstrate that preview and runtime assembly resolve equivalent identity inputs consistently.",
+        "The alignment does not introduce new cross-module writes into identity-context or personalization modules."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-OrgPerm/HJO2OA-IdentityContext -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-MODEL-PUBLICATION-AUDIENCE-001",
+      "title": "Add portal-model publication audience targeting and identity-aware resolution",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-PortalModel",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-DRAFT-VERSIONING-001",
+        "PORTAL-MODEL-PUBLICATION-LIST-001",
+        "PORTAL-IDENTITY-CONTEXT-CONSISTENCY-001"
+      ],
+      "goal": "Let portal-model carry explicit publication audience targeting and resolve active publications against the aligned identity-context contract instead of treating all publications as scene/client-wide defaults.",
+      "scope": "Add minimal audience metadata, identity-aware match logic, and source query/list response fields over the existing publication model without introducing approval workflow, scheduling windows, end-user personalization writes, or a complex rule DSL.",
+      "whyNow": "draft version boundaries, designer publication list coverage, and cross-module identity-context semantics are now stable, so the next portal gap is turning publication records into scoped releases with deterministic audience matching.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-model publication metadata can represent tenant-default and identity-scoped audience targets using the aligned identity-context fields.",
+        "Active publication resolution accepts identity-context input and deterministically prefers the most specific matching publication over tenant-wide fallback.",
+        "Publication list or current-publication responses expose audience summary fields so downstream modules can inspect scoped versus default releases without repository joins.",
+        "Tests cover tenant-default fallback, specific audience match, and non-match behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalModel -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-RUNTIME-AUDIENCE-CONSUMER-001",
+      "title": "Make personalization and portal-home consume publication audience source truth",
+      "domain": "04-portal-and-workbench",
+      "module": "Cross-Module",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-MODEL-PUBLICATION-AUDIENCE-001",
+        "PORTAL-IDENTITY-CONTEXT-CONSISTENCY-001"
+      ],
+      "goal": "Let personalization and portal-home consume portal-model publication audience source truth with the aligned identity-context contract so runtime base-publication binding and page assembly stop assuming tenant-wide defaults.",
+      "scope": "Wire identity-aware publication resolution into personalization base publication binding and portal-home runtime assembly/read paths, preserving source truth in portal-model and avoiding new publication writes, designer changes, or a separate audience cache.",
+      "whyNow": "portal-model now owns explicit audience targeting and identity-aware publication matching, but the runtime consumer path still resolves base publications and assembled pages as if active publications were scene-wide defaults.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-Personalization/src/main/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/api/personalization.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Personalization resolves basePublicationId from portal-model using the aligned identity-context fields and no longer assumes one tenant-default active publication per scene when a more specific audience match exists.",
+        "Portal-home page assembly consumes the same identity-aware publication resolution semantics as personalization so runtime page selection and personalization base binding stay consistent for the same identity input.",
+        "Runtime read responses expose enough publication audience or resolution metadata for diagnosis without duplicating portal-model source ownership.",
+        "Tests cover tenant-default fallback, identity-scoped match, and a consistency case where personalization and portal-home select the same publication for equivalent identity context."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-HOME-PERSONALIZATION-OVERLAY-001",
+      "title": "Apply personalization overlay to live portal-home page assembly",
+      "domain": "04-portal-and-workbench",
+      "module": "Cross-Module",
+      "priority": "P2",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-RUNTIME-AUDIENCE-CONSUMER-001"
+      ],
+      "goal": "Make the live portal-home assembly path actually apply personalization overlay data so widgetOrderOverride and hiddenPlacementCodes change the final runtime page instead of remaining stored-only preferences.",
+      "scope": "Limit this slice to live runtime assembly and read responses across personalization and portal-home; apply ordering and hide overrides on top of the resolved published canvas, and do not fold designer preview parity or new save-time validation rules into the same task.",
+      "whyNow": "publication audience source truth is now consumed end-to-end, so the next missing user-visible gap is that saved personalization overlay data still does not reshape the live assembled page.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-Personalization/src/main/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalHome/src/test/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/api/personalization.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md",
+        "HJO2OA-Portal/docs/domain-model.md"
+      ],
+      "acceptanceCriteria": [
+        "Portal-home filters hiddenPlacementCodes from the live assembled page after published-canvas resolution instead of leaving hidden placements visible at runtime.",
+        "Portal-home applies widgetOrderOverride within the resolved live page scope while preserving deterministic fallback order for placements not mentioned in the override.",
+        "Reset or empty personalization data cleanly falls back to the published canvas default order and visibility for the same resolved base publication.",
+        "Tests cover live hidden placement filtering, partial order override application, and reset/default fallback behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-DESIGNER-PREVIEW-OVERLAY-CONSISTENCY-001",
+      "title": "Align designer preview with personalization overlay semantics",
+      "domain": "04-portal-and-workbench",
+      "module": "Cross-Module",
+      "priority": "P3",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-HOME-PERSONALIZATION-OVERLAY-001",
+        "PORTAL-DESIGNER-PREVIEW-IDENTITY-001"
+      ],
+      "goal": "Keep designer preview structurally consistent with live personalization overlay behavior so previewed page order and visibility do not drift from runtime results for the same identity context.",
+      "scope": "Extend preview-side assembly semantics only; reuse existing preview identity inputs and avoid adding live personalization writes, publication changes, or save validation in this task.",
+      "whyNow": "once live runtime starts honoring order and hide overlays, preview becomes the next likely drift point unless it explicitly follows the same overlay application rules.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/main/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/src/test/java",
+        "HJO2OA-Portal/HJO2OA-PortalDesigner/api/portal-designer.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalHome/api/portal-home.api.md",
+        "HJO2OA-Portal/HJO2OA-Personalization/api/personalization.api.md"
+      ],
+      "acceptanceCriteria": [
+        "Designer preview can apply the same placement hide and ordering overlay semantics used by live portal-home assembly for equivalent identity inputs.",
+        "Preview responses make it explicit whether personalization overlay semantics were applied or bypassed.",
+        "Tests cover at least one equivalence case where preview and live assembly return the same effective placement order and visibility for matching inputs.",
+        "Preview remains read-only and does not mutate live personalization profiles."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalDesigner -am test",
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-PortalHome -am test"
+      ]
+    },
+    {
+      "id": "PORTAL-PERSONALIZATION-OVERLAY-VALIDATION-001",
+      "title": "Validate personalization overlay against live publication placements on save",
+      "domain": "04-portal-and-workbench",
+      "module": "HJO2OA-Portal/HJO2OA-Personalization",
+      "priority": "P2",
+      "status": "ready",
+      "dependsOn": [
+        "PORTAL-HOME-PERSONALIZATION-OVERLAY-001"
+      ],
+      "goal": "Add save-time validation for widgetOrderOverride and hiddenPlacementCodes so personalization cannot persist overlay references that the resolved live publication cannot apply safely.",
+      "scope": "Validate overlay codes against the resolved live publication placement set and current allowed override boundary, return explicit business errors, and avoid auto-repairing stored profiles or changing designer workflows.",
+      "whyNow": "after live runtime starts applying overlay data directly, stale or illegal placement codes become visible structural defects instead of dormant stored preferences.",
+      "paths": [
+        "HJO2OA-Portal/HJO2OA-Personalization/src/main/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/src/test/java",
+        "HJO2OA-Portal/HJO2OA-Personalization/api/personalization.api.md",
+        "HJO2OA-Portal/HJO2OA-PortalModel/api/portal-model.api.md",
+        "HJO2OA-Portal/docs/domain-model.md"
+      ],
+      "acceptanceCriteria": [
+        "Saving rejects unknown, duplicate, or cross-publication placement codes in widgetOrderOverride and hiddenPlacementCodes against the resolved live publication context.",
+        "Saving rejects attempts to hide required placements or otherwise violate the allowed overlay boundary defined by the live template/publication.",
+        "Error responses identify the offending placement codes or conflict reason instead of silently trimming invalid overlay inputs.",
+        "Tests cover successful save, unknown placement rejection, and stale publication mismatch behavior."
+      ],
+      "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test"
       ]
     }
   ]

@@ -3,9 +3,14 @@ target/
 **/target/
 
 # Frontend
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/apps/**/node_modules/
+frontend/apps/**/dist/
+frontend/apps/**/.vite/
+frontend/apps/**/coverage/
 
 # IDE
 .idea/
