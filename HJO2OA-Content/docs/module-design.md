@@ -194,7 +194,7 @@ ContentEngagementSnapshot  ──1:N──> ContentReadRecord
 
 ### 7.2 检索与索引策略
 
-- 一期检索基于 PostgreSQL 全文检索实现标题、摘要、正文与标签检索。
+- 一期检索基于 SQL Server Full-Text Search 实现标题、摘要、正文与标签检索。
 - 检索索引由内容发布事件驱动刷新，不依赖前台读取时实时构建。
 - 下线和归档事件必须触发索引移除或降权处理。
 

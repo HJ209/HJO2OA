@@ -17,7 +17,7 @@
 
 - `HJO2OA-Shared` 可以被 `Bootstrap` 和所有业务模块依赖，但不得反向依赖任何 `01-07` 业务模块。
 - `HJO2OA-Shared` 提供的是抽象和公共实现，不拥有租户主数据、审计记录主数据、消息主数据、账号主数据或业务表结构。
-- RabbitMQ、Redis、PostgreSQL、MinIO 等运行时接入的真实资源归 `Bootstrap + 00-平台基础设施` 装配和落地，`Shared` 只定义统一接入面。
+- RabbitMQ、Redis、SQL Server、MinIO 等运行时接入的真实资源归 `Bootstrap + 00-平台基础设施` 装配和落地，`Shared` 只定义统一接入面。
 - `shared.testing` 仅服务测试代码，不作为生产运行链路的必需依赖。
 
 ## 子模块划分
