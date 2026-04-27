@@ -120,6 +120,11 @@
             <artifactId>HJO2OA-IdentityContext</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-OrgSyncAudit</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- HJO2OA-WorkflowForm 子模块 -->
         <dependency>
@@ -150,6 +155,11 @@
         <dependency>
             <groupId>com.hjo2oa</groupId>
             <artifactId>HJO2OA-TodoCenter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-ProcessMonitor</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -189,6 +199,11 @@
         <dependency>
             <groupId>com.hjo2oa</groupId>
             <artifactId>HJO2OA-MobileSupport</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-Ecosystem</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -268,16 +283,6 @@
             <dependencies>
                 <dependency>
                     <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-OrgSyncAudit</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-ProcessMonitor</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
                     <artifactId>HJO2OA-PortalDesigner</artifactId>
                     <version>${project.version}</version>
                 </dependency>
@@ -289,11 +294,6 @@
                 <dependency>
                     <groupId>com.hjo2oa</groupId>
                     <artifactId>HJO2OA-Personalization</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.hjo2oa</groupId>
-                    <artifactId>HJO2OA-Ecosystem</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>
@@ -376,6 +376,8 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <skip>false</skip>
+                    <mainClass>com.hjo2oa.bootstrap.Hjo2oaApplication</mainClass>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
