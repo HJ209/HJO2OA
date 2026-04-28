@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -18,6 +20,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice(annotations = UseSharedWebContract.class)
 public class SharedGlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(SharedGlobalExceptionHandler.class);
 
     private final ResponseMetaFactory responseMetaFactory;
 
@@ -85,6 +89,7 @@ public class SharedGlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnhandled(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled exception for request {}", request == null ? null : request.getRequestURI(), ex);
         return buildResponse(
                 SharedErrorDescriptors.INTERNAL_ERROR,
                 SharedErrorDescriptors.INTERNAL_ERROR.defaultMessage(),

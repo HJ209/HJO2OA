@@ -52,7 +52,12 @@ public class AuthController {
                 request.password(),
                 clientIp(servletRequest)
         );
-        IdentityContextView identityContext = identityContextAuthenticationApplicationService.establish(account);
+        IdentityContextView identityContext;
+        try {
+            identityContext = identityContextAuthenticationApplicationService.establish(account);
+        } catch (Exception e) {
+            identityContext = identityContextAuthenticationApplicationService.establishFallback(account);
+        }
         String token = jwtTokenProvider.generateToken(
                 identityContext.personId(),
                 account.username(),

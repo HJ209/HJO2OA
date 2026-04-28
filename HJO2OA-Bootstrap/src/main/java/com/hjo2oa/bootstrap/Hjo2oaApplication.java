@@ -9,7 +9,10 @@ import org.springframework.context.annotation.FilterType;
 @SpringBootApplication
 @ComponentScan(
         basePackages = "com.hjo2oa",
-        excludeFilters = @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = Mapper.class)
+        excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = Mapper.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.hjo2oa.shared.cache.RedisCacheConfiguration.class)
+        }
 )
 public class Hjo2oaApplication {
 

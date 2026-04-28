@@ -3,17 +3,13 @@ package com.hjo2oa.shared.cache;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Component;
 
-@Component
-@ConditionalOnBean(RedisTemplate.class)
 public class RedisCacheOperations {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    public RedisCacheOperations(RedisTemplate<String, Object> redisTemplate) {
+    RedisCacheOperations(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate must not be null");
     }
 

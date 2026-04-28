@@ -14,8 +14,6 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "hjo2oa.workflow.engine", havingValue = "flowable", matchIfMissing = true)
 public class FlowableProcessEngineConfiguration {
 
-    public static final String FLOWABLE_TABLE_PREFIX = "FLW_";
-
     @Bean
     public ProcessEngineConfigurationConfigurer hjo2oaProcessEngineConfigurationConfigurer(
             DataSource dataSource,
@@ -32,7 +30,6 @@ public class FlowableProcessEngineConfiguration {
         configuration.setDataSource(dataSource);
         configuration.setDatabaseSchemaUpdate(ProcessEngineConfiguration.DB_SCHEMA_UPDATE_TRUE);
         configuration.setHistoryLevel(HistoryLevel.FULL);
-        configuration.setDatabaseTablePrefix(FLOWABLE_TABLE_PREFIX);
         configuration.setEnableEventDispatcher(true);
         configuration.setEventListeners(List.of(eventBridge));
         configuration.setDeploymentResources(new org.springframework.core.io.Resource[0]);
