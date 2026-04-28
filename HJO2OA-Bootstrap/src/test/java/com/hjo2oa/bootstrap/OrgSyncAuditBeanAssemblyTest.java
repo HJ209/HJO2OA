@@ -27,13 +27,19 @@ import org.springframework.test.context.ActiveProfiles;
         properties = {
                 "spring.main.lazy-initialization=true",
                 "logging.level.com.hjo2oa=INFO",
+                "hjo2oa.cache.type=inmemory",
                 "spring.autoconfigure.exclude="
                         + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
                         + "org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,"
-                        + "com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration"
+                        + "com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration,"
+                        + "org.flowable.spring.boot.ProcessEngineAutoConfiguration,"
+                        + "org.flowable.spring.boot.FlowableAutoConfiguration,"
+                        + "org.flowable.spring.boot.eventregistry.EventRegistryAutoConfiguration,"
+                        + "org.flowable.spring.boot.idm.IdmAutoConfiguration,"
+                        + "org.flowable.spring.boot.app.AppAutoConfiguration"
         }
 )
 @ActiveProfiles("local")

@@ -65,6 +65,8 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 hjo2oa:
+  workflow:
+    engine: flowable
   tenant:
     enabled: true
     ignore-tables:
@@ -80,6 +82,10 @@ hjo2oa:
     outbox:
       enabled: true
       scan-interval: 5000
+      amqp:
+        enabled: true
+        exchange-name: hjo2oa.domain.events
+        queue-name: hjo2oa.domain.events.local
   storage:
     type: minio
     endpoint: http://localhost:9000
@@ -106,3 +112,8 @@ hjo2oa:
         default-window-value: 1
         default-window-unit: HOURS
         default-threshold: 1000
+
+flowable:
+  check-process-definitions: false
+  database-schema-update: true
+  history-level: full

@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
         "com.hjo2oa.infra.dictionary.infrastructure",
         "com.hjo2oa.infra.errorcode.infrastructure",
         "com.hjo2oa.infra.event.bus.infrastructure",
+        "com.hjo2oa.infra.event.bus.infrastructure.amqp",
         "com.hjo2oa.infra.i18n.infrastructure",
         "com.hjo2oa.infra.scheduler.infrastructure.persistence",
         "com.hjo2oa.infra.security.infrastructure",
@@ -29,6 +30,7 @@ import org.springframework.context.annotation.Configuration;
         "com.hjo2oa.msg.channel.sender.infrastructure",
         "com.hjo2oa.msg.ecosystem.infrastructure",
         "com.hjo2oa.msg.event.subscription.infrastructure",
+        "com.hjo2oa.msg.message.center.infrastructure.persistence",
         "com.hjo2oa.msg.mobile.support.infrastructure",
         "com.hjo2oa.org.data.permission.infrastructure",
         "com.hjo2oa.org.org.structure.infrastructure",
@@ -36,11 +38,18 @@ import org.springframework.context.annotation.Configuration;
         "com.hjo2oa.org.person.account.infrastructure",
         "com.hjo2oa.org.position.assignment.infrastructure",
         "com.hjo2oa.org.role.resource.auth.infrastructure",
+        "com.hjo2oa.portal.aggregation.api.infrastructure.persistence",
+        "com.hjo2oa.portal.personalization.infrastructure.persistence",
+        "com.hjo2oa.portal.portal.designer.infrastructure.persistence",
+        "com.hjo2oa.portal.portal.home.infrastructure.persistence",
+        "com.hjo2oa.portal.portal.model.infrastructure.persistence",
+        "com.hjo2oa.portal.widget.config.infrastructure.persistence",
+        "com.hjo2oa.wf.action.engine.infrastructure.persistence",
         "com.hjo2oa.wf.form.metadata.infrastructure",
         "com.hjo2oa.wf.process.definition.infrastructure",
         "com.hjo2oa.wf.process.instance.infrastructure",
         "com.hjo2oa.process.monitor.infrastructure",
-        "com.hjo2oa.todo.center.infrastructure"
+        "com.hjo2oa.todo.center.infrastructure.persistence"
 })
 public class MybatisMapperScanConfiguration {
 }
