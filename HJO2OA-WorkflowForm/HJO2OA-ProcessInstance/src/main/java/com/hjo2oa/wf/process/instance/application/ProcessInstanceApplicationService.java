@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -43,15 +44,18 @@ public class ProcessInstanceApplicationService {
     private final TaskInstanceRepository taskRepository;
     private final TaskActionRepository actionRepository;
     private final DomainEventPublisher eventPublisher;
+    private final ProcessInstanceEngineGateway engineGateway;
     private final Clock clock;
     @Autowired
     public ProcessInstanceApplicationService(
             ProcessInstanceRepository instanceRepository,
             TaskInstanceRepository taskRepository,
             TaskActionRepository actionRepository,
-            DomainEventPublisher eventPublisher
+            DomainEventPublisher eventPublisher,
+            ObjectProvider<ProcessInstanceEngineGateway> engineGateway
     ) {
-        this(instanceRepository, taskRepository, actionRepository, eventPublisher, Clock.systemUTC());
+        this(instanceRepository, taskRepository, actionRepository, eventPublisher,
+                engineGateway.getIfAvailable(ProcessInstanceEngineGateway::noop), Clock.systemUTC());
     }
     public ProcessInstanceApplicationService(
             ProcessInstanceRepository instanceRepository,
@@ -60,10 +64,22 @@ public class ProcessInstanceApplicationService {
             DomainEventPublisher eventPublisher,
             Clock clock
     ) {
+        this(instanceRepository, taskRepository, actionRepository, eventPublisher,
+                ProcessInstanceEngineGateway.noop(), clock);
+    }
+    public ProcessInstanceApplicationService(
+            ProcessInstanceRepository instanceRepository,
+            TaskInstanceRepository taskRepository,
+            TaskActionRepository actionRepository,
+            DomainEventPublisher eventPublisher,
+            ProcessInstanceEngineGateway engineGateway,
+            Clock clock
+    ) {
         this.instanceRepository = Objects.requireNonNull(instanceRepository, "instanceRepository must not be null");
         this.taskRepository = Objects.requireNonNull(taskRepository, "taskRepository must not be null");
         this.actionRepository = Objects.requireNonNull(actionRepository, "actionRepository must not be null");
         this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher must not be null");
+        this.engineGateway = Objects.requireNonNull(engineGateway, "engineGateway must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -88,6 +104,7 @@ public class ProcessInstanceApplicationService {
                 command.tenantId(),
                 now
         );
+        engineGateway.start(instance, command);
         instanceRepository.save(instance);
         List<TaskInstance> tasks = createTasks(
                 instance.id(),
@@ -118,6 +135,7 @@ public class ProcessInstanceApplicationService {
                 command.assigneePositionId(),
                 now()
         );
+        engineGateway.claim(task, command);
         return taskRepository.save(claimed).toView();
     }
 
@@ -132,6 +150,7 @@ public class ProcessInstanceApplicationService {
                 command.toAssigneePositionId(),
                 now()
         );
+        engineGateway.transfer(task, command);
         return taskRepository.save(transferred).toView();
     }
 
@@ -146,6 +165,7 @@ public class ProcessInstanceApplicationService {
         }
 
         TaskInstance completedTask = taskRepository.save(task.complete(now));
+        engineGateway.complete(instance, task, command, command.formDataPatch());
         TaskAction action = TaskAction.record(
                 task.id(),
                 task.instanceId(),
@@ -183,6 +203,7 @@ public class ProcessInstanceApplicationService {
         Objects.requireNonNull(command, "command must not be null");
         Instant now = now();
         ProcessInstance instance = loadInstance(command.instanceId());
+        engineGateway.terminate(instance, command);
         taskRepository.saveAll(taskRepository.findOpenByInstanceId(instance.id()).stream()
                 .map(task -> task.terminate(now))
                 .toList());

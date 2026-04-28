@@ -9,17 +9,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 @Primary
 @Repository
-public class MybatisActionDefinitionRepository implements ActionDefinitionRepository {
+public class ProcessDefinitionActionDefinitionRepository implements ActionDefinitionRepository {
 
     private final ActionDefinitionMapper mapper;
 
-    public MybatisActionDefinitionRepository(ActionDefinitionMapper mapper) {
+    public ProcessDefinitionActionDefinitionRepository(ActionDefinitionMapper mapper) {
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
     }
 

@@ -2,6 +2,8 @@ package com.hjo2oa.org.person.account.application;
 
 import com.hjo2oa.org.person.account.domain.Account;
 import com.hjo2oa.org.person.account.domain.AccountRepository;
+import com.hjo2oa.org.person.account.domain.AccountStatus;
+import com.hjo2oa.org.person.account.domain.AccountType;
 import com.hjo2oa.org.person.account.domain.AccountView;
 import com.hjo2oa.org.person.account.domain.Person;
 import com.hjo2oa.org.person.account.domain.PersonAccountView;
@@ -17,6 +19,8 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 public class PersonAccountApplicationService {
@@ -33,21 +37,35 @@ public class PersonAccountApplicationService {
     private final PersonRepository personRepository;
     private final AccountRepository accountRepository;
     private final Clock clock;
+    private final PasswordEncoder passwordEncoder;
+
     @Autowired
     public PersonAccountApplicationService(
             PersonRepository personRepository,
-            AccountRepository accountRepository
+            AccountRepository accountRepository,
+            PasswordEncoder passwordEncoder
     ) {
-        this(personRepository, accountRepository, Clock.systemUTC());
+        this(personRepository, accountRepository, Clock.systemUTC(), passwordEncoder);
     }
+
     public PersonAccountApplicationService(
             PersonRepository personRepository,
             AccountRepository accountRepository,
             Clock clock
     ) {
+        this(personRepository, accountRepository, clock, new BCryptPasswordEncoder());
+    }
+
+    public PersonAccountApplicationService(
+            PersonRepository personRepository,
+            AccountRepository accountRepository,
+            Clock clock,
+            PasswordEncoder passwordEncoder
+    ) {
         this.personRepository = Objects.requireNonNull(personRepository, "personRepository must not be null");
         this.accountRepository = Objects.requireNonNull(accountRepository, "accountRepository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
+        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "passwordEncoder must not be null");
     }
 
     public PersonAccountView createPerson(PersonAccountCommands.CreatePersonCommand command) {
@@ -185,6 +203,26 @@ public class PersonAccountApplicationService {
         return accountRepository.save(account).toView();
     }
 
+    public AuthenticatedAccount authenticate(String username, String rawPassword, String loginIp) {
+        String normalizedUsername = requireText(username, "username");
+        String normalizedPassword = requireText(rawPassword, "password");
+        Account account = accountRepository.findByUsername(normalizedUsername)
+                .orElseThrow(() -> new BizException(SharedErrorDescriptors.UNAUTHORIZED, "Invalid username or password"));
+        if (account.accountType() != AccountType.PASSWORD
+                || account.status() != AccountStatus.ACTIVE
+                || account.locked()
+                || !passwordEncoder.matches(normalizedPassword, account.credential())) {
+            throw new BizException(SharedErrorDescriptors.UNAUTHORIZED, "Invalid username or password");
+        }
+        Account loggedIn = accountRepository.save(account.recordLogin(loginIp, now()));
+        return new AuthenticatedAccount(
+                loggedIn.id(),
+                loggedIn.personId(),
+                loggedIn.username(),
+                loggedIn.tenantId()
+        );
+    }
+
     public void deleteAccount(UUID accountId) {
         Account account = loadRequiredAccount(accountId);
         if (account.primaryAccount() && accountRepository.findByPersonId(account.personId()).size() > 1) {
@@ -233,5 +271,22 @@ public class PersonAccountApplicationService {
 
     private Instant now() {
         return clock.instant();
+    }
+
+    private static String requireText(String value, String fieldName) {
+        Objects.requireNonNull(value, fieldName + " must not be null");
+        String normalized = value.trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+        return normalized;
+    }
+
+    public record AuthenticatedAccount(
+            UUID accountId,
+            UUID personId,
+            String username,
+            UUID tenantId
+    ) {
     }
 }

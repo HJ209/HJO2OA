@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 
 @Service
 public class ActionEngineApplicationService {
@@ -32,15 +33,27 @@ public class ActionEngineApplicationService {
     private final ActionDefinitionRepository actionDefinitionRepository;
     private final TaskActionRepository taskActionRepository;
     private final DomainEventPublisher domainEventPublisher;
+    private final TaskCompletionGateway taskCompletionGateway;
     private final Clock clock;
     @Autowired
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
             ActionDefinitionRepository actionDefinitionRepository,
             TaskActionRepository taskActionRepository,
+            DomainEventPublisher domainEventPublisher,
+            ObjectProvider<TaskCompletionGateway> taskCompletionGateway
+    ) {
+        this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
+                taskCompletionGateway.getIfAvailable(TaskCompletionGateway::noop), Clock.systemUTC());
+    }
+    public ActionEngineApplicationService(
+            TaskInstanceGateway taskInstanceGateway,
+            ActionDefinitionRepository actionDefinitionRepository,
+            TaskActionRepository taskActionRepository,
             DomainEventPublisher domainEventPublisher
     ) {
-        this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher, Clock.systemUTC());
+        this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
+                TaskCompletionGateway.noop(), Clock.systemUTC());
     }
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
@@ -49,10 +62,22 @@ public class ActionEngineApplicationService {
             DomainEventPublisher domainEventPublisher,
             Clock clock
     ) {
+        this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
+                TaskCompletionGateway.noop(), clock);
+    }
+    public ActionEngineApplicationService(
+            TaskInstanceGateway taskInstanceGateway,
+            ActionDefinitionRepository actionDefinitionRepository,
+            TaskActionRepository taskActionRepository,
+            DomainEventPublisher domainEventPublisher,
+            TaskCompletionGateway taskCompletionGateway,
+            Clock clock
+    ) {
         this.taskInstanceGateway = taskInstanceGateway;
         this.actionDefinitionRepository = actionDefinitionRepository;
         this.taskActionRepository = taskActionRepository;
         this.domainEventPublisher = domainEventPublisher;
+        this.taskCompletionGateway = taskCompletionGateway;
         this.clock = clock;
     }
 
@@ -118,6 +143,7 @@ public class ActionEngineApplicationService {
     ) {
         Instant now = clock.instant();
         TaskStatus nextStatus = updateTask(task, definition, request);
+        taskCompletionGateway.apply(task, definition, request, nextStatus);
         TaskAction action = taskActionRepository.save(
                 TaskAction.create(task, definition, request, ActionResultStatus.SUCCESS, now)
         );

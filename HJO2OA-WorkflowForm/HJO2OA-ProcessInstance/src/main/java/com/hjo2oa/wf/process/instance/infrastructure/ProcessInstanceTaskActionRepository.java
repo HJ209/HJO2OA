@@ -5,18 +5,17 @@ import com.hjo2oa.wf.process.instance.domain.TaskAction;
 import com.hjo2oa.wf.process.instance.domain.TaskActionRepository;
 import java.util.List;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 @Primary
 @Repository
-public class MybatisTaskActionRepository implements TaskActionRepository {
+public class ProcessInstanceTaskActionRepository implements TaskActionRepository {
 
     private final TaskActionMapper mapper;
     private final ProcessInstanceJsonCodec jsonCodec;
 
-    public MybatisTaskActionRepository(TaskActionMapper mapper, ProcessInstanceJsonCodec jsonCodec) {
+    public ProcessInstanceTaskActionRepository(TaskActionMapper mapper, ProcessInstanceJsonCodec jsonCodec) {
         this.mapper = mapper;
         this.jsonCodec = jsonCodec;
     }

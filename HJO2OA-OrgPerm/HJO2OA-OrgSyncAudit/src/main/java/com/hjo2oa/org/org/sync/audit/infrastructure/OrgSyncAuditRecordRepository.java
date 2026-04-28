@@ -13,12 +13,12 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 @Primary
-@Repository("orgSyncAuditRecordRepository")
-public class MybatisAuditRecordRepository implements AuditRecordRepository {
+@Repository
+public class OrgSyncAuditRecordRepository implements AuditRecordRepository {
 
     private final OrgSyncAuditRecordMapper mapper;
 
-    public MybatisAuditRecordRepository(OrgSyncAuditRecordMapper mapper) {
+    public OrgSyncAuditRecordRepository(OrgSyncAuditRecordMapper mapper) {
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
     }
 

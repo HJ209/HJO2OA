@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 
 @Service
 public class ProcessDefinitionApplicationService {
@@ -32,21 +33,33 @@ public class ProcessDefinitionApplicationService {
 
     private final ProcessDefinitionRepository definitionRepository;
     private final ActionDefinitionRepository actionRepository;
+    private final ProcessDefinitionEngineGateway engineGateway;
     private final Clock clock;
     @Autowired
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
-            ActionDefinitionRepository actionRepository
+            ActionDefinitionRepository actionRepository,
+            ObjectProvider<ProcessDefinitionEngineGateway> engineGateway
     ) {
-        this(definitionRepository, actionRepository, Clock.systemUTC());
+        this(definitionRepository, actionRepository, engineGateway.getIfAvailable(ProcessDefinitionEngineGateway::noop),
+                Clock.systemUTC());
     }
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
             ActionDefinitionRepository actionRepository,
             Clock clock
     ) {
+        this(definitionRepository, actionRepository, ProcessDefinitionEngineGateway.noop(), clock);
+    }
+    public ProcessDefinitionApplicationService(
+            ProcessDefinitionRepository definitionRepository,
+            ActionDefinitionRepository actionRepository,
+            ProcessDefinitionEngineGateway engineGateway,
+            Clock clock
+    ) {
         this.definitionRepository = Objects.requireNonNull(definitionRepository, "definitionRepository must not be null");
         this.actionRepository = Objects.requireNonNull(actionRepository, "actionRepository must not be null");
+        this.engineGateway = Objects.requireNonNull(engineGateway, "engineGateway must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -98,6 +111,7 @@ public class ProcessDefinitionApplicationService {
         Objects.requireNonNull(command, "command must not be null");
         ProcessDefinition target = loadRequiredDefinition(command.definitionId());
         ProcessDefinition active = definitionRepository.save(target.publish(command.publishedBy(), now()));
+        engineGateway.deploy(active);
         definitionRepository.findByCode(active.tenantId(), active.code()).stream()
                 .filter(definition -> definition.status() == DefinitionStatus.ACTIVE)
                 .filter(definition -> !definition.id().equals(active.id()))
@@ -113,6 +127,7 @@ public class ProcessDefinitionApplicationService {
     public void deleteDefinition(UUID definitionId) {
         ProcessDefinition definition = loadRequiredDefinition(definitionId);
         definition.ensureDraft();
+        engineGateway.delete(definition);
         definitionRepository.delete(definition.id());
     }
 
