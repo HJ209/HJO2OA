@@ -19,12 +19,10 @@ public class AuditRecordApplicationService {
 
     private final AuditRecordRepository repository;
     private final Clock clock;
-
+    @Autowired
     public AuditRecordApplicationService(AuditRecordRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
-    @Autowired
     public AuditRecordApplicationService(AuditRecordRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

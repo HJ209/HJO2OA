@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -36,7 +37,7 @@ public class ScheduledJobApplicationService {
     private final JobExecutionRecordRepository jobExecutionRecordRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public ScheduledJobApplicationService(
             ScheduledJobRepository scheduledJobRepository,
             JobExecutionRecordRepository jobExecutionRecordRepository,
@@ -49,7 +50,6 @@ public class ScheduledJobApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public ScheduledJobApplicationService(
             ScheduledJobRepository scheduledJobRepository,
             JobExecutionRecordRepository jobExecutionRecordRepository,

@@ -15,11 +15,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisEventDefinitionRepository implements EventDefinitionRepository {
 
     private final EventDefinitionMapper eventDefinitionMapper;

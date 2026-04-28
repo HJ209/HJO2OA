@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -35,7 +36,7 @@ public class ConfigEntryApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-
+    @Autowired
     public ConfigEntryApplicationService(
             ConfigEntryRepository repository,
             DomainEventPublisher domainEventPublisher,

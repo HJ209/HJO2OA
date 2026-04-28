@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class ErrorCodeDefinitionApplicationService {
@@ -23,14 +24,13 @@ public class ErrorCodeDefinitionApplicationService {
     private final ErrorCodeDefinitionRepository repository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public ErrorCodeDefinitionApplicationService(
             ErrorCodeDefinitionRepository repository,
             DomainEventPublisher domainEventPublisher
     ) {
         this(repository, domainEventPublisher, Clock.systemUTC());
     }
-
     public ErrorCodeDefinitionApplicationService(
             ErrorCodeDefinitionRepository repository,
             DomainEventPublisher domainEventPublisher,

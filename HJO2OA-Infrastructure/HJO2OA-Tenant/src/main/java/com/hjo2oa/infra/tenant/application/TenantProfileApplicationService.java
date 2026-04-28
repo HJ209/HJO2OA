@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class TenantProfileApplicationService {
@@ -31,7 +32,7 @@ public class TenantProfileApplicationService {
     private final TenantQuotaRepository tenantQuotaRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public TenantProfileApplicationService(
             TenantProfileRepository tenantProfileRepository,
             TenantQuotaRepository tenantQuotaRepository,
@@ -39,7 +40,6 @@ public class TenantProfileApplicationService {
     ) {
         this(tenantProfileRepository, tenantQuotaRepository, domainEventPublisher, Clock.systemUTC());
     }
-
     public TenantProfileApplicationService(
             TenantProfileRepository tenantProfileRepository,
             TenantQuotaRepository tenantQuotaRepository,

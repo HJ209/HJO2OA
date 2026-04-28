@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,14 +30,13 @@ public class CachePolicyApplicationService {
     private final CachePolicyRepository cachePolicyRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public CachePolicyApplicationService(
             CachePolicyRepository cachePolicyRepository,
             DomainEventPublisher domainEventPublisher
     ) {
         this(cachePolicyRepository, domainEventPublisher, Clock.systemUTC());
     }
-
     public CachePolicyApplicationService(
             CachePolicyRepository cachePolicyRepository,
             DomainEventPublisher domainEventPublisher,

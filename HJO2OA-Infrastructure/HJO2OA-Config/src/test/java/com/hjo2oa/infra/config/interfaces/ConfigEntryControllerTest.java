@@ -147,8 +147,7 @@ class ConfigEntryControllerTest {
                 new InMemoryConfigEntryRepository(),
                 event -> {
                 },
-                new ObjectMapper().findAndRegisterModules(),
-                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+                new ObjectMapper().findAndRegisterModules()
         );
     }
 }

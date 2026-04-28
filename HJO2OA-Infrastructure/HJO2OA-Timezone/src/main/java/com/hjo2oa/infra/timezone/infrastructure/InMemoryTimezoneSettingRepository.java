@@ -22,12 +22,10 @@ public class InMemoryTimezoneSettingRepository implements TimezoneSettingReposit
 
     private final Map<UUID, TimezoneSetting> settings = new ConcurrentHashMap<>();
     private final Clock clock;
-
     @Autowired
     public InMemoryTimezoneSettingRepository() {
         this(Clock.systemUTC());
     }
-
     public InMemoryTimezoneSettingRepository(Clock clock) {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }

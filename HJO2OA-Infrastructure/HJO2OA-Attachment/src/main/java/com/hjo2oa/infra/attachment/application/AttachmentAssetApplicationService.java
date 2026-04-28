@@ -27,7 +27,6 @@ public class AttachmentAssetApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
     private final long quotaWarningThresholdBytes;
-
     @Autowired
     public AttachmentAssetApplicationService(
             AttachmentAssetRepository attachmentAssetRepository,
@@ -37,7 +36,6 @@ public class AttachmentAssetApplicationService {
     ) {
         this(attachmentAssetRepository, domainEventPublisher, Clock.systemUTC(), quotaWarningThresholdBytes);
     }
-
     public AttachmentAssetApplicationService(
             AttachmentAssetRepository attachmentAssetRepository,
             DomainEventPublisher domainEventPublisher,
@@ -45,7 +43,6 @@ public class AttachmentAssetApplicationService {
     ) {
         this(attachmentAssetRepository, domainEventPublisher, clock, Long.MAX_VALUE);
     }
-
     public AttachmentAssetApplicationService(
             AttachmentAssetRepository attachmentAssetRepository,
             DomainEventPublisher domainEventPublisher,

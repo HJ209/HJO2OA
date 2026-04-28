@@ -22,12 +22,10 @@ public class TimezoneSettingApplicationService {
 
     private final TimezoneSettingRepository repository;
     private final Clock clock;
-
     @Autowired
     public TimezoneSettingApplicationService(TimezoneSettingRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public TimezoneSettingApplicationService(TimezoneSettingRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

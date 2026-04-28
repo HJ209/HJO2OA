@@ -24,15 +24,13 @@ public class SecurityPolicyApplicationService {
     private final SecurityPolicyRepository securityPolicyRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public SecurityPolicyApplicationService(
             SecurityPolicyRepository securityPolicyRepository,
             DomainEventPublisher domainEventPublisher
     ) {
         this(securityPolicyRepository, domainEventPublisher, Clock.systemUTC());
     }
-
-    @Autowired
     public SecurityPolicyApplicationService(
             SecurityPolicyRepository securityPolicyRepository,
             DomainEventPublisher domainEventPublisher,

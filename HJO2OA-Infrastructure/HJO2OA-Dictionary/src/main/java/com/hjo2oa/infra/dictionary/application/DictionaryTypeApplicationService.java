@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class DictionaryTypeApplicationService {
@@ -21,14 +22,13 @@ public class DictionaryTypeApplicationService {
     private final DictionaryTypeRepository dictionaryTypeRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public DictionaryTypeApplicationService(
             DictionaryTypeRepository dictionaryTypeRepository,
             DomainEventPublisher domainEventPublisher
     ) {
         this(dictionaryTypeRepository, domainEventPublisher, Clock.systemUTC());
     }
-
     public DictionaryTypeApplicationService(
             DictionaryTypeRepository dictionaryTypeRepository,
             DomainEventPublisher domainEventPublisher,
