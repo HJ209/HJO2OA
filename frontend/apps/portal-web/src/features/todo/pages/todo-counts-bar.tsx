@@ -49,10 +49,10 @@ export function TodoCountsBar({
     pendingCount: 0,
     completedCount: 0,
     overdueCount: 0,
-    cancelledCount: 0,
+    initiatedCount: 0,
     copiedUnreadCount: 0,
-    copiedTotalCount: 0,
-    total: 0,
+    draftCount: 0,
+    archivedCount: 0,
   }
 
   const items: CountItem[] = [

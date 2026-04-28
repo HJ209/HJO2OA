@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios'
 import apiClient from '@/services/api-client'
-import type { ApiResponse, BackendApiResponse } from '@/types/api'
+import type { ApiResponse } from '@/types/api'
 
 export interface RequestConfig<TData = unknown> extends Omit<
   AxiosRequestConfig<TData>,
@@ -75,12 +75,12 @@ export async function get<TResponse>(
   url: string,
   config: RequestConfig = {},
 ): Promise<TResponse> {
-  const response = await apiClient.get<
-    BackendApiResponse<TResponse>,
-    ApiResponse<TResponse>
-  >(url, withHeaders(config))
+  const response = await apiClient.get<ApiResponse<TResponse>>(
+    url,
+    withHeaders(config),
+  )
 
-  return response.data
+  return response.data.data
 }
 
 export async function post<TResponse, TBody = unknown>(
@@ -91,14 +91,10 @@ export async function post<TResponse, TBody = unknown>(
   const response = await trackMutation(
     buildMutationKey('post', url, body, config),
     () =>
-      apiClient.post<
-        BackendApiResponse<TResponse>,
-        ApiResponse<TResponse>,
-        TBody
-      >(url, body, withHeaders(config)),
+      apiClient.post<ApiResponse<TResponse>>(url, body, withHeaders(config)),
   )
 
-  return response.data
+  return response.data.data
 }
 
 export async function put<TResponse, TBody = unknown>(
@@ -108,15 +104,10 @@ export async function put<TResponse, TBody = unknown>(
 ): Promise<TResponse> {
   const response = await trackMutation(
     buildMutationKey('put', url, body, config),
-    () =>
-      apiClient.put<
-        BackendApiResponse<TResponse>,
-        ApiResponse<TResponse>,
-        TBody
-      >(url, body, withHeaders(config)),
+    () => apiClient.put<ApiResponse<TResponse>>(url, body, withHeaders(config)),
   )
 
-  return response.data
+  return response.data.data
 }
 
 export async function del<TResponse, TBody = unknown>(
@@ -125,13 +116,8 @@ export async function del<TResponse, TBody = unknown>(
 ): Promise<TResponse> {
   const response = await trackMutation(
     buildMutationKey('delete', url, config.data, config),
-    () =>
-      apiClient.delete<
-        BackendApiResponse<TResponse>,
-        ApiResponse<TResponse>,
-        TBody
-      >(url, withHeaders(config)),
+    () => apiClient.delete<ApiResponse<TResponse>>(url, withHeaders(config)),
   )
 
-  return response.data
+  return response.data.data
 }

@@ -71,7 +71,16 @@ export function MessageList(): ReactElement {
 
         <Button
           disabled={isMarkingAllRead}
-          onClick={() => markAllRead()}
+          onClick={() => {
+            const unreadIds =
+              messagesQuery.data?.items
+                .filter((m) => m.readStatus === 'UNREAD')
+                .map((m) => m.id) ?? []
+
+            if (unreadIds.length > 0) {
+              markAllRead(unreadIds)
+            }
+          }}
           size="sm"
           variant="outline"
         >

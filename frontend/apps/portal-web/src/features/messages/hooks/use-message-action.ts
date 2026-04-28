@@ -20,7 +20,7 @@ export function useMessageAction() {
   })
 
   const markAllReadMutation = useMutation({
-    mutationFn: markAllMessagesAsRead,
+    mutationFn: (ids: string[]) => markAllMessagesAsRead(ids),
     onSuccess: invalidateMessages,
   })
 

@@ -10,6 +10,20 @@ import type {
   MessageNotificationSummary,
 } from '@/features/messages/types/message'
 
+function toPageData(
+  items: MessageNotificationSummary[],
+): PageData<MessageNotificationSummary> {
+  return {
+    items,
+    pagination: {
+      page: 1,
+      size: items.length,
+      total: items.length,
+      totalPages: 1,
+    },
+  }
+}
+
 export const messageQueryKeys = {
   all: ['messages'] as const,
   lists: () => [...messageQueryKeys.all, 'list'] as const,
@@ -47,7 +61,11 @@ export function useMessagesQuery(page = 1, size = 20) {
 
   return useQuery<PageData<MessageNotificationSummary>>({
     queryKey: messageQueryKeys.list(query),
-    queryFn: () => getMessageNotifications(query),
+    queryFn: async () => {
+      const items = await getMessageNotifications(query)
+
+      return toPageData(items)
+    },
     placeholderData: (previousData) => previousData,
     staleTime: 15000,
     enabled: Boolean(type && readStatus),

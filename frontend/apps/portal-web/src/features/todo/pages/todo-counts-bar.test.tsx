@@ -7,10 +7,10 @@ const counts: TodoCounts = {
   pendingCount: 3,
   completedCount: 4,
   overdueCount: 1,
-  cancelledCount: 0,
+  initiatedCount: 0,
   copiedUnreadCount: 2,
-  copiedTotalCount: 5,
-  total: 15,
+  draftCount: 0,
+  archivedCount: 0,
 }
 
 describe('TodoCountsBar', () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import apiClient from '@/services/api-client'
+import { get, post } from '@/services/request'
 import {
   getCompletedTodos,
   getCopiedTodos,
@@ -14,23 +14,20 @@ import type {
   TodoItemSummary,
 } from '@/features/todo/types/todo'
 
-vi.mock('@/services/api-client', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
+vi.mock('@/services/request', () => ({
+  get: vi.fn(),
+  post: vi.fn(),
 }))
 
 const todoItem: TodoItemSummary = {
   todoId: 'todo-001',
   taskId: 'task-001',
   instanceId: 'instance-001',
-  assigneeId: 'assignment-001',
-  type: 'APPROVAL',
-  category: '流程审批',
   title: '审批采购申请',
+  category: '流程审批',
   urgency: 'HIGH',
   status: 'PENDING',
+  assigneeId: 'assignment-001',
   dueTime: '2026-04-28T02:00:00.000Z',
   createdAt: '2026-04-27T02:00:00.000Z',
 }
@@ -39,7 +36,6 @@ const copiedTodo: CopiedTodoSummary = {
   todoId: 'copy-001',
   taskId: 'task-001',
   instanceId: 'instance-001',
-  recipientAssignmentId: 'assignment-002',
   type: 'APPROVAL',
   category: '流程审批',
   title: '抄送采购申请',
@@ -53,67 +49,63 @@ const counts: TodoCounts = {
   pendingCount: 3,
   completedCount: 4,
   overdueCount: 1,
-  cancelledCount: 0,
+  initiatedCount: 0,
   copiedUnreadCount: 2,
-  copiedTotalCount: 5,
-  total: 13,
+  draftCount: 0,
+  archivedCount: 0,
 }
 
+const mockedGet = vi.mocked(get)
+const mockedPost = vi.mocked(post)
+
 beforeEach(() => {
-  vi.mocked(apiClient.get).mockReset()
-  vi.mocked(apiClient.post).mockReset()
+  mockedGet.mockReset()
+  mockedPost.mockReset()
 })
 
 describe('todo-service', () => {
   it('requests pending, completed and overdue todo lists', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: [todoItem] })
+    mockedGet.mockResolvedValue([todoItem])
 
     await expect(getPendingTodos()).resolves.toEqual([todoItem])
     await expect(getCompletedTodos()).resolves.toEqual([todoItem])
     await expect(getOverdueTodos()).resolves.toEqual([todoItem])
 
-    expect(apiClient.get).toHaveBeenNthCalledWith(1, '/api/v1/todo/pending', {})
-    expect(apiClient.get).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/todo/completed',
-      {},
-    )
-    expect(apiClient.get).toHaveBeenNthCalledWith(3, '/api/v1/todo/overdue', {})
+    expect(mockedGet).toHaveBeenNthCalledWith(1, '/api/v1/todo/pending')
+    expect(mockedGet).toHaveBeenNthCalledWith(2, '/api/v1/todo/completed')
+    expect(mockedGet).toHaveBeenNthCalledWith(3, '/api/v1/todo/overdue')
   })
 
   it('serializes copied todo read status filter through pagination utility', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: [copiedTodo] })
+    mockedGet.mockResolvedValue([copiedTodo])
 
     await expect(getCopiedTodos('UNREAD')).resolves.toEqual([copiedTodo])
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/todo/copied', {
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/todo/copied', {
       params: new URLSearchParams('filter%5BreadStatus%5D=UNREAD'),
     })
   })
 
   it('marks copied todo as read with idempotency and dedupe config', async () => {
-    vi.mocked(apiClient.post).mockResolvedValue({ data: copiedTodo })
+    mockedPost.mockResolvedValue(copiedTodo)
 
     await expect(markCopiedTodoRead('copy-001')).resolves.toEqual(copiedTodo)
 
-    expect(apiClient.post).toHaveBeenCalledWith(
+    expect(mockedPost).toHaveBeenCalledWith(
       '/api/v1/todo/copied/copy-001/read',
       {},
       expect.objectContaining({
         dedupeKey: 'todo:copied:read:copy-001',
-        headers: expect.objectContaining({
-          'X-Idempotency-Key': 'todo-copied-read-copy-001',
-        }),
         idempotencyKey: 'todo-copied-read-copy-001',
       }),
     )
   })
 
   it('requests todo counts', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: counts })
+    mockedGet.mockResolvedValue(counts)
 
     await expect(getTodoCounts()).resolves.toEqual(counts)
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/todo/counts', {})
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/todo/counts')
   })
 })

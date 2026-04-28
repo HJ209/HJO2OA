@@ -26,35 +26,35 @@ const todoItems: TodoItemSummary[] = [
     id: 'todo-001',
     title: '审批门户模板发布申请',
     status: 'PENDING',
-    priority: 'HIGH',
+    urgency: 'HIGH',
     dueAtUtc: '2026-04-28T06:30:00.000Z',
-    assigneeName: '门户管理员',
+    assigneeId: 'assign-001',
   },
   {
     id: 'todo-002',
     title: '核对身份上下文同步结果',
-    status: 'IN_PROGRESS',
-    priority: 'MEDIUM',
+    status: 'PENDING',
+    urgency: 'MEDIUM',
     dueAtUtc: '2026-04-28T10:00:00.000Z',
-    assigneeName: '数字办公部',
+    assigneeId: 'assign-002',
   },
   {
     id: 'todo-003',
     title: '归档历史消息治理报告',
     status: 'COMPLETED',
-    priority: 'LOW',
-    assigneeName: '平台运营',
+    urgency: 'LOW',
+    assigneeId: 'assign-003',
   },
 ]
 
 function resolveBadgeVariant(
-  priority: TodoItemSummary['priority'],
+  urgency: TodoItemSummary['urgency'],
 ): 'default' | 'secondary' | 'success' {
-  if (priority === 'HIGH') {
+  if (urgency === 'HIGH') {
     return 'default'
   }
 
-  if (priority === 'MEDIUM') {
+  if (urgency === 'MEDIUM') {
     return 'secondary'
   }
 
@@ -89,12 +89,12 @@ export default function TodoCenterPage(): ReactElement {
                   <h2 className="text-lg font-semibold text-slate-950">
                     {todoItem.title}
                   </h2>
-                  <Badge variant={resolveBadgeVariant(todoItem.priority)}>
-                    {todoItem.priority}
+                  <Badge variant={resolveBadgeVariant(todoItem.urgency)}>
+                    {todoItem.urgency}
                   </Badge>
                 </div>
                 <p className="text-sm text-slate-500">
-                  处理人：{todoItem.assigneeName}
+                  处理人：{todoItem.assigneeId}
                 </p>
                 <p className="text-sm text-slate-500">
                   截止时间：{formatUtcToUserTimezone(todoItem.dueAtUtc)}

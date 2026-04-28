@@ -10,8 +10,10 @@ export interface IdentityAssignment {
   assignmentId: string
   positionId: string
   orgId: string
+  departmentId?: string
   positionName: string
   orgName: string
+  departmentName?: string
 }
 
 export interface IdentitySnapshot {
@@ -23,10 +25,10 @@ export interface IdentitySnapshot {
 export interface TodoItemSummary {
   id: string
   title: string
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
-  priority: 'LOW' | 'MEDIUM' | 'HIGH'
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED'
+  urgency: string
   dueAtUtc?: string
-  assigneeName: string
+  assigneeId: string
 }
 
 export interface MessageNotification {

@@ -26,7 +26,7 @@ describe('portal home services', () => {
     mockedGet.mockResolvedValueOnce(assembly)
 
     await expect(fetchPortalHome()).resolves.toEqual(assembly)
-    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/home')
+    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/home/page')
   })
 
   it('fetches portal snapshot from the backend contract path', async () => {
@@ -54,6 +54,8 @@ describe('portal home services', () => {
     mockedGet.mockResolvedValueOnce(snapshot)
 
     await expect(fetchPortalSnapshot()).resolves.toEqual(snapshot)
-    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/snapshot')
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/api/v1/portal/aggregation/dashboard',
+    )
   })
 })

@@ -28,14 +28,20 @@ const urgencyTextMap: Record<TodoUrgency, string> = {
 
 const statusTextMap: Record<TodoItemStatus, string> = {
   PENDING: '待办',
-  IN_PROGRESS: '处理中',
   COMPLETED: '已办',
-  OVERDUE: '逾期',
   CANCELLED: '已取消',
 }
 
+function resolveUrgencyText(urgency: string) {
+  if (urgency === 'HIGH' || urgency === 'URGENT') {
+    return urgencyTextMap[urgency as TodoUrgency] ?? urgency
+  }
+
+  return urgency
+}
+
 function resolveUrgencyVariant(
-  urgency: TodoUrgency,
+  urgency: string,
 ): 'default' | 'secondary' | 'success' {
   if (urgency === 'HIGH' || urgency === 'URGENT') {
     return 'default'
@@ -53,8 +59,8 @@ function StatusIcon({ status }: { status: TodoItemStatus }): ReactElement {
     return <CheckCircle2 className="h-5 w-5 text-emerald-500" />
   }
 
-  if (status === 'OVERDUE') {
-    return <AlertCircle className="h-5 w-5 text-rose-500" />
+  if (status === 'CANCELLED') {
+    return <AlertCircle className="h-5 w-5 text-slate-400" />
   }
 
   return <Clock3 className="h-5 w-5 text-amber-500" />
@@ -80,9 +86,8 @@ export function TodoItemRow({ item }: TodoItemRowProps): ReactElement {
             {item.title}
           </h3>
           <Badge variant={resolveUrgencyVariant(item.urgency)}>
-            {urgencyTextMap[item.urgency]}
+            {resolveUrgencyText(item.urgency)}
           </Badge>
-          <Badge variant="secondary">{item.type}</Badge>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
           <span>

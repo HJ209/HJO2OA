@@ -1,9 +1,4 @@
-export type TodoItemStatus =
-  | 'PENDING'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'OVERDUE'
-  | 'CANCELLED'
+export type TodoItemStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED'
 
 export type CopiedTodoReadStatus = 'READ' | 'UNREAD'
 
@@ -13,15 +8,15 @@ export interface TodoItemSummary {
   todoId: string
   taskId: string
   instanceId: string
-  assigneeId: string
-  type: string
-  category: string
   title: string
-  urgency: TodoUrgency
+  category: string
+  urgency: string
   status: TodoItemStatus
+  assigneeId: string
   dueTime?: string
   overdueAt?: string
   createdAt: string
+  updatedAt?: string
   completedAt?: string
 }
 
@@ -29,7 +24,6 @@ export interface CopiedTodoSummary {
   todoId: string
   taskId: string
   instanceId: string
-  recipientAssignmentId: string
   type: string
   category: string
   title: string
@@ -44,10 +38,10 @@ export interface TodoCounts {
   pendingCount: number
   completedCount: number
   overdueCount: number
-  cancelledCount: number
+  initiatedCount: number
   copiedUnreadCount: number
-  copiedTotalCount: number
-  total: number
+  draftCount: number
+  archivedCount: number
 }
 
 export type TodoTab = 'pending' | 'completed' | 'overdue' | 'copied'

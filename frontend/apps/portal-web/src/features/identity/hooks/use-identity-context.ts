@@ -67,11 +67,21 @@ export function useIdentityContext(): UseIdentityContextResult {
         return true
       }
 
+      const target = identityStore.assignments.find(
+        (a) => a.assignmentId === assignmentId,
+      )
+
+      if (!target?.positionId) {
+        setErrorMessage('未找到目标岗位信息')
+
+        return false
+      }
+
       identityStore.setSwitching(true)
       setErrorMessage(null)
 
       try {
-        const nextContext = await switchAssignment(assignmentId)
+        const nextContext = await switchAssignment(target.positionId)
         identityStore.applyContext(nextContext)
 
         return true
