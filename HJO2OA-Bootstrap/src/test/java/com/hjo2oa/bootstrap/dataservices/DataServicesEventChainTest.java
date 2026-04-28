@@ -2,6 +2,7 @@ package com.hjo2oa.bootstrap.dataservices;
 
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
+import com.hjo2oa.bootstrap.BootstrapContextTestConfiguration;
 import com.hjo2oa.bootstrap.Hjo2oaApplication;
 import com.hjo2oa.data.common.domain.event.AbstractDataDomainEvent;
 import com.hjo2oa.data.governance.domain.GovernanceContractEvents.DataApiPublishedEvent;
@@ -26,7 +27,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
-        classes = Hjo2oaApplication.class,
+        classes = {Hjo2oaApplication.class, BootstrapContextTestConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "spring.main.lazy-initialization=true",

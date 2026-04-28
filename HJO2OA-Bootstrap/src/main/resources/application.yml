@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: hjo2oa
+  profiles:
+    active: local
   datasource:
     url: "${HJO2OA_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=hjo2oa;encrypt=true;trustServerCertificate=true}"
     username: ${HJO2OA_DB_USERNAME:sa}
@@ -37,6 +39,21 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: alpha
     tags-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,readiness,liveness
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
 
 mybatis-plus:
   configuration:

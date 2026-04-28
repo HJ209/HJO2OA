@@ -9,7 +9,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
-        classes = Hjo2oaApplication.class,
+        classes = {Hjo2oaApplication.class, BootstrapContextTestConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "spring.main.lazy-initialization=true",
@@ -60,5 +60,19 @@ class Hjo2oaApplicationSmokeTest {
                 .isEqualTo("4");
         assertThat(environment.getProperty("spring.task.scheduling.thread-name-prefix"))
                 .isEqualTo("hjo2oa-schedule-");
+    }
+
+    @Test
+    void shouldConfigureActuatorManagementEndpoints() {
+        assertThat(environment.getProperty("management.endpoints.web.exposure.include"))
+                .isEqualTo("health,info,readiness,liveness");
+        assertThat(environment.getProperty("management.endpoints.web.base-path"))
+                .isEqualTo("/actuator");
+        assertThat(environment.getProperty("management.endpoint.health.show-details"))
+                .isEqualTo("when-authorized");
+        assertThat(environment.getProperty("management.health.readinessstate.enabled"))
+                .isEqualTo("true");
+        assertThat(environment.getProperty("management.health.livenessstate.enabled"))
+                .isEqualTo("true");
     }
 }

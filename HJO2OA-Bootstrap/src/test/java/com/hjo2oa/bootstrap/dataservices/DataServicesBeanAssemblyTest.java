@@ -2,6 +2,7 @@ package com.hjo2oa.bootstrap.dataservices;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hjo2oa.bootstrap.BootstrapContextTestConfiguration;
 import com.hjo2oa.bootstrap.Hjo2oaApplication;
 import com.hjo2oa.data.common.audit.InMemoryDataAuditRecorder;
 import com.hjo2oa.data.connector.application.ConnectorDefinitionApplicationService;
@@ -17,7 +18,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
-        classes = Hjo2oaApplication.class,
+        classes = {Hjo2oaApplication.class, BootstrapContextTestConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "spring.main.lazy-initialization=true",

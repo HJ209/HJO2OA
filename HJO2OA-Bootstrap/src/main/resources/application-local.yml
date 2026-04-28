@@ -1,4 +1,9 @@
 spring:
+  main:
+    lazy-initialization: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
   datasource:
     url: "${HJO2OA_LOCAL_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=hjo2oa_dev;encrypt=true;trustServerCertificate=true}"
     username: ${HJO2OA_LOCAL_DB_USERNAME:sa}
@@ -8,11 +13,6 @@ spring:
       host: ${HJO2OA_LOCAL_REDIS_HOST:localhost}
       port: ${HJO2OA_LOCAL_REDIS_PORT:6379}
       password: ${HJO2OA_LOCAL_REDIS_PASSWORD:}
-  rabbitmq:
-    host: ${HJO2OA_LOCAL_RABBITMQ_HOST:localhost}
-    port: ${HJO2OA_LOCAL_RABBITMQ_PORT:5672}
-    username: ${HJO2OA_LOCAL_RABBITMQ_USERNAME:guest}
-    password: ${HJO2OA_LOCAL_RABBITMQ_PASSWORD:guest}
 
 hjo2oa:
   storage:

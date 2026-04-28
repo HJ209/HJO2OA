@@ -2,6 +2,7 @@ package com.hjo2oa.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hjo2oa.msg.ecosystem.domain.CallbackAuditRecordRepository;
 import com.hjo2oa.msg.ecosystem.domain.EcosystemIntegrationRepository;
 import com.hjo2oa.msg.ecosystem.infrastructure.CallbackAuditRecordMapper;
 import com.hjo2oa.msg.ecosystem.infrastructure.EcosystemIntegrationMapper;
@@ -15,7 +16,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
-        classes = Hjo2oaApplication.class,
+        classes = {Hjo2oaApplication.class, BootstrapContextTestConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "spring.main.lazy-initialization=true",
@@ -48,6 +49,6 @@ class EcosystemBeanAssemblyTest {
     @DisplayName("Ecosystem repositories should be assembled in Bootstrap context")
     void shouldLoadEcosystemRepositories() {
         assertThat(applicationContext.getBean(EcosystemIntegrationRepository.class)).isNotNull();
-        assertThat(applicationContext.getBean(CallbackAuditRecordMapper.class)).isNotNull();
+        assertThat(applicationContext.getBean(CallbackAuditRecordRepository.class)).isNotNull();
     }
 }

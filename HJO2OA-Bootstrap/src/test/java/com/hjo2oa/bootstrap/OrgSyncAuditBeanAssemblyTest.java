@@ -3,9 +3,13 @@ package com.hjo2oa.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hjo2oa.org.org.sync.audit.domain.AuditRecordRepository;
+import com.hjo2oa.org.org.sync.audit.domain.CompensationRecordRepository;
+import com.hjo2oa.org.org.sync.audit.domain.DiffRecordRepository;
 import com.hjo2oa.org.org.sync.audit.domain.SyncSourceConfigRepository;
 import com.hjo2oa.org.org.sync.audit.domain.SyncTaskRepository;
-import com.hjo2oa.org.org.sync.audit.infrastructure.AuditRecordMapper;
+import com.hjo2oa.org.org.sync.audit.infrastructure.OrgSyncAuditRecordMapper;
+import com.hjo2oa.org.org.sync.audit.infrastructure.CompensationRecordMapper;
+import com.hjo2oa.org.org.sync.audit.infrastructure.DiffRecordMapper;
 import com.hjo2oa.org.org.sync.audit.infrastructure.SyncSourceConfigMapper;
 import com.hjo2oa.org.org.sync.audit.infrastructure.SyncTaskMapper;
 import javax.sql.DataSource;
@@ -18,7 +22,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
-        classes = Hjo2oaApplication.class,
+        classes = {Hjo2oaApplication.class, BootstrapContextTestConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "spring.main.lazy-initialization=true",
@@ -48,7 +52,13 @@ class OrgSyncAuditBeanAssemblyTest {
     private SyncTaskMapper syncTaskMapper;
 
     @MockBean
-    private AuditRecordMapper auditRecordMapper;
+    private OrgSyncAuditRecordMapper auditRecordMapper;
+
+    @MockBean
+    private DiffRecordMapper diffRecordMapper;
+
+    @MockBean
+    private CompensationRecordMapper compensationRecordMapper;
 
     @Test
     @DisplayName("OrgSyncAudit repositories should be assembled in Bootstrap context")
@@ -56,5 +66,7 @@ class OrgSyncAuditBeanAssemblyTest {
         assertThat(applicationContext.getBean(SyncSourceConfigRepository.class)).isNotNull();
         assertThat(applicationContext.getBean(SyncTaskRepository.class)).isNotNull();
         assertThat(applicationContext.getBean(AuditRecordRepository.class)).isNotNull();
+        assertThat(applicationContext.getBean(DiffRecordRepository.class)).isNotNull();
+        assertThat(applicationContext.getBean(CompensationRecordRepository.class)).isNotNull();
     }
 }
