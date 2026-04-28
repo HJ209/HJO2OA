@@ -1,29 +1,68 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import App from './App'
+import { useAuthStore } from '@/stores/auth-store'
+import { useIdentityStore } from '@/stores/identity-store'
+
+const routerFuture = {
+  v7_relativeSplatPath: true,
+  v7_startTransition: true,
+} as const
+
+afterEach(() => {
+  useAuthStore.setState({ token: null, user: null })
+  useIdentityStore.setState({
+    currentAssignment: null,
+    orgId: null,
+    roleIds: [],
+  })
+})
 
 describe('App', () => {
-  it('renders the home page capability map', () => {
+  it('redirects unauthenticated users to the login entry page', async () => {
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter future={routerFuture} initialEntries={['/']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('React 门户骨架已经就位')).toBeInTheDocument()
-    expect(screen.getByText('平台能力地图')).toBeInTheDocument()
-    expect(screen.getByText('消息中心')).toBeInTheDocument()
+    expect(await screen.findByText('进入门户演示环境')).toBeInTheDocument()
+    expect(screen.getByText('进入工作台')).toBeInTheDocument()
   })
 
-  it('renders the roadmap page', () => {
+  it('renders an authenticated nested route page', async () => {
+    useAuthStore.setState({
+      token: 'test-token',
+      user: {
+        id: 'acct-test-001',
+        accountName: 'portal.admin',
+        displayName: '门户管理员',
+        tenantId: 'tenant-demo',
+        locale: 'zh-CN',
+      },
+    })
+    useIdentityStore.setState({
+      currentAssignment: {
+        assignmentId: 'assign-demo-001',
+        positionId: 'position-demo-001',
+        orgId: 'org-demo-001',
+        positionName: '门户平台主管',
+        orgName: '数字办公部',
+      },
+      orgId: 'org-demo-001',
+      roleIds: ['ROLE_PORTAL_ADMIN'],
+    })
+
     render(
-      <MemoryRouter initialEntries={['/roadmap']}>
+      <MemoryRouter future={routerFuture} initialEntries={['/messages']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('建议的 React 端实施顺序')).toBeInTheDocument()
-    expect(screen.getByText('先沉淀应用壳、路由、鉴权、主题与国际化基础设施。')).toBeInTheDocument()
+    expect(
+      await screen.findByText('统一查看系统通知、审批提醒和业务播报。'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('门户管理员')).toBeInTheDocument()
   })
 })
