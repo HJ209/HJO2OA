@@ -17,12 +17,10 @@ public class ReportDefinitionApplicationService {
 
     private final ReportDefinitionRepository reportDefinitionRepository;
     private final Clock clock;
-
+    @Autowired
     public ReportDefinitionApplicationService(ReportDefinitionRepository reportDefinitionRepository) {
         this(reportDefinitionRepository, Clock.systemUTC());
     }
-
-    @Autowired
     public ReportDefinitionApplicationService(
             ReportDefinitionRepository reportDefinitionRepository,
             Clock clock

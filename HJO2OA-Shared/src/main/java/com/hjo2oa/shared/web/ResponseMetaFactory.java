@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class ResponseMetaFactory {
@@ -14,11 +15,13 @@ public class ResponseMetaFactory {
 
     private final Clock clock;
 
+    @Autowired
+
     public ResponseMetaFactory() {
         this(Clock.systemUTC());
     }
 
-    ResponseMetaFactory(Clock clock) {
+    public ResponseMetaFactory(Clock clock) {
         this.clock = clock;
     }
 

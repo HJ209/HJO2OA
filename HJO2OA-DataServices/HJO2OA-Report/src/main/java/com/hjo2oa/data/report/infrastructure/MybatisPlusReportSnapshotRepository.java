@@ -13,11 +13,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisPlusReportSnapshotRepository implements ReportSnapshotRepository {
 
     private final ReportSnapshotMapper reportSnapshotMapper;

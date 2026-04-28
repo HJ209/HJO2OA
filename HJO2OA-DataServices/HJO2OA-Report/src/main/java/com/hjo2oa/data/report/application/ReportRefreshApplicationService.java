@@ -34,7 +34,7 @@ public class ReportRefreshApplicationService {
     private final ReportDataSourceRegistry reportDataSourceRegistry;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public ReportRefreshApplicationService(
             ReportDefinitionRepository reportDefinitionRepository,
             ReportSnapshotRepository reportSnapshotRepository,
@@ -51,8 +51,6 @@ public class ReportRefreshApplicationService {
                 Clock.systemUTC()
         );
     }
-
-    @Autowired
     public ReportRefreshApplicationService(
             ReportDefinitionRepository reportDefinitionRepository,
             ReportSnapshotRepository reportSnapshotRepository,

@@ -19,12 +19,10 @@ public class OpenApiQuotaEnforcementService {
 
     private final ApiQuotaUsageCounterRepository quotaUsageCounterRepository;
     private final Clock clock;
-
+    @Autowired
     public OpenApiQuotaEnforcementService(ApiQuotaUsageCounterRepository quotaUsageCounterRepository) {
         this(quotaUsageCounterRepository, Clock.systemUTC());
     }
-
-    @Autowired
     public OpenApiQuotaEnforcementService(ApiQuotaUsageCounterRepository quotaUsageCounterRepository, Clock clock) {
         this.quotaUsageCounterRepository = Objects.requireNonNull(
                 quotaUsageCounterRepository,

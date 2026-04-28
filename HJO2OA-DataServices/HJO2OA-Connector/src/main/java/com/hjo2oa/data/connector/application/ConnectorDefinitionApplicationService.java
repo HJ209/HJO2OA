@@ -53,7 +53,7 @@ public class ConnectorDefinitionApplicationService {
     private final ConnectorDriverRegistry connectorDriverRegistry;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public ConnectorDefinitionApplicationService(
             ConnectorDefinitionRepository repository,
             ConnectorContextProvider contextProvider,
@@ -62,8 +62,6 @@ public class ConnectorDefinitionApplicationService {
     ) {
         this(repository, contextProvider, connectorDriverRegistry, domainEventPublisher, Clock.systemUTC());
     }
-
-    @Autowired
     public ConnectorDefinitionApplicationService(
             ConnectorDefinitionRepository repository,
             ConnectorContextProvider contextProvider,

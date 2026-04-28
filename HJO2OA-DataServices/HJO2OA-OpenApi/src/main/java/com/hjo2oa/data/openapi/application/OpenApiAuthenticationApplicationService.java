@@ -35,12 +35,11 @@ public class OpenApiAuthenticationApplicationService {
 
     private final OpenApiEndpointRepository endpointRepository;
     private final Clock clock;
-
+    @Autowired
     public OpenApiAuthenticationApplicationService(OpenApiEndpointRepository endpointRepository) {
         this(endpointRepository, Clock.systemUTC());
     }
 
-    @Autowired
     public OpenApiAuthenticationApplicationService(OpenApiEndpointRepository endpointRepository, Clock clock) {
         this.endpointRepository = Objects.requireNonNull(endpointRepository, "endpointRepository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

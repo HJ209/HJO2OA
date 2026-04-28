@@ -6,13 +6,11 @@ import com.hjo2oa.data.openapi.domain.ApiInvocationAuditLogRepository;
 import javax.sql.DataSource;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @Primary
-@ConditionalOnBean(DataSource.class)
 public class MybatisPlusApiInvocationAuditLogRepository implements ApiInvocationAuditLogRepository {
 
     private final ApiInvocationAuditLogMapper mapper;

@@ -16,13 +16,11 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @Primary
-@ConditionalOnBean(DataSource.class)
 public class MybatisDataServiceDefinitionRepository implements DataServiceDefinitionRepository {
 
     private final DataServiceDefinitionMapper definitionMapper;

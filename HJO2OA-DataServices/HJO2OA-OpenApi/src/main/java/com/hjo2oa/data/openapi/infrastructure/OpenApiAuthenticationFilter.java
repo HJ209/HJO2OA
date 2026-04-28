@@ -41,6 +41,7 @@ public class OpenApiAuthenticationFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
+    @Autowired
     public OpenApiAuthenticationFilter(
             OpenApiAuthenticationApplicationService authenticationApplicationService,
             OpenApiInvocationContextHolder contextHolder,
@@ -57,8 +58,6 @@ public class OpenApiAuthenticationFilter extends OncePerRequestFilter {
                 Clock.systemUTC()
         );
     }
-
-    @Autowired
     public OpenApiAuthenticationFilter(
             OpenApiAuthenticationApplicationService authenticationApplicationService,
             OpenApiInvocationContextHolder contextHolder,

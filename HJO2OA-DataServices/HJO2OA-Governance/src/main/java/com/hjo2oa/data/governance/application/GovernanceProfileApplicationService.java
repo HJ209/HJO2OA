@@ -39,15 +39,13 @@ public class GovernanceProfileApplicationService {
     private final GovernanceProfileRepository profileRepository;
     private final GovernanceRuntimeRepository runtimeRepository;
     private final Clock clock;
-
+    @Autowired
     public GovernanceProfileApplicationService(
             GovernanceProfileRepository profileRepository,
             GovernanceRuntimeRepository runtimeRepository
     ) {
         this(profileRepository, runtimeRepository, Clock.systemUTC());
     }
-
-    @Autowired
     public GovernanceProfileApplicationService(
             GovernanceProfileRepository profileRepository,
             GovernanceRuntimeRepository runtimeRepository,

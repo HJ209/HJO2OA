@@ -49,7 +49,7 @@ public class DataServiceInvocationApplicationService {
     private final DataServiceOperationContextProvider contextProvider;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-
+    @Autowired
     public DataServiceInvocationApplicationService(
             DataServiceDefinitionRepository repository,
             DataServiceOperationContextProvider contextProvider,
@@ -57,8 +57,6 @@ public class DataServiceInvocationApplicationService {
     ) {
         this(repository, contextProvider, objectMapper, Clock.systemUTC());
     }
-
-    @Autowired
     public DataServiceInvocationApplicationService(
             DataServiceDefinitionRepository repository,
             DataServiceOperationContextProvider contextProvider,

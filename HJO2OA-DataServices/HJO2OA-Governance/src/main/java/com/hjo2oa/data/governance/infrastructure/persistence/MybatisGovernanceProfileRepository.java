@@ -20,11 +20,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 class MybatisGovernanceProfileRepository implements GovernanceProfileRepository {
 
     private final GovernanceProfileMapper governanceProfileMapper;

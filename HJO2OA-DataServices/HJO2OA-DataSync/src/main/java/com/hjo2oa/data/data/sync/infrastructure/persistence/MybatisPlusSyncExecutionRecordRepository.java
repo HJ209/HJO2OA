@@ -19,11 +19,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisPlusSyncExecutionRecordRepository implements SyncExecutionRecordRepository {
 
     private static final TypeReference<List<SyncDifferenceItem>> DIFFERENCE_LIST_TYPE = new TypeReference<>() {

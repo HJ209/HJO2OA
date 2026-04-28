@@ -54,7 +54,7 @@ public class OpenApiManagementApplicationService {
     private final OpenApiOperatorContextProvider operatorContextProvider;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public OpenApiManagementApplicationService(
             OpenApiEndpointRepository endpointRepository,
             ApiInvocationAuditLogRepository auditLogRepository,
@@ -73,8 +73,6 @@ public class OpenApiManagementApplicationService {
                 Clock.systemUTC()
         );
     }
-
-    @Autowired
     public OpenApiManagementApplicationService(
             OpenApiEndpointRepository endpointRepository,
             ApiInvocationAuditLogRepository auditLogRepository,

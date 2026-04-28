@@ -68,7 +68,7 @@ public class GovernanceMonitoringApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-
+    @Autowired
     public GovernanceMonitoringApplicationService(
             GovernanceProfileRepository profileRepository,
             GovernanceRuntimeRepository runtimeRepository,
@@ -77,8 +77,6 @@ public class GovernanceMonitoringApplicationService {
     ) {
         this(profileRepository, runtimeRepository, domainEventPublisher, objectMapper, Clock.systemUTC());
     }
-
-    @Autowired
     public GovernanceMonitoringApplicationService(
             GovernanceProfileRepository profileRepository,
             GovernanceRuntimeRepository runtimeRepository,

@@ -39,7 +39,7 @@ public class DataServiceDefinitionApplicationService {
     private final DataServiceOperationContextProvider contextProvider;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public DataServiceDefinitionApplicationService(
             DataServiceDefinitionRepository repository,
             DataServiceOperationContextProvider contextProvider,
@@ -47,8 +47,6 @@ public class DataServiceDefinitionApplicationService {
     ) {
         this(repository, contextProvider, domainEventPublisher, Clock.systemUTC());
     }
-
-    @Autowired
     public DataServiceDefinitionApplicationService(
             DataServiceDefinitionRepository repository,
             DataServiceOperationContextProvider contextProvider,

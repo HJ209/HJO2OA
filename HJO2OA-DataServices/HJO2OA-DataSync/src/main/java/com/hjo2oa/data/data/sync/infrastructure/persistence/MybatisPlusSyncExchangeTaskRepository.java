@@ -29,11 +29,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisPlusSyncExchangeTaskRepository implements SyncExchangeTaskRepository {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {

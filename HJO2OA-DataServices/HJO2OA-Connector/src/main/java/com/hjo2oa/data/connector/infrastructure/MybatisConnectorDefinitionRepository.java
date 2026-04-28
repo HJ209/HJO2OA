@@ -17,11 +17,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisConnectorDefinitionRepository implements ConnectorDefinitionRepository {
 
     private final ConnectorDefinitionMapper connectorDefinitionMapper;

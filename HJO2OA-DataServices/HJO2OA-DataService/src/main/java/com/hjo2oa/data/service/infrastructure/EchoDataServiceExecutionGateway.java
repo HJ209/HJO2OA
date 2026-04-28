@@ -8,17 +8,18 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class EchoDataServiceExecutionGateway implements DataServiceExecutionGateway {
 
     private final Clock clock;
-
+    @Autowired
     public EchoDataServiceExecutionGateway() {
         this(Clock.systemUTC());
     }
 
-    EchoDataServiceExecutionGateway(Clock clock) {
+    public EchoDataServiceExecutionGateway(Clock clock) {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
