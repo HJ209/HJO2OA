@@ -13,19 +13,18 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Primary
 @Repository
-public class MybatisAuditRecordRepository implements AuditRecordRepository {
+public class InfraAuditRecordRepository implements AuditRecordRepository {
 
     private final AuditRecordMapper auditRecordMapper;
     private final AuditFieldChangeMapper auditFieldChangeMapper;
 
-    public MybatisAuditRecordRepository(
+    public InfraAuditRecordRepository(
             AuditRecordMapper auditRecordMapper,
             AuditFieldChangeMapper auditFieldChangeMapper
     ) {

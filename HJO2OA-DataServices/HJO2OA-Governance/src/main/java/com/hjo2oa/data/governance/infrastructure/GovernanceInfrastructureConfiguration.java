@@ -7,9 +7,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@Configuration("governanceInfrastructureConfiguration")
+@Configuration
 @EnableScheduling
-public class Infrastructure {
+public class GovernanceInfrastructureConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(DomainEventPublisher.class)

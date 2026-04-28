@@ -10,14 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hjo2oa.infra.config.application.ConfigEntryApplicationService;
 import com.hjo2oa.infra.config.domain.ConfigType;
-import com.hjo2oa.infra.config.domain.FeatureRuleType;
 import com.hjo2oa.infra.config.domain.OverrideScopeType;
 import com.hjo2oa.infra.config.infrastructure.InMemoryConfigEntryRepository;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -25,8 +22,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class ConfigEntryControllerTest {
-
-    private static final Instant FIXED_TIME = Instant.parse("2026-04-24T08:30:00Z");
 
     @Test
     void shouldCreateConfigEntryUsingSharedWebContract() throws Exception {

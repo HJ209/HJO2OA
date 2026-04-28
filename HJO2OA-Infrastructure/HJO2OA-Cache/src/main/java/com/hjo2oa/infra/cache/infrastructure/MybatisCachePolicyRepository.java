@@ -11,12 +11,13 @@ import com.hjo2oa.infra.cache.domain.InvalidationReasonType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
 @Primary
 @Repository
+@ConditionalOnProperty(name = "hjo2oa.cache.type", havingValue = "database")
 public class MybatisCachePolicyRepository implements CachePolicyRepository {
 
     private final CachePolicyMapper cachePolicyMapper;

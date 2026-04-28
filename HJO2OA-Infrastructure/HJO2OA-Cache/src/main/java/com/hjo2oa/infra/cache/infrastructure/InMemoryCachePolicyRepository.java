@@ -10,12 +10,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@ConditionalOnMissingBean(DataSource.class)
+@ConditionalOnProperty(name = "hjo2oa.cache.type", havingValue = "inmemory", matchIfMissing = true)
 public class InMemoryCachePolicyRepository implements CachePolicyRepository {
 
     private final Map<UUID, CachePolicy> policiesById = new ConcurrentHashMap<>();
