@@ -76,7 +76,7 @@ public class PortalDesignerTemplatePreviewApplicationService {
     private final PortalActiveTemplateResolutionApplicationService activeTemplateResolutionApplicationService;
     private final PersonalizationProfileApplicationService personalizationProfileApplicationService;
     private final PortalHomeOverlayApplicator overlayApplicator;
-
+    @Autowired
     public PortalDesignerTemplatePreviewApplicationService(
             PortalTemplateApplicationService templateApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService
@@ -88,7 +88,6 @@ public class PortalDesignerTemplatePreviewApplicationService {
                 PortalWidgetReferenceStatusApplicationService.noop()
         );
     }
-
     public PortalDesignerTemplatePreviewApplicationService(
             PortalTemplateApplicationService templateApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,
@@ -101,7 +100,6 @@ public class PortalDesignerTemplatePreviewApplicationService {
                 widgetReferenceStatusApplicationService
         );
     }
-
     public PortalDesignerTemplatePreviewApplicationService(
             PortalTemplateApplicationService templateApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,
@@ -114,7 +112,6 @@ public class PortalDesignerTemplatePreviewApplicationService {
                 PortalWidgetReferenceStatusApplicationService.noop()
         );
     }
-
     public PortalDesignerTemplatePreviewApplicationService(
             PortalTemplateApplicationService templateApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,
@@ -130,8 +127,6 @@ public class PortalDesignerTemplatePreviewApplicationService {
                 defaultPersonalizationProfileApplicationService(clock)
         );
     }
-
-    @Autowired
     public PortalDesignerTemplatePreviewApplicationService(
             PortalTemplateApplicationService templateApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,
@@ -148,7 +143,6 @@ public class PortalDesignerTemplatePreviewApplicationService {
                 personalizationProfileApplicationService
         );
     }
-
     public PortalDesignerTemplatePreviewApplicationService(
             PortalTemplateApplicationService templateApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalPublicationApplicationService {
@@ -32,7 +33,7 @@ public class PortalPublicationApplicationService {
     private final PortalModelContextProvider contextProvider;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public PortalPublicationApplicationService(
             PortalPublicationRepository publicationRepository,
             PortalModelContextProvider contextProvider,
@@ -40,7 +41,6 @@ public class PortalPublicationApplicationService {
     ) {
         this(publicationRepository, contextProvider, domainEventPublisher, Clock.systemUTC());
     }
-
     public PortalPublicationApplicationService(
             PortalPublicationRepository publicationRepository,
             PortalModelContextProvider contextProvider,

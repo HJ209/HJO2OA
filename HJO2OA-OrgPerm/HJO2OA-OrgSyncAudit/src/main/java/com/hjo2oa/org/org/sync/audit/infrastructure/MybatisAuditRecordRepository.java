@@ -9,17 +9,16 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
-@Repository
-@ConditionalOnBean(DataSource.class)
+@Primary
+@Repository("orgSyncAuditRecordRepository")
 public class MybatisAuditRecordRepository implements AuditRecordRepository {
 
-    private final AuditRecordMapper mapper;
+    private final OrgSyncAuditRecordMapper mapper;
 
-    public MybatisAuditRecordRepository(AuditRecordMapper mapper) {
+    public MybatisAuditRecordRepository(OrgSyncAuditRecordMapper mapper) {
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
     }
 

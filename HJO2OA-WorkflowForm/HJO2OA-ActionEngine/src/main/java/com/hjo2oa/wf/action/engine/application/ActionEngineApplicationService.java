@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class ActionEngineApplicationService {
@@ -32,7 +33,7 @@ public class ActionEngineApplicationService {
     private final TaskActionRepository taskActionRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
             ActionDefinitionRepository actionDefinitionRepository,
@@ -41,7 +42,6 @@ public class ActionEngineApplicationService {
     ) {
         this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher, Clock.systemUTC());
     }
-
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
             ActionDefinitionRepository actionDefinitionRepository,

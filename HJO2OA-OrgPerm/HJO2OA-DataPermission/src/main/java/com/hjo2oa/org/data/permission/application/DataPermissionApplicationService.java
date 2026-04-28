@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class DataPermissionApplicationService {
@@ -43,11 +44,10 @@ public class DataPermissionApplicationService {
 
     private final DataPermissionRepository repository;
     private final Clock clock;
-
+    @Autowired
     public DataPermissionApplicationService(DataPermissionRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public DataPermissionApplicationService(DataPermissionRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

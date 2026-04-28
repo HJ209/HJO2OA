@@ -18,9 +18,11 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class RoleResourceAuthApplicationService {
@@ -35,11 +37,10 @@ public class RoleResourceAuthApplicationService {
 
     private final RoleResourceAuthRepository repository;
     private final Clock clock;
-
+    @Autowired
     public RoleResourceAuthApplicationService(RoleResourceAuthRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public RoleResourceAuthApplicationService(RoleResourceAuthRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

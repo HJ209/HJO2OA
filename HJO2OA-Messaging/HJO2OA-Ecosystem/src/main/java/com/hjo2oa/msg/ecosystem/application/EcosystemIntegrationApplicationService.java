@@ -23,6 +23,7 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class EcosystemIntegrationApplicationService {
@@ -32,14 +33,13 @@ public class EcosystemIntegrationApplicationService {
     private final EcosystemIntegrationRepository repository;
     private final IntegrationSecretResolver secretResolver;
     private final Clock clock;
-
+    @Autowired
     public EcosystemIntegrationApplicationService(
             EcosystemIntegrationRepository repository,
             IntegrationSecretResolver secretResolver
     ) {
         this(repository, secretResolver, Clock.systemUTC());
     }
-
     public EcosystemIntegrationApplicationService(
             EcosystemIntegrationRepository repository,
             IntegrationSecretResolver secretResolver,

@@ -37,7 +37,7 @@ public class PersonalizationProfileApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final PersonalizationOverlaySaveValidator overlaySaveValidator;
     private final Clock clock;
-
+    @Autowired
     public PersonalizationProfileApplicationService(
             PersonalizationProfileRepository profileRepository,
             PersonalizationIdentityContextProvider identityContextProvider,
@@ -53,8 +53,6 @@ public class PersonalizationProfileApplicationService {
                 Clock.systemUTC()
         );
     }
-
-    @Autowired
     public PersonalizationProfileApplicationService(
             PersonalizationProfileRepository profileRepository,
             PersonalizationIdentityContextProvider identityContextProvider,
@@ -71,7 +69,6 @@ public class PersonalizationProfileApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public PersonalizationProfileApplicationService(
             PersonalizationProfileRepository profileRepository,
             PersonalizationIdentityContextProvider identityContextProvider,
@@ -88,7 +85,6 @@ public class PersonalizationProfileApplicationService {
                 clock
         );
     }
-
     public PersonalizationProfileApplicationService(
             PersonalizationProfileRepository profileRepository,
             PersonalizationIdentityContextProvider identityContextProvider,

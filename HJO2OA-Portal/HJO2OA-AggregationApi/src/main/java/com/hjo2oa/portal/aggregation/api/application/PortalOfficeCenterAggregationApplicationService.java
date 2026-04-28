@@ -14,6 +14,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalOfficeCenterAggregationApplicationService {
@@ -22,7 +23,7 @@ public class PortalOfficeCenterAggregationApplicationService {
     private final TodoQueryApplicationService todoQueryApplicationService;
     private final MessageNotificationQueryApplicationService messageNotificationQueryApplicationService;
     private final Clock clock;
-
+    @Autowired
     public PortalOfficeCenterAggregationApplicationService(
             PortalDashboardAggregationApplicationService dashboardAggregationApplicationService,
             TodoQueryApplicationService todoQueryApplicationService,
@@ -35,7 +36,6 @@ public class PortalOfficeCenterAggregationApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public PortalOfficeCenterAggregationApplicationService(
             PortalDashboardAggregationApplicationService dashboardAggregationApplicationService,
             TodoQueryApplicationService todoQueryApplicationService,

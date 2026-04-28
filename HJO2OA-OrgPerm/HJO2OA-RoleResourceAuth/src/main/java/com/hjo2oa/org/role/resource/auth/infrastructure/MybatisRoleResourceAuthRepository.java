@@ -18,12 +18,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisRoleResourceAuthRepository implements RoleResourceAuthRepository {
 
     private static final Comparator<ResourcePermission> PERMISSION_ORDER = Comparator
@@ -35,7 +35,7 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
     private final ResourcePermissionMapper resourcePermissionMapper;
     private final PersonRoleMapper personRoleMapper;
     private final Clock clock;
-
+    @Autowired
     public MybatisRoleResourceAuthRepository(
             RoleMapper roleMapper,
             ResourcePermissionMapper resourcePermissionMapper,
@@ -44,7 +44,7 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
         this(roleMapper, resourcePermissionMapper, personRoleMapper, Clock.systemUTC());
     }
 
-    MybatisRoleResourceAuthRepository(
+    public MybatisRoleResourceAuthRepository(
             RoleMapper roleMapper,
             ResourcePermissionMapper resourcePermissionMapper,
             PersonRoleMapper personRoleMapper,

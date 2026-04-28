@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalTodoListAggregationApplicationService {
@@ -24,11 +25,10 @@ public class PortalTodoListAggregationApplicationService {
 
     private final TodoQueryApplicationService todoQueryApplicationService;
     private final Clock clock;
-
+    @Autowired
     public PortalTodoListAggregationApplicationService(TodoQueryApplicationService todoQueryApplicationService) {
         this(todoQueryApplicationService, Clock.systemUTC());
     }
-
     public PortalTodoListAggregationApplicationService(
             TodoQueryApplicationService todoQueryApplicationService,
             Clock clock

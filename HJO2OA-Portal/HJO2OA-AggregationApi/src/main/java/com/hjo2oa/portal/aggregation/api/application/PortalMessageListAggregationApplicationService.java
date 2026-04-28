@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalMessageListAggregationApplicationService {
@@ -23,13 +24,12 @@ public class PortalMessageListAggregationApplicationService {
 
     private final MessageNotificationQueryApplicationService queryApplicationService;
     private final Clock clock;
-
+    @Autowired
     public PortalMessageListAggregationApplicationService(
             MessageNotificationQueryApplicationService queryApplicationService
     ) {
         this(queryApplicationService, Clock.systemUTC());
     }
-
     public PortalMessageListAggregationApplicationService(
             MessageNotificationQueryApplicationService queryApplicationService,
             Clock clock

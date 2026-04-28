@@ -20,7 +20,6 @@ public class PortalHomeRefreshStateApplicationService {
     private final PortalHomeRefreshStateRepository refreshStateRepository;
     private final PersonalizationIdentityContextProvider identityContextProvider;
     private final Clock clock;
-
     @Autowired
     public PortalHomeRefreshStateApplicationService(
             PortalHomeRefreshStateRepository refreshStateRepository,
@@ -28,7 +27,6 @@ public class PortalHomeRefreshStateApplicationService {
     ) {
         this(refreshStateRepository, identityContextProvider, Clock.systemUTC());
     }
-
     public PortalHomeRefreshStateApplicationService(
             PortalHomeRefreshStateRepository refreshStateRepository,
             PersonalizationIdentityContextProvider identityContextProvider,

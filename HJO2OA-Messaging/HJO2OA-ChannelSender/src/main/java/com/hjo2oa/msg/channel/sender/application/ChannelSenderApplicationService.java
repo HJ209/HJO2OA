@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class ChannelSenderApplicationService {
@@ -38,11 +39,10 @@ public class ChannelSenderApplicationService {
 
     private final ChannelSenderRepository repository;
     private final Clock clock;
-
+    @Autowired
     public ChannelSenderApplicationService(ChannelSenderRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public ChannelSenderApplicationService(ChannelSenderRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

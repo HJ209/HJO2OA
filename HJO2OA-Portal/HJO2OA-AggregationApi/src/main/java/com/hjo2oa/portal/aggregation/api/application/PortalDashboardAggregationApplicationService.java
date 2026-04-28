@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalDashboardAggregationApplicationService {
@@ -35,7 +36,7 @@ public class PortalDashboardAggregationApplicationService {
     private final PortalCardSnapshotRepository snapshotRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public PortalDashboardAggregationApplicationService(
             PortalIdentityCardDataProvider identityCardDataProvider,
             PortalTodoCardDataProvider todoCardDataProvider,
@@ -52,7 +53,6 @@ public class PortalDashboardAggregationApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public PortalDashboardAggregationApplicationService(
             PortalIdentityCardDataProvider identityCardDataProvider,
             PortalTodoCardDataProvider todoCardDataProvider,
@@ -69,7 +69,6 @@ public class PortalDashboardAggregationApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public PortalDashboardAggregationApplicationService(
             PortalIdentityCardDataProvider identityCardDataProvider,
             PortalTodoCardDataProvider todoCardDataProvider,

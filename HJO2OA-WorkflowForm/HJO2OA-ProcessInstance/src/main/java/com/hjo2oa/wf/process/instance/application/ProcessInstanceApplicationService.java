@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -43,7 +44,7 @@ public class ProcessInstanceApplicationService {
     private final TaskActionRepository actionRepository;
     private final DomainEventPublisher eventPublisher;
     private final Clock clock;
-
+    @Autowired
     public ProcessInstanceApplicationService(
             ProcessInstanceRepository instanceRepository,
             TaskInstanceRepository taskRepository,
@@ -52,7 +53,6 @@ public class ProcessInstanceApplicationService {
     ) {
         this(instanceRepository, taskRepository, actionRepository, eventPublisher, Clock.systemUTC());
     }
-
     public ProcessInstanceApplicationService(
             ProcessInstanceRepository instanceRepository,
             TaskInstanceRepository taskRepository,

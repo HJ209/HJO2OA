@@ -19,26 +19,22 @@ public class PortalTemplateCanvasApplicationService {
     private final PortalTemplateRepository templateRepository;
     private final Clock clock;
     private final PortalWidgetReferenceStatusApplicationService widgetReferenceStatusApplicationService;
-
+    @Autowired
     public PortalTemplateCanvasApplicationService(PortalTemplateRepository templateRepository) {
         this(templateRepository, Clock.systemUTC(), PortalWidgetReferenceStatusApplicationService.noop());
     }
-
-    @Autowired
     public PortalTemplateCanvasApplicationService(
             PortalTemplateRepository templateRepository,
             PortalWidgetReferenceStatusApplicationService widgetReferenceStatusApplicationService
     ) {
         this(templateRepository, Clock.systemUTC(), widgetReferenceStatusApplicationService);
     }
-
     public PortalTemplateCanvasApplicationService(
             PortalTemplateRepository templateRepository,
             Clock clock
     ) {
         this(templateRepository, clock, PortalWidgetReferenceStatusApplicationService.noop());
     }
-
     public PortalTemplateCanvasApplicationService(
             PortalTemplateRepository templateRepository,
             Clock clock,

@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class CopiedTodoActionApplicationService {
@@ -16,14 +17,13 @@ public class CopiedTodoActionApplicationService {
     private final CopiedTodoRepository copiedTodoRepository;
     private final TodoIdentityContextProvider identityContextProvider;
     private final Clock clock;
-
+    @Autowired
     public CopiedTodoActionApplicationService(
             CopiedTodoRepository copiedTodoRepository,
             TodoIdentityContextProvider identityContextProvider
     ) {
         this(copiedTodoRepository, identityContextProvider, Clock.systemUTC());
     }
-
     public CopiedTodoActionApplicationService(
             CopiedTodoRepository copiedTodoRepository,
             TodoIdentityContextProvider identityContextProvider,

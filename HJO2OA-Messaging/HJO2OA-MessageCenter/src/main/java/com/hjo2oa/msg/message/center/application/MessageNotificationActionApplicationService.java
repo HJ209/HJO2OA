@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class MessageNotificationActionApplicationService {
@@ -31,7 +32,7 @@ public class MessageNotificationActionApplicationService {
     private final MessageNotificationQueryApplicationService queryApplicationService;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public MessageNotificationActionApplicationService(
             NotificationRepository notificationRepository,
             NotificationActionRepository notificationActionRepository,
@@ -48,7 +49,6 @@ public class MessageNotificationActionApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public MessageNotificationActionApplicationService(
             NotificationRepository notificationRepository,
             NotificationActionRepository notificationActionRepository,

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -34,14 +35,13 @@ public class OrgStructureApplicationService {
     private final OrganizationRepository organizationRepository;
     private final DepartmentRepository departmentRepository;
     private final Clock clock;
-
+    @Autowired
     public OrgStructureApplicationService(
             OrganizationRepository organizationRepository,
             DepartmentRepository departmentRepository
     ) {
         this(organizationRepository, departmentRepository, Clock.systemUTC());
     }
-
     public OrgStructureApplicationService(
             OrganizationRepository organizationRepository,
             DepartmentRepository departmentRepository,

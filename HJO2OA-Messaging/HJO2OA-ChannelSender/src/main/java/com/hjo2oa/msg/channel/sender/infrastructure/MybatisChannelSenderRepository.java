@@ -23,26 +23,25 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisChannelSenderRepository implements ChannelSenderRepository {
 
     private final MessageTemplateMapper messageTemplateMapper;
     private final ChannelEndpointMapper channelEndpointMapper;
     private final RoutingPolicyMapper routingPolicyMapper;
     private final DeliveryTaskMapper deliveryTaskMapper;
-    private final DeliveryAttemptMapper deliveryAttemptMapper;
+    private final ChannelDeliveryAttemptMapper deliveryAttemptMapper;
 
     public MybatisChannelSenderRepository(
             MessageTemplateMapper messageTemplateMapper,
             ChannelEndpointMapper channelEndpointMapper,
             RoutingPolicyMapper routingPolicyMapper,
             DeliveryTaskMapper deliveryTaskMapper,
-            DeliveryAttemptMapper deliveryAttemptMapper
+            ChannelDeliveryAttemptMapper deliveryAttemptMapper
     ) {
         this.messageTemplateMapper = Objects.requireNonNull(messageTemplateMapper);
         this.channelEndpointMapper = Objects.requireNonNull(channelEndpointMapper);

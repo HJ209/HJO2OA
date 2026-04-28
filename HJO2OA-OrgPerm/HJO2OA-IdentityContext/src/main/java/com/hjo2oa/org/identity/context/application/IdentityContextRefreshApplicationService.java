@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class IdentityContextRefreshApplicationService {
@@ -18,7 +19,7 @@ public class IdentityContextRefreshApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final IdentityContextSessionRepository sessionRepository;
     private final Clock clock;
-
+    @Autowired
     public IdentityContextRefreshApplicationService(
             DomainEventPublisher domainEventPublisher,
             IdentityContextSessionRepository sessionRepository
@@ -26,7 +27,7 @@ public class IdentityContextRefreshApplicationService {
         this(domainEventPublisher, sessionRepository, Clock.systemUTC());
     }
 
-    IdentityContextRefreshApplicationService(
+    public IdentityContextRefreshApplicationService(
             DomainEventPublisher domainEventPublisher,
             IdentityContextSessionRepository sessionRepository,
             Clock clock

@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Comparator;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class WidgetDefinitionApplicationService {
@@ -28,7 +29,7 @@ public class WidgetDefinitionApplicationService {
     private final WidgetConfigContextProvider contextProvider;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
-
+    @Autowired
     public WidgetDefinitionApplicationService(
             WidgetDefinitionRepository widgetDefinitionRepository,
             WidgetConfigContextProvider contextProvider,
@@ -36,7 +37,6 @@ public class WidgetDefinitionApplicationService {
     ) {
         this(widgetDefinitionRepository, contextProvider, domainEventPublisher, Clock.systemUTC());
     }
-
     public WidgetDefinitionApplicationService(
             WidgetDefinitionRepository widgetDefinitionRepository,
             WidgetConfigContextProvider contextProvider,

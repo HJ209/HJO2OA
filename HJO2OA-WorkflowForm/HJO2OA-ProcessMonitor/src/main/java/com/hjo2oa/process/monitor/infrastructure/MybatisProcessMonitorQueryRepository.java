@@ -7,8 +7,10 @@ import com.hjo2oa.process.monitor.domain.OverdueTaskObservationView;
 import com.hjo2oa.process.monitor.domain.ProcessDurationAnalysisView;
 import com.hjo2oa.process.monitor.domain.ProcessMonitorQueryRepository;
 import java.util.List;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
 public class MybatisProcessMonitorQueryRepository implements ProcessMonitorQueryRepository {
 

@@ -30,7 +30,7 @@ public class PortalTemplateApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
     private final PortalWidgetReferenceStatusApplicationService widgetReferenceStatusApplicationService;
-
+    @Autowired
     public PortalTemplateApplicationService(
             PortalTemplateRepository templateRepository,
             PortalModelContextProvider contextProvider,
@@ -44,8 +44,6 @@ public class PortalTemplateApplicationService {
                 PortalWidgetReferenceStatusApplicationService.noop()
         );
     }
-
-    @Autowired
     public PortalTemplateApplicationService(
             PortalTemplateRepository templateRepository,
             PortalModelContextProvider contextProvider,
@@ -60,7 +58,6 @@ public class PortalTemplateApplicationService {
                 widgetReferenceStatusApplicationService
         );
     }
-
     public PortalTemplateApplicationService(
             PortalTemplateRepository templateRepository,
             PortalModelContextProvider contextProvider,
@@ -75,7 +72,6 @@ public class PortalTemplateApplicationService {
                 PortalWidgetReferenceStatusApplicationService.noop()
         );
     }
-
     public PortalTemplateApplicationService(
             PortalTemplateRepository templateRepository,
             PortalModelContextProvider contextProvider,

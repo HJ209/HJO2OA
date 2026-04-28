@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class PortalModelBackedPortalHomePageTemplateProvider implements PortalHomePageTemplateProvider {
@@ -39,7 +40,7 @@ public class PortalModelBackedPortalHomePageTemplateProvider implements PortalHo
     private final PortalTemplateCanvasApplicationService templateCanvasApplicationService;
     private final StaticPortalHomePageTemplateProvider fallbackTemplateProvider;
     private final PersonalizationIdentityContextProvider identityContextProvider;
-
+    @Autowired
     public PortalModelBackedPortalHomePageTemplateProvider(
             PortalActiveTemplateResolutionApplicationService activeTemplateResolutionApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,
@@ -53,7 +54,7 @@ public class PortalModelBackedPortalHomePageTemplateProvider implements PortalHo
         );
     }
 
-    PortalModelBackedPortalHomePageTemplateProvider(
+    public PortalModelBackedPortalHomePageTemplateProvider(
             PortalActiveTemplateResolutionApplicationService activeTemplateResolutionApplicationService,
             PortalTemplateCanvasApplicationService templateCanvasApplicationService,
             StaticPortalHomePageTemplateProvider fallbackTemplateProvider,

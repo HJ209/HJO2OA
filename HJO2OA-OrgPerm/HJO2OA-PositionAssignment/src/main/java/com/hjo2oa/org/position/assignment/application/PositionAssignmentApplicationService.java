@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -36,11 +37,10 @@ public class PositionAssignmentApplicationService {
 
     private final PositionAssignmentRepository repository;
     private final Clock clock;
-
+    @Autowired
     public PositionAssignmentApplicationService(PositionAssignmentRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public PositionAssignmentApplicationService(PositionAssignmentRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class EventSubscriptionApplicationService {
@@ -30,11 +31,10 @@ public class EventSubscriptionApplicationService {
 
     private final EventSubscriptionRepository repository;
     private final Clock clock;
-
+    @Autowired
     public EventSubscriptionApplicationService(EventSubscriptionRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public EventSubscriptionApplicationService(EventSubscriptionRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

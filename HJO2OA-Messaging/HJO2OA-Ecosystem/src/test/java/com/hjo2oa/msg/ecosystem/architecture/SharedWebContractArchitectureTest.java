@@ -17,6 +17,8 @@ class SharedWebContractArchitectureTest {
             .resideInAPackage("..interfaces..")
             .and()
             .haveSimpleNameEndingWith("AdminController")
+            .or()
+            .haveSimpleNameEndingWith("Endpoint")
             .should()
             .beAnnotatedWith(UseSharedWebContract.class);
 }

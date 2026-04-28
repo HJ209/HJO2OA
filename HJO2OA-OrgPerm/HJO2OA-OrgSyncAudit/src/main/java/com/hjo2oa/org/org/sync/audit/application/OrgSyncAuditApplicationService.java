@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -40,7 +41,7 @@ public class OrgSyncAuditApplicationService {
     private final AuditRecordRepository auditRecordRepository;
     private final TargetMasterDataGateway targetMasterDataGateway;
     private final Clock clock;
-
+    @Autowired
     public OrgSyncAuditApplicationService(
             SyncSourceConfigRepository sourceRepository,
             SyncTaskRepository taskRepository,
@@ -59,7 +60,6 @@ public class OrgSyncAuditApplicationService {
                 Clock.systemUTC()
         );
     }
-
     public OrgSyncAuditApplicationService(
             SyncSourceConfigRepository sourceRepository,
             SyncTaskRepository taskRepository,

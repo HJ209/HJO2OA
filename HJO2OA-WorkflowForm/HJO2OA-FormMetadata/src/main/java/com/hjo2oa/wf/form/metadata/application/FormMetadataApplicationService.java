@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class FormMetadataApplicationService {
@@ -32,11 +33,10 @@ public class FormMetadataApplicationService {
 
     private final FormMetadataRepository repository;
     private final Clock clock;
-
+    @Autowired
     public FormMetadataApplicationService(FormMetadataRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public FormMetadataApplicationService(FormMetadataRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

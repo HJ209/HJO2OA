@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalHomePageAssemblyApplicationService {
@@ -44,7 +45,7 @@ public class PortalHomePageAssemblyApplicationService {
     private final PortalHomePersonalizationOverlayProvider personalizationOverlayProvider;
     private final PortalHomeOverlayApplicator overlayApplicator;
     private final Clock clock;
-
+    @Autowired
     public PortalHomePageAssemblyApplicationService(
             PortalHomePageTemplateProvider pageTemplateProvider,
             PortalHomeAggregationViewProvider aggregationViewProvider,
@@ -60,7 +61,7 @@ public class PortalHomePageAssemblyApplicationService {
         );
     }
 
-    PortalHomePageAssemblyApplicationService(
+    public PortalHomePageAssemblyApplicationService(
             PortalHomePageTemplateProvider pageTemplateProvider,
             PortalHomeAggregationViewProvider aggregationViewProvider,
             PortalHomeRefreshStateApplicationService refreshStateApplicationService,

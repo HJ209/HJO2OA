@@ -7,17 +7,17 @@ import java.time.Clock;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalSnapshotInvalidationApplicationService {
 
     private final PortalCardSnapshotRepository snapshotRepository;
     private final Clock clock;
-
+    @Autowired
     public PortalSnapshotInvalidationApplicationService(PortalCardSnapshotRepository snapshotRepository) {
         this(snapshotRepository, Clock.systemUTC());
     }
-
     public PortalSnapshotInvalidationApplicationService(
             PortalCardSnapshotRepository snapshotRepository,
             Clock clock

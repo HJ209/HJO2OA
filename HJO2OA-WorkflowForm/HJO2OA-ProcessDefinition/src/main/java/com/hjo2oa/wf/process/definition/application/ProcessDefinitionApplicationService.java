@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class ProcessDefinitionApplicationService {
@@ -32,14 +33,13 @@ public class ProcessDefinitionApplicationService {
     private final ProcessDefinitionRepository definitionRepository;
     private final ActionDefinitionRepository actionRepository;
     private final Clock clock;
-
+    @Autowired
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
             ActionDefinitionRepository actionRepository
     ) {
         this(definitionRepository, actionRepository, Clock.systemUTC());
     }
-
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
             ActionDefinitionRepository actionRepository,

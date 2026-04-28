@@ -9,16 +9,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Repository;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Repository
 public class InMemoryIdentityContextSessionRepository implements IdentityContextSessionRepository {
 
     private final AtomicReference<IdentityContextSession> currentSession;
-
+    @Autowired
     public InMemoryIdentityContextSessionRepository() {
         this(createDefaultSession());
     }
-
     public InMemoryIdentityContextSessionRepository(IdentityContextSession seedSession) {
         this.currentSession = new AtomicReference<>(Objects.requireNonNull(seedSession, "seedSession must not be null"));
     }

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class MobileSupportApplicationService {
@@ -28,11 +29,10 @@ public class MobileSupportApplicationService {
 
     private final MobileSupportRepository repository;
     private final Clock clock;
-
+    @Autowired
     public MobileSupportApplicationService(MobileSupportRepository repository) {
         this(repository, Clock.systemUTC());
     }
-
     public MobileSupportApplicationService(MobileSupportRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");

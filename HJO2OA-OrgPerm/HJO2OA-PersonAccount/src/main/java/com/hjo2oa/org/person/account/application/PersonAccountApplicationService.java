@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PersonAccountApplicationService {
@@ -32,14 +33,13 @@ public class PersonAccountApplicationService {
     private final PersonRepository personRepository;
     private final AccountRepository accountRepository;
     private final Clock clock;
-
+    @Autowired
     public PersonAccountApplicationService(
             PersonRepository personRepository,
             AccountRepository accountRepository
     ) {
         this(personRepository, accountRepository, Clock.systemUTC());
     }
-
     public PersonAccountApplicationService(
             PersonRepository personRepository,
             AccountRepository accountRepository,

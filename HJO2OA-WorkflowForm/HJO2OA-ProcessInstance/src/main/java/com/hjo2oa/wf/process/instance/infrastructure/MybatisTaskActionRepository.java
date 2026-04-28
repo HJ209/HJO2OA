@@ -6,11 +6,11 @@ import com.hjo2oa.wf.process.instance.domain.TaskActionRepository;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+@Primary
 @Repository
-@ConditionalOnBean(DataSource.class)
 public class MybatisTaskActionRepository implements TaskActionRepository {
 
     private final TaskActionMapper mapper;
