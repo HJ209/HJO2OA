@@ -1,57 +1,177 @@
 import { get, post, put } from '@/services/request'
 import type { PageData } from '@/types/api'
-import { serializePaginationParams } from '@/utils/pagination'
+import {
+  resolveCurrentTenantId,
+  toPageData,
+} from '@/features/org-perm/services/service-utils'
 import type {
   ListQuery,
   PersonAccount,
   PersonAccountPayload,
 } from '@/features/org-perm/types/org-perm'
 
-const PERSON_URL = '/v1/org/persons'
+const PERSON_URL = '/v1/org/person-accounts/persons'
 
-function buildPersonParams(query: ListQuery): URLSearchParams {
-  const params = serializePaginationParams(query)
+interface BackendPersonResponse {
+  id: string
+  employeeNo: string
+  name: string
+  mobile?: string | null
+  email?: string | null
+  organizationId?: string | null
+  status: 'ACTIVE' | 'DISABLED' | 'RESIGNED'
+  updatedAt?: string
+}
 
-  if (query.keyword) {
-    params.set('keyword', query.keyword)
+interface BackendAccountResponse {
+  id: string
+  username: string
+  primaryAccount: boolean
+  locked: boolean
+  status: 'ACTIVE' | 'LOCKED' | 'DISABLED'
+}
+
+interface BackendPersonAccountResponse {
+  person: BackendPersonResponse
+  accounts: BackendAccountResponse[]
+}
+
+function mapPersonStatus(
+  person: BackendPersonResponse,
+  primaryAccount?: BackendAccountResponse,
+): PersonAccount['status'] {
+  if (primaryAccount?.locked || primaryAccount?.status === 'LOCKED') {
+    return 'LOCKED'
   }
 
-  return params
+  if (person.status === 'ACTIVE') {
+    return 'ACTIVE'
+  }
+
+  return 'DISABLED'
 }
 
-export function listPersonAccounts(
+function mapPersonAccountResponse(
+  item: BackendPersonResponse | BackendPersonAccountResponse,
+): PersonAccount {
+  const person = 'person' in item ? item.person : item
+  const primaryAccount =
+    'accounts' in item
+      ? (item.accounts.find((account) => account.primaryAccount) ??
+        item.accounts[0])
+      : undefined
+
+  return {
+    id: person.id,
+    accountName: primaryAccount?.username ?? person.employeeNo,
+    displayName: person.name,
+    email: person.email ?? undefined,
+    mobile: person.mobile ?? undefined,
+    orgId: person.organizationId ?? undefined,
+    orgName: person.organizationId ?? undefined,
+    status: mapPersonStatus(person, primaryAccount),
+    updatedAtUtc: person.updatedAt,
+  }
+}
+
+function filterPersonAccounts(
+  items: PersonAccount[],
+  query: ListQuery,
+): PersonAccount[] {
+  const keyword = query.keyword?.trim().toLowerCase()
+
+  if (!keyword) {
+    return items
+  }
+
+  return items.filter((item) =>
+    [item.accountName, item.displayName, item.email, item.mobile, item.orgId]
+      .filter(Boolean)
+      .some((value) => value?.toLowerCase().includes(keyword)),
+  )
+}
+
+export async function listPersonAccounts(
   query: ListQuery = {},
 ): Promise<PageData<PersonAccount>> {
-  return get<PageData<PersonAccount>>(PERSON_URL, {
-    params: buildPersonParams(query),
-  })
+  const tenantId = await resolveCurrentTenantId()
+  const params = new URLSearchParams()
+  params.set('tenantId', tenantId)
+  const items = await get<BackendPersonResponse[]>(PERSON_URL, { params })
+  const mappedItems = filterPersonAccounts(
+    items.map(mapPersonAccountResponse),
+    query,
+  )
+
+  return toPageData(mappedItems, query)
 }
 
-export function getPersonAccount(id: string): Promise<PersonAccount> {
-  return get<PersonAccount>(`${PERSON_URL}/${id}`)
+export async function getPersonAccount(id: string): Promise<PersonAccount> {
+  const item = await get<BackendPersonAccountResponse>(`${PERSON_URL}/${id}`)
+
+  return mapPersonAccountResponse(item)
 }
 
-export function createPersonAccount(
+export async function createPersonAccount(
   payload: PersonAccountPayload,
   idempotencyKey?: string,
 ): Promise<PersonAccount> {
-  return post<PersonAccount, PersonAccountPayload>(PERSON_URL, payload, {
-    dedupeKey: `person:create:${payload.accountName}`,
-    idempotencyKey,
-  })
+  const tenantId = await resolveCurrentTenantId()
+  const item = await post<
+    BackendPersonAccountResponse,
+    {
+      employeeNo: string
+      name: string
+      mobile?: string
+      email?: string
+      organizationId?: string
+      tenantId: string
+    }
+  >(
+    PERSON_URL,
+    {
+      employeeNo: payload.accountName,
+      name: payload.displayName,
+      mobile: payload.mobile,
+      email: payload.email,
+      organizationId: payload.orgId,
+      tenantId,
+    },
+    {
+      dedupeKey: `person:create:${payload.accountName}`,
+      idempotencyKey,
+    },
+  )
+
+  return mapPersonAccountResponse(item)
 }
 
-export function updatePersonAccount(
+export async function updatePersonAccount(
   id: string,
   payload: PersonAccountPayload,
   idempotencyKey?: string,
 ): Promise<PersonAccount> {
-  return put<PersonAccount, PersonAccountPayload>(
+  const item = await put<
+    BackendPersonAccountResponse,
+    {
+      name: string
+      mobile?: string
+      email?: string
+      organizationId?: string
+    }
+  >(
     `${PERSON_URL}/${id}`,
-    payload,
+    {
+      name: payload.displayName,
+      mobile: payload.mobile,
+      email: payload.email,
+      organizationId: payload.orgId,
+    },
     {
       dedupeKey: `person:update:${id}`,
       idempotencyKey,
     },
   )
+
+  return mapPersonAccountResponse(item)
 }

@@ -71,9 +71,9 @@ describe('todo-service', () => {
     await expect(getCompletedTodos()).resolves.toEqual([todoItem])
     await expect(getOverdueTodos()).resolves.toEqual([todoItem])
 
-    expect(mockedGet).toHaveBeenNthCalledWith(1, '/api/v1/todo/pending')
-    expect(mockedGet).toHaveBeenNthCalledWith(2, '/api/v1/todo/completed')
-    expect(mockedGet).toHaveBeenNthCalledWith(3, '/api/v1/todo/overdue')
+    expect(mockedGet).toHaveBeenNthCalledWith(1, '/v1/todo/pending')
+    expect(mockedGet).toHaveBeenNthCalledWith(2, '/v1/todo/completed')
+    expect(mockedGet).toHaveBeenNthCalledWith(3, '/v1/todo/overdue')
   })
 
   it('serializes copied todo read status filter through pagination utility', async () => {
@@ -81,7 +81,7 @@ describe('todo-service', () => {
 
     await expect(getCopiedTodos('UNREAD')).resolves.toEqual([copiedTodo])
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/v1/todo/copied', {
+    expect(mockedGet).toHaveBeenCalledWith('/v1/todo/copied', {
       params: new URLSearchParams('filter%5BreadStatus%5D=UNREAD'),
     })
   })
@@ -92,7 +92,7 @@ describe('todo-service', () => {
     await expect(markCopiedTodoRead('copy-001')).resolves.toEqual(copiedTodo)
 
     expect(mockedPost).toHaveBeenCalledWith(
-      '/api/v1/todo/copied/copy-001/read',
+      '/v1/todo/copied/copy-001/read',
       {},
       expect.objectContaining({
         dedupeKey: 'todo:copied:read:copy-001',
@@ -106,6 +106,6 @@ describe('todo-service', () => {
 
     await expect(getTodoCounts()).resolves.toEqual(counts)
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/v1/todo/counts')
+    expect(mockedGet).toHaveBeenCalledWith('/v1/todo/counts')
   })
 })

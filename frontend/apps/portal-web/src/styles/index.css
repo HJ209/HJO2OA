@@ -1,4 +1,5 @@
-@import url('tailwindcss');
+/* stylelint-disable-next-line import-notation -- Tailwind v4 requires a bare package import for Vite processing. */
+@import 'tailwindcss';
 
 :root {
   color-scheme: light;

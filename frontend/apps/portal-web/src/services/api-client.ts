@@ -108,6 +108,54 @@ function toBizError<T>(payload: ApiResponse<T>, status?: number): BizError {
   })
 }
 
+function isUuid(value: string | null | undefined): value is string {
+  return Boolean(
+    value &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    ),
+  )
+}
+
+function decodeJwtTenantId(token: string | null | undefined): string | null {
+  if (!token) {
+    return null
+  }
+
+  const segments = token.split('.')
+
+  if (segments.length < 2) {
+    return null
+  }
+
+  try {
+    const normalizedPayload = segments[1].replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    )
+    const payload = JSON.parse(atob(paddedPayload)) as Record<string, unknown>
+    const tenantId =
+      typeof payload.tenantId === 'string' ? payload.tenantId : null
+
+    return isUuid(tenantId) ? tenantId : null
+  } catch {
+    return null
+  }
+}
+
+function resolveTenantId(
+  authState: ReturnType<typeof useAuthStore.getState>,
+): string | null {
+  const envTenantId = import.meta.env.VITE_TENANT_ID
+
+  return (
+    decodeJwtTenantId(authState.token) ??
+    (isUuid(authState.user?.tenantId) ? authState.user.tenantId : null) ??
+    (isUuid(envTenantId) ? envTenantId : null)
+  )
+}
+
 function applyRequestHeaders(
   config: InternalAxiosRequestConfig<unknown>,
 ): InternalAxiosRequestConfig<unknown> {
@@ -120,13 +168,10 @@ function applyRequestHeaders(
     headers.set('X-Request-Id', generateClientId())
   }
 
-  if (!readHeader(headers, 'X-Tenant-Id')) {
-    headers.set(
-      'X-Tenant-Id',
-      authState.user?.tenantId ??
-        import.meta.env.VITE_TENANT_ID ??
-        'tenant-demo',
-    )
+  const tenantId = resolveTenantId(authState)
+
+  if (tenantId && !readHeader(headers, 'X-Tenant-Id')) {
+    headers.set('X-Tenant-Id', tenantId)
   }
 
   if (!readHeader(headers, 'Accept-Language')) {

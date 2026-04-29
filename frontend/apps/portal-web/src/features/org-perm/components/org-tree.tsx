@@ -57,7 +57,7 @@ export function OrgTree({
 
   if (nodes.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+      <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">
         暂无组织数据
       </div>
     )

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import App from './App'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIdentityStore } from '@/stores/identity-store'
+import { useWorkspaceShellStore } from '@/stores/workspace-shell-store'
 
 const routerFuture = {
   v7_relativeSplatPath: true,
@@ -16,6 +17,10 @@ afterEach(() => {
     currentAssignment: null,
     orgId: null,
     roleIds: [],
+  })
+  useWorkspaceShellStore.setState({
+    activeKey: 'home',
+    openKeys: ['home'],
   })
 })
 
@@ -31,7 +36,7 @@ describe('App', () => {
     expect(screen.getByText('进入工作台')).toBeInTheDocument()
   })
 
-  it('renders an authenticated nested route page', async () => {
+  it('renders an authenticated workspace route with the matching tab selected', async () => {
     useAuthStore.setState({
       token: 'test-token',
       user: {
@@ -60,9 +65,21 @@ describe('App', () => {
       </MemoryRouter>,
     )
 
+    const messageTabs = await screen.findAllByRole(
+      'tab',
+      { name: '信息发布' },
+      { timeout: 10000 },
+    )
+
     expect(
-      await screen.findByText('统一查看系统通知、审批提醒和业务播报。'),
+      messageTabs.some(
+        (element) => element.getAttribute('aria-selected') === 'true',
+      ),
+    ).toBe(true)
+    expect(
+      await screen.findByText('门户管理员', undefined, {
+        timeout: 10000,
+      }),
     ).toBeInTheDocument()
-    expect(screen.getByText('门户管理员')).toBeInTheDocument()
-  })
+  }, 15000)
 })

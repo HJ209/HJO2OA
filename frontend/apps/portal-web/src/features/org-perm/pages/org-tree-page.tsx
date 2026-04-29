@@ -86,13 +86,13 @@ export default function OrgTreePage(): ReactElement {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
+        <CardHeader className="flex-row items-start justify-between gap-3">
           <div>
             <Badge>org.perm.tree.title</Badge>
-            <CardTitle className="mt-3 text-2xl">组织架构</CardTitle>
-            <CardDescription className="mt-2">
+            <CardTitle className="mt-2 text-xl">组织架构</CardTitle>
+            <CardDescription className="mt-1">
               浏览组织树，维护组织节点、编码、状态和排序。
             </CardDescription>
           </div>
@@ -103,11 +103,11 @@ export default function OrgTreePage(): ReactElement {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             {isLoading ? (
-              <div className="p-6 text-sm text-slate-500">加载组织树中</div>
+              <div className="p-4 text-sm text-slate-500">加载组织树中</div>
             ) : (
               <OrgTree
                 nodes={data}

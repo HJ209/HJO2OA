@@ -30,6 +30,62 @@ interface AuthStoreState {
 
 let refreshTimerId: ReturnType<typeof setTimeout> | null = null
 
+function isUuid(value: string | null | undefined): value is string {
+  return Boolean(
+    value &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    ),
+  )
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const segments = token.split('.')
+
+  if (segments.length < 2) {
+    return null
+  }
+
+  try {
+    const normalizedPayload = segments[1].replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    )
+    const decodedPayload = atob(paddedPayload)
+
+    return JSON.parse(decodedPayload) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function normalizeSessionTenantId<TSession extends AuthSession>(
+  session: TSession,
+): TSession {
+  const payload = decodeJwtPayload(session.token)
+  const jwtTenantId =
+    typeof payload?.tenantId === 'string' ? payload.tenantId : null
+
+  if (!isUuid(jwtTenantId) || session.user.tenantId === jwtTenantId) {
+    return session
+  }
+
+  return {
+    ...session,
+    user: {
+      ...session.user,
+      tenantId: jwtTenantId,
+    },
+  }
+}
+
+function resolveEnvTenantId(): string {
+  const envTenantId = import.meta.env.VITE_TENANT_ID
+
+  return isUuid(envTenantId) ? envTenantId : ''
+}
+
 function readStoredSession(): StoredAuthSession | null {
   if (typeof localStorage === 'undefined') {
     return null
@@ -48,7 +104,7 @@ function readStoredSession(): StoredAuthSession | null {
       return null
     }
 
-    return parsedValue as StoredAuthSession
+    return normalizeSessionTenantId(parsedValue as StoredAuthSession)
   } catch {
     localStorage.removeItem(AUTH_STORAGE_KEY)
 
@@ -62,7 +118,7 @@ function persistSession(session: AuthSession): void {
   }
 
   const storedSession: StoredAuthSession = {
-    ...session,
+    ...normalizeSessionTenantId(session),
     savedAtUtc: new Date().toISOString(),
   }
 
@@ -117,7 +173,7 @@ export function createDemoAuthSession(): AuthSession {
       id: 'acct-demo-001',
       accountName: 'portal.admin',
       displayName: '门户管理员',
-      tenantId: import.meta.env.VITE_TENANT_ID ?? 'tenant-demo',
+      tenantId: resolveEnvTenantId(),
       locale: import.meta.env.VITE_DEFAULT_LOCALE ?? 'zh-CN',
     },
   }
@@ -149,13 +205,15 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   user: activeInitialSession?.user ?? null,
   isRefreshing: false,
   login: (session) => {
-    persistSession(session)
-    scheduleRefresh(session.expiresAtUtc)
+    const normalizedSession = normalizeSessionTenantId(session)
+
+    persistSession(normalizedSession)
+    scheduleRefresh(normalizedSession.expiresAtUtc)
     set({
-      token: session.token,
-      refreshTokenValue: session.refreshToken ?? null,
-      expiresAtUtc: session.expiresAtUtc ?? null,
-      user: session.user,
+      token: normalizedSession.token,
+      refreshTokenValue: normalizedSession.refreshToken ?? null,
+      expiresAtUtc: normalizedSession.expiresAtUtc ?? null,
+      user: normalizedSession.user,
     })
   },
   logout: () => {
@@ -194,13 +252,15 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     })
   },
   refreshSession: (session) => {
-    persistSession(session)
-    scheduleRefresh(session.expiresAtUtc)
+    const normalizedSession = normalizeSessionTenantId(session)
+
+    persistSession(normalizedSession)
+    scheduleRefresh(normalizedSession.expiresAtUtc)
     set({
-      token: session.token,
-      refreshTokenValue: session.refreshToken ?? null,
-      expiresAtUtc: session.expiresAtUtc ?? null,
-      user: session.user,
+      token: normalizedSession.token,
+      refreshTokenValue: normalizedSession.refreshToken ?? null,
+      expiresAtUtc: normalizedSession.expiresAtUtc ?? null,
+      user: normalizedSession.user,
       isRefreshing: false,
     })
   },

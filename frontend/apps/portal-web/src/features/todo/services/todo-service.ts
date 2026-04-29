@@ -7,7 +7,7 @@ import type {
   TodoItemSummary,
 } from '@/features/todo/types/todo'
 
-const TODO_API_PREFIX = '/api/v1/todo'
+const TODO_API_PREFIX = '/v1/todo'
 
 export function getPendingTodos(): Promise<TodoItemSummary[]> {
   return get<TodoItemSummary[]>(`${TODO_API_PREFIX}/pending`)

@@ -30,7 +30,7 @@ export function OrgTreeNode({
     <li>
       <div
         className={cn(
-          'flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition',
+          'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition',
           selected
             ? 'bg-sky-50 text-sky-700'
             : 'text-slate-700 hover:bg-slate-50',
@@ -40,7 +40,7 @@ export function OrgTreeNode({
         {hasChildren ? (
           <Button
             aria-label={expanded ? '折叠组织节点' : '展开组织节点'}
-            className="h-7 w-7 rounded-lg"
+            className="h-6 w-6 rounded-lg"
             onClick={() => onToggle(node.id)}
             size="icon"
             variant="ghost"

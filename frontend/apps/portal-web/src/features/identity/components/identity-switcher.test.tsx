@@ -63,11 +63,12 @@ describe('IdentitySwitcher', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('平台主管')).toBeInTheDocument()
-    expect(screen.getByText('数字办公部')).toBeInTheDocument()
+    expect(screen.getByText('门户管理员')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /平台主管/u }))
+    fireEvent.click(screen.getByRole('button', { name: /门户管理员/u }))
 
+    expect(screen.getAllByText('平台主管').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('数字办公部').length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('组织专员')).toBeInTheDocument()
     expect(screen.getByText(/待办 3/u)).toBeInTheDocument()
     expect(screen.getByText(/消息 2/u)).toBeInTheDocument()

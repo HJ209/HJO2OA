@@ -54,8 +54,6 @@ describe('portal home services', () => {
     mockedGet.mockResolvedValueOnce(snapshot)
 
     await expect(fetchPortalSnapshot()).resolves.toEqual(snapshot)
-    expect(mockedGet).toHaveBeenCalledWith(
-      '/api/v1/portal/aggregation/dashboard',
-    )
+    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/aggregation/dashboard')
   })
 })
