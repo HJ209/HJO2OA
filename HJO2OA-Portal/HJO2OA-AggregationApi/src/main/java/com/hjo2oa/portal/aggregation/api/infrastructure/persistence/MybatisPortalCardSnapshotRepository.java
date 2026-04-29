@@ -2,14 +2,18 @@ package com.hjo2oa.portal.aggregation.api.infrastructure.persistence;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hjo2oa.portal.aggregation.api.domain.PortalAggregationSnapshotKey;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshotRepository;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardState;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
+import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
+import com.hjo2oa.portal.aggregation.api.domain.PortalMessageCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalSceneType;
 import com.hjo2oa.portal.aggregation.api.domain.PortalSnapshotScope;
+import com.hjo2oa.portal.aggregation.api.domain.PortalTodoCard;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -71,11 +75,12 @@ public class MybatisPortalCardSnapshotRepository implements PortalCardSnapshotRe
     }
 
     private PortalCardSnapshot<?> toDomain(PortalCardSnapshotEntity entity) {
+        PortalCardType cardType = PortalCardType.valueOf(entity.getCardType());
         return new PortalCardSnapshot<>(
                 keyOf(entity),
-                PortalCardType.valueOf(entity.getCardType()),
+                cardType,
                 PortalCardState.valueOf(entity.getState()),
-                readData(entity.getDataJson()),
+                readData(entity.getDataJson(), cardType),
                 entity.getMessage(),
                 entity.getRefreshedAt()
         );
@@ -109,12 +114,22 @@ public class MybatisPortalCardSnapshotRepository implements PortalCardSnapshotRe
         return entity;
     }
 
-    private Object readData(String json) {
+    private Object readData(String json, PortalCardType cardType) {
         try {
-            return objectMapper.readValue(json, Object.class);
+            return objectMapper.readerFor(dataTypeOf(cardType))
+                    .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                    .readValue(json);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Invalid portal snapshot data JSON", ex);
         }
+    }
+
+    private Class<?> dataTypeOf(PortalCardType cardType) {
+        return switch (cardType) {
+            case IDENTITY -> PortalIdentityCard.class;
+            case TODO -> PortalTodoCard.class;
+            case MESSAGE -> PortalMessageCard.class;
+        };
     }
 
     private String writeJson(Object value) {

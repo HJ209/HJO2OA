@@ -174,8 +174,12 @@ public class DictionaryTypeApplicationService {
     }
 
     public List<DictionaryTypeView> listTypes(UUID tenantId) {
+        return listTypes(tenantId, false);
+    }
+
+    public List<DictionaryTypeView> listTypes(UUID tenantId, boolean includeDisabled) {
         List<DictionaryType> dictionaryTypes = tenantId == null
-                ? dictionaryTypeRepository.findAllActive()
+                ? (includeDisabled ? dictionaryTypeRepository.findByTenant(null) : dictionaryTypeRepository.findAllActive())
                 : dictionaryTypeRepository.findByTenant(tenantId);
         return dictionaryTypes.stream()
                 .map(DictionaryType::toView)

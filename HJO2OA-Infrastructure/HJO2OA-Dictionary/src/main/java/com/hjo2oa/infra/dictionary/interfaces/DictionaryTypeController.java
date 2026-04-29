@@ -1,6 +1,7 @@
 package com.hjo2oa.infra.dictionary.interfaces;
 
 import com.hjo2oa.infra.dictionary.application.DictionaryTypeApplicationService;
+import com.hjo2oa.infra.dictionary.application.SystemEnumDictionaryService;
 import com.hjo2oa.infra.dictionary.domain.DictionaryTypeView;
 import com.hjo2oa.shared.kernel.BizException;
 import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
@@ -27,15 +28,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class DictionaryTypeController {
 
     private final DictionaryTypeApplicationService applicationService;
+    private final SystemEnumDictionaryService systemEnumDictionaryService;
     private final DictionaryTypeDtoMapper dtoMapper;
     private final ResponseMetaFactory responseMetaFactory;
 
     public DictionaryTypeController(
             DictionaryTypeApplicationService applicationService,
+            SystemEnumDictionaryService systemEnumDictionaryService,
             DictionaryTypeDtoMapper dtoMapper,
             ResponseMetaFactory responseMetaFactory
     ) {
         this.applicationService = applicationService;
+        this.systemEnumDictionaryService = systemEnumDictionaryService;
         this.dtoMapper = dtoMapper;
         this.responseMetaFactory = responseMetaFactory;
     }
@@ -98,6 +102,30 @@ public class DictionaryTypeController {
         );
     }
 
+    @PutMapping("/{typeId}/items/{itemId}/disable")
+    public ApiResponse<DictionaryTypeDtos.DictionaryTypeResponse> disableItem(
+            @PathVariable UUID typeId,
+            @PathVariable UUID itemId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.disableItem(typeId, itemId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PutMapping("/{typeId}/items/{itemId}/enable")
+    public ApiResponse<DictionaryTypeDtos.DictionaryTypeResponse> enableItem(
+            @PathVariable UUID typeId,
+            @PathVariable UUID itemId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.enableItem(typeId, itemId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
     @DeleteMapping("/{typeId}/items/{itemId}")
     public ApiResponse<DictionaryTypeDtos.DictionaryTypeResponse> removeItem(
             @PathVariable UUID typeId,
@@ -127,11 +155,63 @@ public class DictionaryTypeController {
     @GetMapping
     public ApiResponse<List<DictionaryTypeDtos.DictionaryTypeResponse>> list(
             @RequestParam(required = false) UUID tenantId,
+            @RequestParam(defaultValue = "false") boolean includeDisabled,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                applicationService.listTypes(tenantId).stream().map(dtoMapper::toResponse).toList(),
+                applicationService.listTypes(tenantId, includeDisabled).stream().map(dtoMapper::toResponse).toList(),
                 responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/system-enums")
+    public ApiResponse<List<DictionaryTypeDtos.SystemEnumDictionaryResponse>> previewSystemEnums(
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                systemEnumDictionaryService.previewSystemEnums().stream()
+                        .map(this::toSystemEnumDictionaryResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/system-enums/import")
+    public ApiResponse<DictionaryTypeDtos.SystemEnumImportResponse> importSystemEnums(
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                toSystemEnumImportResponse(systemEnumDictionaryService.importSystemEnums()),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    private DictionaryTypeDtos.SystemEnumDictionaryResponse toSystemEnumDictionaryResponse(
+            SystemEnumDictionaryService.SystemEnumDictionaryView view
+    ) {
+        return new DictionaryTypeDtos.SystemEnumDictionaryResponse(
+                view.code(),
+                view.name(),
+                view.className(),
+                view.category(),
+                view.items().stream()
+                        .map(item -> new DictionaryTypeDtos.SystemEnumItemResponse(
+                                item.code(),
+                                item.name(),
+                                item.sortOrder()
+                        ))
+                        .toList()
+        );
+    }
+
+    private DictionaryTypeDtos.SystemEnumImportResponse toSystemEnumImportResponse(
+            SystemEnumDictionaryService.SystemEnumImportResult result
+    ) {
+        return new DictionaryTypeDtos.SystemEnumImportResponse(
+                result.discoveredTypes(),
+                result.createdTypes(),
+                result.createdItems(),
+                result.importedCodes()
         );
     }
 }

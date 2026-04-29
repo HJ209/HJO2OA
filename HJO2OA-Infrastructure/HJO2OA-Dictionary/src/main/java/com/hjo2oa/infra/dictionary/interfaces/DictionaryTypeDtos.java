@@ -84,4 +84,28 @@ public final class DictionaryTypeDtos {
             List<DictionaryItemResponse> items
     ) {
     }
+
+    public record SystemEnumItemResponse(
+            String code,
+            String name,
+            int sortOrder
+    ) {
+    }
+
+    public record SystemEnumDictionaryResponse(
+            String code,
+            String name,
+            String className,
+            String category,
+            List<SystemEnumItemResponse> items
+    ) {
+    }
+
+    public record SystemEnumImportResponse(
+            int discoveredTypes,
+            int createdTypes,
+            int createdItems,
+            List<String> importedCodes
+    ) {
+    }
 }

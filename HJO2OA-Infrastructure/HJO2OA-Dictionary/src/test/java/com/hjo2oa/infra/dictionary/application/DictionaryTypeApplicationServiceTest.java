@@ -201,6 +201,14 @@ class DictionaryTypeApplicationServiceTest {
                 true,
                 null
         );
+        DictionaryTypeView disabledGlobalType = applicationService.createType(
+                "currency",
+                "Currency",
+                "common",
+                false,
+                true,
+                null
+        );
         DictionaryTypeView tenantType = applicationService.createType(
                 "priority",
                 "Priority",
@@ -209,6 +217,7 @@ class DictionaryTypeApplicationServiceTest {
                 true,
                 TENANT_ID
         );
+        applicationService.disableType(disabledGlobalType.id());
         applicationService.disableType(tenantType.id());
 
         assertThat(applicationService.queryByCode(null, "country"))
@@ -218,6 +227,9 @@ class DictionaryTypeApplicationServiceTest {
         assertThat(applicationService.listTypes(null))
                 .extracting(DictionaryTypeView::code)
                 .containsExactly("country");
+        assertThat(applicationService.listTypes(null, true))
+                .extracting(DictionaryTypeView::code)
+                .containsExactly("country", "currency");
         assertThat(applicationService.listTypes(TENANT_ID))
                 .extracting(DictionaryTypeView::code)
                 .containsExactly("priority");

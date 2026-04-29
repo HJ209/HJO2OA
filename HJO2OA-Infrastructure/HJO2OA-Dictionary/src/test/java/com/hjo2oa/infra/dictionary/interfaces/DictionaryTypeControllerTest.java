@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.hjo2oa.infra.dictionary.application.DictionaryTypeApplicationService;
+import com.hjo2oa.infra.dictionary.application.SystemEnumDictionaryService;
 import com.hjo2oa.infra.dictionary.infrastructure.InMemoryDictionaryTypeRepository;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
@@ -164,6 +165,7 @@ class DictionaryTypeControllerTest {
         ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
         return MockMvcBuilders.standaloneSetup(new DictionaryTypeController(
                         applicationService,
+                        new SystemEnumDictionaryService(applicationService),
                         new DictionaryTypeDtoMapper(),
                         responseMetaFactory
                 ))

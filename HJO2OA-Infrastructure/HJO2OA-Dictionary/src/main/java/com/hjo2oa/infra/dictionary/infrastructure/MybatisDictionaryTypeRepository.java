@@ -47,8 +47,7 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
     public Optional<DictionaryType> findByCode(UUID tenantId, String code) {
         LambdaQueryWrapper<DictionaryTypeEntity> wrapper = Wrappers.lambdaQuery();
         applyTenantScope(wrapper, tenantId);
-        wrapper.eq(DictionaryTypeEntity::getCode, code)
-                .last("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY");
+        wrapper.eq(DictionaryTypeEntity::getCode, code);
         DictionaryTypeEntity entity = dictionaryTypeMapper.selectOne(wrapper);
         if (entity == null) {
             return Optional.empty();

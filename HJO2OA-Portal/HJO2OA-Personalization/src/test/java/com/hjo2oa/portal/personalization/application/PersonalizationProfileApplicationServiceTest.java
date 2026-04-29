@@ -390,6 +390,24 @@ class PersonalizationProfileApplicationServiceTest {
     }
 
     @Test
+    void shouldRejectDuplicateLivePlacementReferenceOnSave() {
+        ValidationFixture fixture = validationFixture(false);
+
+        assertThatThrownBy(() -> fixture.applicationService().save(new SavePersonalizationProfileCommand(
+                PersonalizationSceneType.HOME,
+                PersonalizationProfileScope.ASSIGNMENT,
+                "assignment-1",
+                null,
+                List.of("message-card", "placement-message"),
+                List.of(),
+                List.of()
+        )))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("duplicate widgetOrderOverride placement codes")
+                .hasMessageContaining("placement-message");
+    }
+
+    @Test
     void shouldRejectHidingRequiredPlacementOnSave() {
         ValidationFixture fixture = validationFixture(true);
 
