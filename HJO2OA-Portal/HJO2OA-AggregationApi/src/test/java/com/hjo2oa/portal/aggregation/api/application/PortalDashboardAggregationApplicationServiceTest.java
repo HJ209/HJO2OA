@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardState;
+import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshotRepository;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
 import com.hjo2oa.portal.aggregation.api.domain.PortalDashboardView;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
@@ -25,6 +26,8 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -168,6 +171,54 @@ class PortalDashboardAggregationApplicationServiceTest {
         assertThat(publishedEvents.get(publishedEvents.size() - 1)).isInstanceOf(PortalSnapshotFailedEvent.class);
     }
 
+    @Test
+    void shouldIgnoreSnapshotCacheReadAndWriteFailuresWhenBuildingDashboard() {
+        List<DomainEvent> publishedEvents = new ArrayList<>();
+        PortalDashboardAggregationApplicationService service = new PortalDashboardAggregationApplicationService(
+                identityProvider(),
+                this::todoCard,
+                this::messageCard,
+                failingSnapshotRepository(true, true),
+                publishedEvents::add,
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+
+        PortalDashboardView dashboard = service.dashboard(
+                PortalSceneType.HOME,
+                EnumSet.of(PortalCardType.TODO, PortalCardType.MESSAGE)
+        );
+
+        assertThat(dashboard.identity().state()).isEqualTo(PortalCardState.READY);
+        assertThat(dashboard.todo().state()).isEqualTo(PortalCardState.READY);
+        assertThat(dashboard.message().state()).isEqualTo(PortalCardState.READY);
+        assertThat(publishedEvents)
+                .hasSize(3)
+                .allMatch(PortalSnapshotRefreshedEvent.class::isInstance);
+    }
+
+    @Test
+    void shouldIgnoreSnapshotEventPublishingFailuresWhenBuildingDashboard() {
+        PortalDashboardAggregationApplicationService service = new PortalDashboardAggregationApplicationService(
+                identityProvider(),
+                this::todoCard,
+                this::messageCard,
+                new InMemoryPortalCardSnapshotRepository(),
+                event -> {
+                    throw new IllegalStateException("event bus unavailable");
+                },
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+
+        PortalDashboardView dashboard = service.dashboard(
+                PortalSceneType.HOME,
+                EnumSet.of(PortalCardType.TODO, PortalCardType.MESSAGE)
+        );
+
+        assertThat(dashboard.identity().state()).isEqualTo(PortalCardState.READY);
+        assertThat(dashboard.todo().state()).isEqualTo(PortalCardState.READY);
+        assertThat(dashboard.message().state()).isEqualTo(PortalCardState.READY);
+    }
+
     private PortalIdentityCardDataProvider identityProvider() {
         return () -> new PortalIdentityCard(
                 "tenant-1",
@@ -207,4 +258,41 @@ class PortalDashboardAggregationApplicationServiceTest {
                 )
         );
     }
+
+    private PortalCardSnapshotRepository failingSnapshotRepository(boolean failOnRead, boolean failOnWrite) {
+        return new PortalCardSnapshotRepository() {
+            @Override
+            public Optional<PortalCardSnapshot<?>> findByKey(
+                    com.hjo2oa.portal.aggregation.api.domain.PortalAggregationSnapshotKey snapshotKey
+            ) {
+                if (failOnRead) {
+                    throw new IllegalStateException("snapshot cache read unavailable");
+                }
+                return Optional.empty();
+            }
+
+            @Override
+            public void save(PortalCardSnapshot<?> snapshot) {
+                if (failOnWrite) {
+                    throw new IllegalStateException("snapshot cache write unavailable");
+                }
+            }
+
+            @Override
+            public int markStale(
+                    com.hjo2oa.portal.aggregation.api.domain.PortalSnapshotScope scope,
+                    Set<PortalCardType> cardTypes,
+                    String reason,
+                    Instant staleAt
+            ) {
+                return 0;
+            }
+
+            @Override
+            public List<PortalCardSnapshot<?>> findAll() {
+                return List.of();
+            }
+        };
+    }
 }
+

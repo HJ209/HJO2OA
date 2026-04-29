@@ -21,12 +21,15 @@ import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PortalDashboardAggregationApplicationService {
 
+    private static final Logger log = LoggerFactory.getLogger(PortalDashboardAggregationApplicationService.class);
     private static final String TODO_CARD_DEGRADED = "Todo card is temporarily unavailable";
     private static final String MESSAGE_CARD_DEGRADED = "Message card is temporarily unavailable";
 
@@ -142,7 +145,7 @@ public class PortalDashboardAggregationApplicationService {
             PortalSceneType sceneType
     ) {
         PortalAggregationSnapshotKey snapshotKey = PortalAggregationSnapshotKey.of(identityCard, sceneType, PortalCardType.IDENTITY);
-        PortalCardSnapshot<?> cachedSnapshot = snapshotRepository.findByKey(snapshotKey).orElse(null);
+        PortalCardSnapshot<?> cachedSnapshot = readCachedSnapshot(snapshotKey);
         if (cachedSnapshot == null || cachedSnapshot.isStale()) {
             return refreshIdentitySnapshot(identityCard, sceneType);
         }
@@ -156,8 +159,8 @@ public class PortalDashboardAggregationApplicationService {
         PortalAggregationSnapshotKey snapshotKey = PortalAggregationSnapshotKey.of(identityCard, sceneType, PortalCardType.IDENTITY);
         PortalCardSnapshot<PortalIdentityCard> snapshot =
                 PortalCardSnapshot.ready(snapshotKey, PortalCardType.IDENTITY, identityCard, now());
-        snapshotRepository.save(snapshot);
-        domainEventPublisher.publish(PortalSnapshotRefreshedEvent.from(snapshot));
+        saveSnapshotSafely(snapshot);
+        publishRefreshedSafely(snapshot);
         return snapshot;
     }
 
@@ -170,7 +173,7 @@ public class PortalDashboardAggregationApplicationService {
             String failedMessage
     ) {
         PortalAggregationSnapshotKey snapshotKey = PortalAggregationSnapshotKey.of(identityCard, sceneType, cardType);
-        PortalCardSnapshot<?> cachedSnapshot = snapshotRepository.findByKey(snapshotKey).orElse(null);
+        PortalCardSnapshot<?> cachedSnapshot = readCachedSnapshot(snapshotKey);
         if (cachedSnapshot == null || cachedSnapshot.isStale()) {
             return refreshPortalCard(identityCard, sceneType, cardType, loader, emptyFactory, failedMessage);
         }
@@ -186,18 +189,57 @@ public class PortalDashboardAggregationApplicationService {
             String failedMessage
     ) {
         PortalAggregationSnapshotKey snapshotKey = PortalAggregationSnapshotKey.of(identityCard, sceneType, cardType);
-        PortalCardSnapshot<T> snapshot;
         try {
             T data = loader.get();
-            snapshot = PortalCardSnapshot.ready(snapshotKey, cardType, data, now());
+            PortalCardSnapshot<T> snapshot = PortalCardSnapshot.ready(snapshotKey, cardType, data, now());
+            saveSnapshotSafely(snapshot);
+            publishRefreshedSafely(snapshot);
+            return snapshot;
+        } catch (RuntimeException ex) {
+            PortalCardSnapshot<T> snapshot = PortalCardSnapshot.failed(
+                    snapshotKey,
+                    cardType,
+                    emptyFactory.get(),
+                    failedMessage,
+                    now()
+            );
+            saveSnapshotSafely(snapshot);
+            publishFailedSafely(snapshot);
+            return snapshot;
+        }
+    }
+
+    private PortalCardSnapshot<?> readCachedSnapshot(PortalAggregationSnapshotKey snapshotKey) {
+        try {
+            return snapshotRepository.findByKey(snapshotKey).orElse(null);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to read portal snapshot cache for key {}", snapshotKey.asCacheKey(), ex);
+            return null;
+        }
+    }
+
+    private void saveSnapshotSafely(PortalCardSnapshot<?> snapshot) {
+        try {
             snapshotRepository.save(snapshot);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to persist portal snapshot {}", snapshot.snapshotKey().asCacheKey(), ex);
+        }
+    }
+
+    private void publishRefreshedSafely(PortalCardSnapshot<?> snapshot) {
+        try {
             domainEventPublisher.publish(PortalSnapshotRefreshedEvent.from(snapshot));
         } catch (RuntimeException ex) {
-            snapshot = PortalCardSnapshot.failed(snapshotKey, cardType, emptyFactory.get(), failedMessage, now());
-            snapshotRepository.save(snapshot);
-            domainEventPublisher.publish(PortalSnapshotFailedEvent.from(snapshot));
+            log.warn("Failed to publish portal snapshot refreshed event for {}", snapshot.snapshotKey().asCacheKey(), ex);
         }
-        return snapshot;
+    }
+
+    private void publishFailedSafely(PortalCardSnapshot<?> snapshot) {
+        try {
+            domainEventPublisher.publish(PortalSnapshotFailedEvent.from(snapshot));
+        } catch (RuntimeException ex) {
+            log.warn("Failed to publish portal snapshot failed event for {}", snapshot.snapshotKey().asCacheKey(), ex);
+        }
     }
 
     private Set<PortalCardType> normalizeRequestedCards(Set<PortalCardType> requestedCards) {
