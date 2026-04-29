@@ -9,23 +9,49 @@ export interface InfraListQuery extends PaginationQuery {
 }
 
 export interface DictionaryType {
+  id?: string
   code: string
   name: string
   description?: string
   status: InfraStatus
+  category?: string
+  hierarchical?: boolean
+  cacheable?: boolean
   updatedAt?: string
 }
 
 export interface DictionaryItem {
+  id?: string
   code: string
   label: string
   value: string
   sortOrder: number
   enabled: boolean
+  parentId?: string
   updatedAt?: string
 }
 
+export interface SystemEnumDictionary {
+  code: string
+  name: string
+  className: string
+  category: string
+  items: Array<{
+    code: string
+    name: string
+    sortOrder: number
+  }>
+}
+
+export interface SystemEnumImportResult {
+  discoveredTypes: number
+  createdTypes: number
+  createdItems: number
+  importedCodes: string[]
+}
+
 export interface ConfigEntry {
+  id?: string
   key: string
   value: string
   group: string

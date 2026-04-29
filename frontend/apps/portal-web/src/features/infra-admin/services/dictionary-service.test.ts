@@ -4,105 +4,195 @@ import type {
   DictionaryItem,
   DictionaryType,
 } from '@/features/infra-admin/types/infra'
-import { get, post, put } from '@/services/request'
+import { del, get, post, put } from '@/services/request'
 
 vi.mock('@/services/request', () => ({
+  del: vi.fn(),
   get: vi.fn(),
   post: vi.fn(),
   put: vi.fn(),
 }))
 
+const mockedDel = vi.mocked(del)
 const mockedGet = vi.mocked(get)
 const mockedPost = vi.mocked(post)
 const mockedPut = vi.mocked(put)
+
+const backendType = {
+  id: 'type-1',
+  code: 'person_status',
+  name: '人员状态',
+  category: 'org',
+  hierarchical: false,
+  cacheable: true,
+  status: 'ACTIVE',
+  tenantId: null,
+  updatedAt: '2026-04-29T01:00:00Z',
+  items: [
+    {
+      id: 'item-1',
+      dictionaryTypeId: 'type-1',
+      itemCode: 'ACTIVE',
+      displayName: '启用',
+      parentItemId: null,
+      sortOrder: 1,
+      enabled: true,
+      multiLangValue: null,
+    },
+  ],
+}
 
 describe('dictionaryService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('calls dictionary type list endpoint with serialized query params', async () => {
-    mockedGet.mockResolvedValueOnce({
-      items: [],
-      pagination: { page: 1, size: 20, total: 0, totalPages: 0 },
-    })
+  it('lists backend dictionary types and maps to page data', async () => {
+    mockedGet.mockResolvedValueOnce([backendType])
 
-    await dictionaryService.listTypes({
+    const page = await dictionaryService.listTypes({
       page: 1,
       size: 20,
-      keyword: '状态',
-      sort: [{ field: 'code', direction: 'asc' }],
+      keyword: 'person',
     })
 
-    expect(mockedGet).toHaveBeenCalledWith(
-      '/v1/infra/dictionaries/types',
-      expect.objectContaining({
-        params: expect.any(URLSearchParams),
-      }),
-    )
-    const params = mockedGet.mock.calls[0]?.[1]?.params as URLSearchParams
-    expect(params.get('page')).toBe('1')
-    expect(params.get('size')).toBe('20')
-    expect(params.get('keyword')).toBe('状态')
-    expect(params.get('sort')).toBe('code,asc')
+    expect(mockedGet).toHaveBeenCalledWith('/v1/infra/dictionaries', {
+      params: { includeDisabled: true },
+    })
+    expect(page.items).toEqual([
+      {
+        id: 'type-1',
+        code: 'person_status',
+        name: '人员状态',
+        category: 'org',
+        hierarchical: false,
+        cacheable: true,
+        status: 'enabled',
+        updatedAt: '2026-04-29T01:00:00Z',
+      },
+    ])
   })
 
-  it('creates and updates dictionary types with dedupe keys', async () => {
+  it('creates and toggles dictionary types with backend ids', async () => {
     const payload: DictionaryType = {
-      code: 'status',
-      name: '状态',
+      code: 'person_status',
+      name: '人员状态',
+      category: 'org',
+      hierarchical: false,
+      cacheable: true,
       status: 'enabled',
     }
-    mockedPost.mockResolvedValueOnce(payload)
-    mockedPut.mockResolvedValueOnce(payload)
+    mockedPost.mockResolvedValueOnce(backendType)
+    mockedPut.mockResolvedValue(backendType)
 
     await dictionaryService.createType(payload)
-    await dictionaryService.updateType(payload.code, payload)
+    await dictionaryService.disableType('type-1')
+    await dictionaryService.enableType('type-1')
 
     expect(mockedPost).toHaveBeenCalledWith(
-      '/v1/infra/dictionaries/types',
-      payload,
-      { dedupeKey: 'dictionary-type:create:status' },
+      '/v1/infra/dictionaries',
+      {
+        code: 'person_status',
+        name: '人员状态',
+        category: 'org',
+        hierarchical: false,
+        cacheable: true,
+      },
+      { dedupeKey: 'dictionary-type:create:person_status' },
     )
     expect(mockedPut).toHaveBeenCalledWith(
-      '/v1/infra/dictionaries/types/status',
-      payload,
-      { dedupeKey: 'dictionary-type:update:status' },
+      '/v1/infra/dictionaries/type-1/disable',
+      undefined,
+      { dedupeKey: 'dictionary-type:disable:type-1' },
+    )
+    expect(mockedPut).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/type-1/enable',
+      undefined,
+      { dedupeKey: 'dictionary-type:enable:type-1' },
     )
   })
 
-  it('calls dictionary item endpoints under the selected type', async () => {
+  it('lists and mutates dictionary items under the selected backend type', async () => {
     const payload: DictionaryItem = {
-      code: 'active',
-      label: '有效',
-      value: '1',
+      code: 'ACTIVE',
+      label: '启用',
+      value: 'ACTIVE',
       sortOrder: 1,
       enabled: true,
     }
-    mockedGet.mockResolvedValueOnce({
-      items: [payload],
-      pagination: { page: 1, size: 20, total: 1, totalPages: 1 },
-    })
-    mockedPost.mockResolvedValueOnce(payload)
-    mockedPut.mockResolvedValueOnce(payload)
+    mockedGet.mockResolvedValueOnce(backendType)
+    mockedPost.mockResolvedValueOnce(backendType)
+    mockedPut.mockResolvedValue(backendType)
+    mockedDel.mockResolvedValueOnce(undefined)
 
-    await dictionaryService.listItems('status')
-    await dictionaryService.createItem('status', payload)
-    await dictionaryService.updateItem('status', payload.code, payload)
+    await dictionaryService.listItems('person_status')
+    await dictionaryService.createItem('type-1', payload)
+    await dictionaryService.updateItem('type-1', 'item-1', payload)
+    await dictionaryService.disableItem('type-1', 'item-1')
+    await dictionaryService.enableItem('type-1', 'item-1')
+    await dictionaryService.deleteItem('type-1', 'item-1')
 
     expect(mockedGet).toHaveBeenCalledWith(
-      '/v1/infra/dictionaries/types/status/items',
-      expect.objectContaining({ params: expect.any(URLSearchParams) }),
+      '/v1/infra/dictionaries/code/person_status',
     )
     expect(mockedPost).toHaveBeenCalledWith(
-      '/v1/infra/dictionaries/types/status/items',
-      payload,
-      { dedupeKey: 'dictionary-item:create:status:active' },
+      '/v1/infra/dictionaries/type-1/items',
+      {
+        itemCode: 'ACTIVE',
+        displayName: '启用',
+        parentItemId: undefined,
+        sortOrder: 1,
+      },
+      { dedupeKey: 'dictionary-item:create:type-1:ACTIVE' },
     )
     expect(mockedPut).toHaveBeenCalledWith(
-      '/v1/infra/dictionaries/types/status/items/active',
-      payload,
-      { dedupeKey: 'dictionary-item:update:status:active' },
+      '/v1/infra/dictionaries/type-1/items/item-1',
+      { displayName: '启用', sortOrder: 1 },
+      { dedupeKey: 'dictionary-item:update:type-1:item-1' },
+    )
+    expect(mockedPut).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/type-1/items/item-1/disable',
+      undefined,
+      { dedupeKey: 'dictionary-item:disable:type-1:item-1' },
+    )
+    expect(mockedPut).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/type-1/items/item-1/enable',
+      undefined,
+      { dedupeKey: 'dictionary-item:enable:type-1:item-1' },
+    )
+    expect(mockedDel).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/type-1/items/item-1',
+      { dedupeKey: 'dictionary-item:delete:type-1:item-1' },
+    )
+  })
+
+  it('previews and imports system enums', async () => {
+    mockedGet.mockResolvedValueOnce([
+      {
+        code: 'system.enum.person_status.abc123',
+        name: 'PersonStatus',
+        className: 'com.hjo2oa.org.person.account.domain.PersonStatus',
+        category: 'system-enum',
+        items: [{ code: 'ACTIVE', name: 'Active', sortOrder: 0 }],
+      },
+    ])
+    mockedPost.mockResolvedValueOnce({
+      discoveredTypes: 1,
+      createdTypes: 1,
+      createdItems: 1,
+      importedCodes: ['system.enum.person_status.abc123'],
+    })
+
+    const preview = await dictionaryService.previewSystemEnums()
+    const result = await dictionaryService.importSystemEnums()
+
+    expect(preview).toHaveLength(1)
+    expect(result.createdItems).toBe(1)
+    expect(mockedGet).toHaveBeenCalledWith('/v1/infra/dictionaries/system-enums')
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/system-enums/import',
+      undefined,
+      { dedupeKey: 'dictionary-system-enums:import' },
     )
   })
 })

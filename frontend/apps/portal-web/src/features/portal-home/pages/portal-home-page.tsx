@@ -93,7 +93,10 @@ export default function PortalHomePage(): ReactElement {
   const snapshotQuery = usePortalSnapshot()
   const homeQuery = usePortalHome()
   const snapshot = snapshotQuery.data
-  const assembly = homeQuery.data ?? defaultAssembly
+  const assembly =
+    homeQuery.data?.sections && Array.isArray(homeQuery.data.sections)
+      ? homeQuery.data
+      : defaultAssembly
 
   if (snapshotQuery.isLoading || homeQuery.isLoading) {
     return <PortalHomeSkeleton />

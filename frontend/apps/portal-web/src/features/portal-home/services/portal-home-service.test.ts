@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchPortalHome } from '@/features/portal-home/services/portal-home-service'
 import { fetchPortalSnapshot } from '@/features/portal-home/services/portal-snapshot-service'
-import type {
-  PortalHomePageAssembly,
-  PortalSnapshot,
-} from '@/features/portal-home/types/portal-home'
+import type { PortalHomePageAssembly } from '@/features/portal-home/types/portal-home'
 import { get } from '@/services/request'
 
 vi.mock('@/services/request', () => ({
@@ -30,30 +27,73 @@ describe('portal home services', () => {
   })
 
   it('fetches portal snapshot from the backend contract path', async () => {
-    const snapshot: PortalSnapshot = {
-      banners: [],
-      todoSummary: {
-        pendingCount: 0,
-        overdueCount: 0,
-        entryHref: '/todo',
+    const dashboard = {
+      identity: {
+        state: 'READY',
+        data: {
+          positionName: 'Portal Admin',
+          organizationName: 'Headquarters',
+        },
       },
-      announcementSummary: {
-        totalCount: 0,
-        latest: [],
-        entryHref: '/announcements',
+      todo: {
+        state: 'READY',
+        data: {
+          totalCount: 3,
+          urgentCount: 1,
+        },
       },
-      messageSummary: {
-        unreadCount: 0,
-        latest: [],
-        entryHref: '/messages',
+      message: {
+        state: 'READY',
+        data: {
+          unreadCount: 2,
+          topItems: [
+            {
+              notificationId: 'notif-1',
+              title: 'Approve travel request',
+              createdAt: '2026-04-19T10:00:00Z',
+              priority: 'HIGH',
+            },
+          ],
+        },
       },
-      shortcuts: [],
-      statsCards: [],
     }
 
-    mockedGet.mockResolvedValueOnce(snapshot)
+    mockedGet.mockResolvedValueOnce(dashboard)
 
-    await expect(fetchPortalSnapshot()).resolves.toEqual(snapshot)
+    await expect(fetchPortalSnapshot()).resolves.toMatchObject({
+      todoSummary: {
+        pendingCount: 3,
+        todayDueCount: 1,
+        entryHref: '/todo',
+      },
+      messageSummary: {
+        unreadCount: 2,
+        latest: [
+          {
+            id: 'notif-1',
+            title: 'Approve travel request',
+            sentAtUtc: '2026-04-19T10:00:00Z',
+          },
+        ],
+        entryHref: '/messages',
+      },
+      statsCards: [
+        {
+          id: 'identity',
+          title: '当前岗位',
+          value: 'Portal Admin',
+          trendText: 'Headquarters',
+        },
+        {
+          id: 'todo',
+          value: 3,
+        },
+        {
+          id: 'message',
+          value: 2,
+        },
+      ],
+    })
     expect(mockedGet).toHaveBeenCalledWith('/v1/portal/aggregation/dashboard')
   })
 })

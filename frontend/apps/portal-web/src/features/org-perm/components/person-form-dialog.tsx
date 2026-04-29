@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useSystemEnumOptions } from '@/features/infra-admin/hooks/use-dictionary'
 import type {
   AccountStatus,
   PersonAccount,
@@ -16,6 +17,14 @@ const DEFAULT_FORM: PersonAccountPayload = {
   orgId: '',
   status: 'ACTIVE',
 }
+
+const ACCOUNT_STATUS_ENUM_CLASS =
+  'com.hjo2oa.org.person.account.domain.AccountStatus'
+const ACCOUNT_STATUS_FALLBACK_OPTIONS = [
+  { value: 'ACTIVE', label: '启用' },
+  { value: 'LOCKED', label: '锁定' },
+  { value: 'DISABLED', label: '停用' },
+]
 
 export interface PersonFormDialogProps {
   open: boolean
@@ -50,6 +59,11 @@ export function PersonFormDialog({
   const [formValue, setFormValue] = useState<PersonAccountPayload>(() =>
     toFormValue(person),
   )
+  const accountStatusOptionsQuery = useSystemEnumOptions(ACCOUNT_STATUS_ENUM_CLASS)
+  const accountStatusOptions =
+    accountStatusOptionsQuery.data && accountStatusOptionsQuery.data.length > 0
+      ? accountStatusOptionsQuery.data
+      : ACCOUNT_STATUS_FALLBACK_OPTIONS
 
   useEffect(() => {
     if (open) {
@@ -157,9 +171,11 @@ export function PersonFormDialog({
               }
               value={formValue.status}
             >
-              <option value="ACTIVE">启用</option>
-              <option value="LOCKED">锁定</option>
-              <option value="DISABLED">停用</option>
+              {accountStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
         </div>

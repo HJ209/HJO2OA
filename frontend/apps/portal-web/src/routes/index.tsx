@@ -26,6 +26,7 @@ export default function AppRoutes(): ReactElement {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route element={<WorkspacePage />} index />
+            <Route element={<WorkspacePage />} path="docs" />
             <Route element={<WorkspacePage />} path="todo" />
             <Route element={<WorkspacePage />} path="messages" />
             <Route element={<WorkspacePage />} path="org/*" />

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('summary', 'next', 'show', 'prompt', 'verify')]
+    [ValidateSet('summary', 'next', 'show', 'prompt', 'verify', 'verify-fast')]
     [string]$Command,
 
     [string]$TaskId,
@@ -293,6 +293,52 @@ function Invoke-Verification {
     }
 }
 
+function Invoke-FastVerification {
+    param([object]$Catalog)
+
+    $repoRoot = Get-RepoRoot
+    $catalogPath = Get-CatalogPath
+
+    if (-not (Test-Path $catalogPath)) {
+        throw "Missing task catalog: $catalogPath"
+    }
+
+    $commands = @(
+        @{
+            Label = 'frontend typecheck'
+            Command = 'npm.cmd'
+            Arguments = @('run', 'frontend:typecheck')
+        },
+        @{
+            Label = 'frontend tests'
+            Command = 'npm.cmd'
+            Arguments = @('run', 'frontend:test')
+        },
+        @{
+            Label = 'portal personalization module tests'
+            Command = 'mvn'
+            Arguments = @('-q', '-pl', 'HJO2OA-Portal/HJO2OA-Personalization', '-am', 'test')
+        }
+    )
+
+    Push-Location $repoRoot
+    try {
+        Write-Output "Found task catalog: $catalogPath"
+        Write-Output "Project stage: $($Catalog.metadata.stage)"
+        foreach ($step in $commands) {
+            Write-Output "Running fast verification: $($step.Label)"
+            & $step.Command @($step.Arguments)
+            if ($LASTEXITCODE -ne 0) {
+                throw "$($step.Label) failed with exit code $LASTEXITCODE"
+            }
+        }
+
+        Write-Output 'Fast verification passed'
+    } finally {
+        Pop-Location
+    }
+}
+
 $catalog = Get-TaskCatalog
 
 switch ($Command) {
@@ -316,6 +362,9 @@ switch ($Command) {
     }
     'verify' {
         Invoke-Verification -Catalog $catalog
+    }
+    'verify-fast' {
+        Invoke-FastVerification -Catalog $catalog
     }
     default {
         throw "Unsupported command: $Command"

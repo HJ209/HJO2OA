@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { PersonFormDialog } from '@/features/org-perm/components/person-form-dialog'
 
+vi.mock('@/features/infra-admin/hooks/use-dictionary', () => ({
+  useSystemEnumOptions: () => ({ data: [] }),
+}))
+
 describe('PersonFormDialog', () => {
   it('renders create form and submits payload', () => {
     const onSubmit = vi.fn()

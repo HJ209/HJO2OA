@@ -15,6 +15,7 @@ import { PersonFormDialog } from '@/features/org-perm/components/person-form-dia
 import { usePersonList } from '@/features/org-perm/hooks/use-person-list'
 import {
   createPersonAccount,
+  deletePersonAccount,
   updatePersonAccount,
 } from '@/features/org-perm/services/person-account-service'
 import type {
@@ -38,6 +39,12 @@ export default function PersonListPage(): ReactElement {
         : createPersonAccount(payload),
     onSuccess: () => {
       setDialogOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ['org-perm', 'persons'] })
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (personId: string) => deletePersonAccount(personId),
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['org-perm', 'persons'] })
     },
   })
@@ -114,13 +121,21 @@ export default function PersonListPage(): ReactElement {
                   <td className="py-3">
                     {formatUtcToUserTimezone(person.updatedAtUtc)}
                   </td>
-                  <td className="py-3">
+                  <td className="flex gap-2 py-3">
                     <Button
                       onClick={() => openEditDialog(person)}
                       size="sm"
                       variant="outline"
                     >
                       编辑
+                    </Button>
+                    <Button
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate(person.id)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      删除
                     </Button>
                   </td>
                 </tr>

@@ -1,23 +1,23 @@
 {
   "metadata": {
     "projectName": "HJO2OA",
-    "snapshotDate": "2026-04-22",
-    "stage": "M0 skeleton and architecture convergence",
-    "stageDescription": "仓库当前以架构文档、契约文档和工程骨架为主，真实业务实现仍集中在少数基础模块。",
+    "snapshotDate": "2026-04-29",
+    "stage": "platform implementation slices with portal/workspace MVP",
+    "stageDescription": "Repository has moved beyond the original M0 skeleton: core backend platform slices, portal personalization, portal-web workspace UI, Flyway migrations, and module-level tests now exist. The remaining focus is reliable layered verification and end-to-end platform closure.",
     "verificationCommand": "mvn -q test",
     "summaryBullets": [
-      "根聚合工程可以通过 `mvn -q test`，说明 Maven 多模块骨架和最小测试链路已打通。",
-      "真实代码主要集中在 HJO2OA-Shared、HJO2OA-Infrastructure/HJO2OA-EventBus、HJO2OA-OrgPerm/HJO2OA-IdentityContext。",
-      "HJO2OA-Content、HJO2OA-Collaboration、HJO2OA-DataServices 目前基本仍是文档与 POM 骨架。",
-      "frontend 仅存在 apps/packages/public 目录骨架，尚无可运行应用。",
-      "自动化开发更适合从单模块、强契约、低外部依赖的切片切入。"
+      "Backend implementation is now broad across Infrastructure, OrgPerm, WorkflowForm, Portal, Messaging, and DataServices rather than limited to a few skeleton modules.",
+      "portal-web is a runnable React/Vite workspace application with auth, identity, infra-admin, org-perm, portal-home, todo, messages, and workspace features.",
+      "Portal personalization overlay validation is implemented and verified at module level.",
+      "HJO2OA-Content and HJO2OA-Collaboration still have no main Java implementation and remain future-domain placeholders.",
+      "Full `mvn -q test` can be too slow for the current local feedback loop, so the next engineering priority is a reliable layered verification baseline."
     ],
     "globalConstraints": [
-      "遵守 Java 17、Spring Boot 3.3.x、Maven 3.9+ 基线。",
-      "优先在单模块内完成闭环，跨模块写联动通过事件完成。",
-      "禁止直接依赖其他业务模块的持久化实现或越权写入其他模块主数据。",
-      "优先补齐最小可验证骨架，再扩展真实持久化、缓存和消息适配。",
-      "每个开发任务完成后至少执行其模块测试或根 `mvn -q test`。"
+      "Keep Java 17, Spring Boot 3.3.x, Maven 3.9+, React 18, TypeScript, and Vite as the active baseline.",
+      "Prefer module-level closure first, with cross-module collaboration through explicit application services and domain events.",
+      "Do not let portal, messaging, or frontend code own upstream organization, workflow, or tenant source data.",
+      "Use layered verification commands for fast feedback, then reserve full Maven verification for slower integration gates.",
+      "Each implementation task must finish with focused module tests or frontend typecheck/test coverage."
     ]
   },
   "tasks": [
@@ -2008,7 +2008,7 @@
       "domain": "04-portal-and-workbench",
       "module": "HJO2OA-Portal/HJO2OA-Personalization",
       "priority": "P2",
-      "status": "ready",
+      "status": "done",
       "dependsOn": [
         "PORTAL-HOME-PERSONALIZATION-OVERLAY-001"
       ],
@@ -2029,6 +2029,41 @@
         "Tests cover successful save, unknown placement rejection, and stale publication mismatch behavior."
       ],
       "verifyCommands": [
+        "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test"
+      ]
+    },
+    {
+      "id": "VERIFY-LAYERED-BASELINE-001",
+      "title": "Establish layered local verification baseline",
+      "domain": "Engineering / verification",
+      "module": "Cross-Module",
+      "priority": "P1",
+      "status": "done",
+      "dependsOn": [
+        "PORTAL-PERSONALIZATION-OVERLAY-VALIDATION-001"
+      ],
+      "goal": "Add a reliable fast verification path for the current implementation stage so local development no longer depends only on a slow full Maven test run.",
+      "scope": "Document and script focused backend module tests plus frontend typecheck/test commands without changing production behavior or adding CI infrastructure.",
+      "whyNow": "The catalog now has no ready implementation tasks and full `mvn -q test` can exceed the practical local feedback window, while frontend and portal module tests already provide useful fast signal.",
+      "paths": [
+        "tools/Invoke-AutoDev.ps1",
+        "tools/auto-dev.tasks.json",
+        "README.md",
+        "package.json",
+        "pom.xml"
+      ],
+      "acceptanceCriteria": [
+        "Expose a fast verification command or documented command set covering frontend typecheck/test and the currently active portal backend modules.",
+        "Keep the existing full verification path available for slower integration checks.",
+        "Make `tools/Invoke-AutoDev.ps1 -Command summary` and `-Command next` reflect the current project state and return this task as ready.",
+        "Verify the new or documented commands at least for frontend typecheck/test and one focused Maven module slice."
+      ],
+      "verifyCommands": [
+        "powershell -ExecutionPolicy Bypass -File tools/Invoke-AutoDev.ps1 -Command verify-fast",
+        "powershell -ExecutionPolicy Bypass -File tools/Invoke-AutoDev.ps1 -Command summary",
+        "powershell -ExecutionPolicy Bypass -File tools/Invoke-AutoDev.ps1 -Command next",
+        "npm.cmd run frontend:typecheck",
+        "npm.cmd run frontend:test",
         "mvn -q -pl HJO2OA-Portal/HJO2OA-Personalization -am test"
       ]
     }

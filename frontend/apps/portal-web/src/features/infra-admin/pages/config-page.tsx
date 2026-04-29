@@ -19,7 +19,7 @@ export default function ConfigPage(): ReactElement {
   const mutation = useMutation({
     mutationFn: (entry: ConfigEntry) =>
       editingEntry
-        ? configService.update(editingEntry.key, entry)
+        ? configService.update(editingEntry.id ?? editingEntry.key, entry)
         : configService.create(entry),
     onSuccess: async () => {
       setDialogOpen(false)

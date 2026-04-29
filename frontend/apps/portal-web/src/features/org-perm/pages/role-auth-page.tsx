@@ -14,6 +14,24 @@ import { useRoleResources } from '@/features/org-perm/hooks/use-role-resources'
 import { listRoles } from '@/features/org-perm/services/role-resource-service'
 import type { ResourceNode } from '@/features/org-perm/types/org-perm'
 
+const EMPTY_RESOURCES: ResourceNode[] = []
+
+function collectCheckedIds(nodes: ResourceNode[]): string[] {
+  return nodes.flatMap(function collect(node: ResourceNode): string[] {
+    return [
+      ...(node.checked ? [node.id] : []),
+      ...(node.children ?? []).flatMap(collect),
+    ]
+  })
+}
+
+function areSameIds(left: string[], right: string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((item, index) => item === right[index])
+  )
+}
+
 export default function RoleAuthPage(): ReactElement {
   const [selectedRoleId, setSelectedRoleId] = useState<string>()
   const [checkedIds, setCheckedIds] = useState<string[]>([])
@@ -21,7 +39,7 @@ export default function RoleAuthPage(): ReactElement {
     queryKey: ['org-perm', 'roles', { page: 1, size: 20 }],
     queryFn: () => listRoles({ page: 1, size: 20 }),
   })
-  const { data: resources = [] } = useRoleResources(selectedRoleId)
+  const { data: resources = EMPTY_RESOURCES } = useRoleResources(selectedRoleId)
 
   useEffect(() => {
     const firstRoleId = roles?.items[0]?.id
@@ -32,13 +50,12 @@ export default function RoleAuthPage(): ReactElement {
   }, [roles, selectedRoleId])
 
   useEffect(() => {
-    setCheckedIds(
-      resources.flatMap(function collect(node: ResourceNode): string[] {
-        return [
-          ...(node.checked ? [node.id] : []),
-          ...(node.children ?? []).flatMap(collect),
-        ]
-      }),
+    const nextCheckedIds = collectCheckedIds(resources)
+
+    setCheckedIds((currentCheckedIds) =>
+      areSameIds(currentCheckedIds, nextCheckedIds)
+        ? currentCheckedIds
+        : nextCheckedIds,
     )
   }, [resources])
 

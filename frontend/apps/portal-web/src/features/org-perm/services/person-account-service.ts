@@ -1,4 +1,4 @@
-import { get, post, put } from '@/services/request'
+import { del, get, post, put } from '@/services/request'
 import type { PageData } from '@/types/api'
 import {
   resolveCurrentTenantId,
@@ -174,4 +174,10 @@ export async function updatePersonAccount(
   )
 
   return mapPersonAccountResponse(item)
+}
+
+export async function deletePersonAccount(id: string): Promise<void> {
+  await del<void>(`${PERSON_URL}/${id}`, {
+    dedupeKey: `person:delete:${id}`,
+  })
 }
