@@ -1,7 +1,9 @@
 package com.hjo2oa.data.common.infrastructure.persistence;
 
+import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.hjo2oa.shared.tenant.SharedTenantLineHandler;
 import javax.sql.DataSource;
@@ -15,6 +17,7 @@ public class DataServicesMybatisPlusConfiguration {
     public MybatisPlusInterceptor dataServicesMybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new SharedTenantLineHandler()));
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.SQL_SERVER));
         return interceptor;
     }
 
