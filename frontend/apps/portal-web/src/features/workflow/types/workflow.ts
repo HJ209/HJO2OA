@@ -62,7 +62,7 @@ export interface SaveWorkflowDefinitionRequest {
   code: string
   name: string
   category?: string
-  formMetadataId: string
+  formMetadataId?: string | null
   startNodeId: string
   endNodeId: string
   nodes: unknown

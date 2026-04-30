@@ -8,10 +8,12 @@ import {
   toMetadataSnapshot,
 } from '@/features/workflow/services/form-service'
 import type {
+  FormValidationResult,
   FormRenderSchema,
   FormSubmission,
   RenderedField,
   RenderedForm,
+  ValidationError,
 } from '@/features/workflow/types/form'
 
 function normalizeValue(field: RenderedField, value: string): unknown {
@@ -85,6 +87,118 @@ function buildInitialData(rendered?: RenderedForm): Record<string, unknown> {
   )
 }
 
+function hasValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0
+  }
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0
+  }
+
+  return value !== undefined && value !== null && value !== ''
+}
+
+function validateRenderedField(
+  field: RenderedField,
+  value: unknown,
+): ValidationError[] {
+  if (!field.visible) {
+    return []
+  }
+
+  const errors: ValidationError[] = []
+  const fieldValue = value
+
+  if (field.required && !hasValue(fieldValue)) {
+    errors.push({
+      fieldCode: field.fieldCode,
+      message: `${field.displayName} is required`,
+    })
+  }
+
+  if (!hasValue(fieldValue)) {
+    return errors
+  }
+
+  if (field.fieldType === 'NUMBER') {
+    const numeric = Number(fieldValue)
+
+    if (!Number.isFinite(numeric)) {
+      errors.push({
+        fieldCode: field.fieldCode,
+        message: `${field.displayName} must be a number`,
+      })
+      return errors
+    }
+
+    if (typeof field.min === 'number' && numeric < field.min) {
+      errors.push({
+        fieldCode: field.fieldCode,
+        message: `${field.displayName} must be at least ${field.min}`,
+      })
+    }
+
+    if (typeof field.max === 'number' && numeric > field.max) {
+      errors.push({
+        fieldCode: field.fieldCode,
+        message: `${field.displayName} must be at most ${field.max}`,
+      })
+    }
+  }
+
+  if (typeof field.maxLength === 'number') {
+    const textValue = Array.isArray(fieldValue)
+      ? fieldValue.join(',')
+      : String(fieldValue)
+
+    if (textValue.length > field.maxLength) {
+      errors.push({
+        fieldCode: field.fieldCode,
+        message: `${field.displayName} exceeds ${field.maxLength} characters`,
+      })
+    }
+  }
+
+  if (field.pattern) {
+    try {
+      const pattern = new RegExp(field.pattern)
+
+      if (!pattern.test(String(fieldValue))) {
+        errors.push({
+          fieldCode: field.fieldCode,
+          message: `${field.displayName} format is invalid`,
+        })
+      }
+    } catch {
+      errors.push({
+        fieldCode: field.fieldCode,
+        message: `${field.displayName} pattern is invalid`,
+      })
+    }
+  }
+
+  return errors
+}
+
+function validateCurrentFormData(
+  rendered: RenderedForm | undefined,
+  formData: Record<string, unknown>,
+): FormValidationResult {
+  if (!rendered) {
+    return { valid: true, errors: [] }
+  }
+
+  const errors = rendered.fields.flatMap((field) =>
+    validateRenderedField(field, formData[field.fieldCode]),
+  )
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  }
+}
+
 export default function FormRendererPage(): ReactElement {
   const [tenantId, setTenantId] = useState(
     '11111111-1111-1111-1111-111111111111',
@@ -145,6 +259,10 @@ export default function FormRendererPage(): ReactElement {
   })
 
   const rendered = renderMutation.data
+  const liveValidation = useMemo(
+    () => validateCurrentFormData(rendered, formData),
+    [formData, rendered],
+  )
 
   return (
     <div className="space-y-4">
@@ -192,9 +310,9 @@ export default function FormRendererPage(): ReactElement {
                 {rendered.displayName} v{rendered.version}
               </h2>
               <p className="text-sm text-slate-500">
-                {rendered.validation.valid
+                {liveValidation.valid
                   ? 'Validation passed'
-                  : `${rendered.validation.errors.length} validation errors`}
+                  : `${liveValidation.errors.length} validation errors`}
               </p>
             </div>
             <div className="flex gap-2">
@@ -209,6 +327,7 @@ export default function FormRendererPage(): ReactElement {
               <Button
                 disabled={
                   !snapshot ||
+                  !liveValidation.valid ||
                   !lastSubmission ||
                   submitMutation.isPending ||
                   lastSubmission.status === 'SUBMITTED'

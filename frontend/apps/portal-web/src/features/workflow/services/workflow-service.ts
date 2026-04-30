@@ -38,6 +38,20 @@ export const workflowService = {
     )
   },
 
+  updateDefinition(
+    definitionId: string,
+    payload: SaveWorkflowDefinitionRequest,
+  ): Promise<WorkflowDefinition> {
+    return put<WorkflowDefinition, SaveWorkflowDefinitionRequest>(
+      `${DEFINITION_API}/${definitionId}`,
+      payload,
+      {
+        dedupeKey: `workflow:definition:update:${definitionId}`,
+        idempotencyKey: idempotencyKey('workflow-definition-update'),
+      },
+    )
+  },
+
   publishDefinition(definitionId: string, publishedBy?: string) {
     return put<WorkflowDefinition, { publishedBy?: string }>(
       `${DEFINITION_API}/${definitionId}/publish`,
