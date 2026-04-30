@@ -67,6 +67,7 @@
 - `engineering/m0-project-skeleton-plan.md`
 - `engineering/design-document-roadmap.md`
 - `engineering/automated-development-analysis.md`
+- `engineering/o2oa-application-layer-task-split.md`
 - `.windsurf/rules/project-conventions.md`（项目通用约定，always_on）
 - `.windsurf/rules/backend-rules.md`（后端开发规范，glob: **/*.java）
 - `.windsurf/rules/frontend-rules.md`（前端开发规范，glob: frontend/**/*.{ts,tsx}）
