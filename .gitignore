@@ -24,3 +24,9 @@ Thumbs.db
 # Local env and logs
 .env.local
 *.log
+
+# 临时输出文件
+output/
+data-api-after-save-def.txt
+.playwright-mcp/
+.playwright-cli/
