@@ -77,12 +77,36 @@ hjo2oa:
     jwt:
       secret: change-me-in-production
       expiration: 86400000
+    crypto:
+      master-secret: ${HJO2OA_SECURITY_CRYPTO_MASTER_SECRET:${hjo2oa.security.jwt.secret}}
+    masking:
+      response-enabled: true
+  infra:
+    attachment:
+      local-root: ${HJO2OA_ATTACHMENT_LOCAL_ROOT:${user.dir}/target/hjo2oa-attachments}
+      max-size-bytes: ${HJO2OA_ATTACHMENT_MAX_SIZE_BYTES:52428800}
+      allowed-content-types:
+        - application/pdf
+        - image/png
+        - image/jpeg
+        - image/gif
+        - text/plain
+        - text/csv
+        - application/msword
+        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+        - application/vnd.ms-excel
+        - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
   audit:
     enabled: true
   messaging:
     outbox:
       enabled: true
       scan-interval: 5000
+      retry:
+        max-retries: 5
+        initial-interval-seconds: 1
+        multiplier: 2
+        max-interval-seconds: 60
       amqp:
         enabled: true
         exchange-name: hjo2oa.domain.events

@@ -163,6 +163,38 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- HJO2OA-Content 子模块 -->
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-ContentStorage</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-ContentLifecycle</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-CategoryManagement</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-ContentPermission</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-ContentSearch</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-ContentStatistics</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- HJO2OA-Portal 子模块 -->
         <dependency>
             <groupId>com.hjo2oa</groupId>
@@ -204,6 +236,13 @@
         <dependency>
             <groupId>com.hjo2oa</groupId>
             <artifactId>HJO2OA-Ecosystem</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- HJO2OA-Collaboration 子模块 -->
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-CollaborationHub</artifactId>
             <version>${project.version}</version>
         </dependency>
 
