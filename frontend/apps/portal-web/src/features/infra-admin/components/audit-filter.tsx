@@ -16,8 +16,11 @@ const actions: Array<AuditAction | ''> = [
   'CREATE',
   'UPDATE',
   'DELETE',
-  'LOGIN',
-  'READ',
+  'REGISTER',
+  'TRIGGER',
+  'PAUSE',
+  'RESUME',
+  'DISABLE',
 ]
 
 export function AuditFilter({
@@ -37,19 +40,21 @@ export function AuditFilter({
   }
 
   return (
-    <form className="grid gap-3 md:grid-cols-6" onSubmit={handleSubmit}>
+    <form className="grid gap-3 lg:grid-cols-8" onSubmit={handleSubmit}>
       <Input
-        aria-label="操作者"
-        className="md:col-span-1"
+        aria-label="Module"
         onChange={(event) =>
-          setValues((current) => ({ ...current, actor: event.target.value }))
+          setValues((current) => ({
+            ...current,
+            moduleCode: event.target.value,
+          }))
         }
-        placeholder="操作者"
-        value={values.actor ?? ''}
+        placeholder="Module"
+        value={values.moduleCode ?? ''}
       />
       <select
-        aria-label="操作"
-        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+        aria-label="Action"
+        className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm"
         onChange={(event) =>
           setValues((current) => ({
             ...current,
@@ -60,20 +65,53 @@ export function AuditFilter({
       >
         {actions.map((action) => (
           <option key={action || 'all'} value={action}>
-            {action || '全部操作'}
+            {action || 'All actions'}
           </option>
         ))}
       </select>
       <Input
-        aria-label="资源"
+        aria-label="Operator"
         onChange={(event) =>
-          setValues((current) => ({ ...current, resource: event.target.value }))
+          setValues((current) => ({
+            ...current,
+            operatorAccountId: event.target.value,
+          }))
         }
-        placeholder="资源"
-        value={values.resource ?? ''}
+        placeholder="Operator UUID"
+        value={values.operatorAccountId ?? ''}
       />
       <Input
-        aria-label="开始时间"
+        aria-label="Object type"
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            objectType: event.target.value,
+          }))
+        }
+        placeholder="Object type"
+        value={values.objectType ?? ''}
+      />
+      <Input
+        aria-label="Object ID"
+        onChange={(event) =>
+          setValues((current) => ({ ...current, objectId: event.target.value }))
+        }
+        placeholder="Object ID"
+        value={values.objectId ?? ''}
+      />
+      <Input
+        aria-label="Request ID"
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            requestId: event.target.value,
+          }))
+        }
+        placeholder="Request ID"
+        value={values.requestId ?? ''}
+      />
+      <Input
+        aria-label="From"
         onChange={(event) =>
           setValues((current) => ({ ...current, from: event.target.value }))
         }
@@ -81,19 +119,19 @@ export function AuditFilter({
         value={values.from ?? ''}
       />
       <Input
-        aria-label="结束时间"
+        aria-label="To"
         onChange={(event) =>
           setValues((current) => ({ ...current, to: event.target.value }))
         }
         type="datetime-local"
         value={values.to ?? ''}
       />
-      <div className="flex gap-2">
-        <Button className="flex-1" type="submit">
-          查询
+      <div className="flex gap-2 lg:col-span-8">
+        <Button className="min-w-24" type="submit">
+          Search
         </Button>
-        <Button className="flex-1" onClick={reset} variant="outline">
-          重置
+        <Button className="min-w-24" onClick={reset} variant="outline">
+          Reset
         </Button>
       </div>
     </form>

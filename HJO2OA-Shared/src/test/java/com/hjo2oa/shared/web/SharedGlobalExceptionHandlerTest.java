@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -67,6 +68,25 @@ class SharedGlobalExceptionHandlerTest {
     }
 
     @Test
+    void shouldResolveErrorMessageThroughConfiguredResolver() throws Exception {
+        ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
+        MockMvc localizedMockMvc = MockMvcBuilders
+                .standaloneSetup(new TestController(responseMetaFactory))
+                .setControllerAdvice(new SharedGlobalExceptionHandler(
+                        responseMetaFactory,
+                        (descriptor, fallbackMessage, request) -> Optional.of("Localized conflict")
+                ))
+                .setMessageConverters(new MappingJackson2HttpMessageConverter())
+                .build();
+
+        localizedMockMvc.perform(get("/test/shared/business")
+                        .header("Accept-Language", "en-US"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Localized conflict"));
+    }
+
+    @Test
     void shouldMapValidationExceptionToUnifiedErrorResponse() throws Exception {
         mockMvc.perform(post("/test/shared/validation")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -74,6 +94,22 @@ class SharedGlobalExceptionHandlerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.errors[*].field", hasItem("name")))
+                .andExpect(jsonPath("$.meta.requestId").exists());
+    }
+
+    @Test
+    void shouldMapMissingTenantContextToTenantRequiredError() throws Exception {
+        mockMvc.perform(get("/test/shared/tenant-required"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("TENANT_REQUIRED"))
+                .andExpect(jsonPath("$.meta.requestId").exists());
+    }
+
+    @Test
+    void shouldMapNestedMissingTenantContextToTenantRequiredError() throws Exception {
+        mockMvc.perform(get("/test/shared/nested-tenant-required"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("TENANT_REQUIRED"))
                 .andExpect(jsonPath("$.meta.requestId").exists());
     }
 
@@ -102,6 +138,17 @@ class SharedGlobalExceptionHandlerTest {
         @PostMapping("/validation")
         public ApiResponse<String> validation(@Valid @RequestBody TestRequest request, HttpServletRequest servletRequest) {
             return ApiResponse.success(request.name(), responseMetaFactory.create(servletRequest));
+        }
+
+        @GetMapping("/tenant-required")
+        public ApiResponse<Void> tenantRequired() {
+            throw new IllegalStateException("Tenant context is missing X-Tenant-Id");
+        }
+
+        @GetMapping("/nested-tenant-required")
+        public ApiResponse<Void> nestedTenantRequired() {
+            throw new RuntimeException("repository failed",
+                    new IllegalStateException("Tenant context is missing X-Tenant-Id"));
         }
     }
 

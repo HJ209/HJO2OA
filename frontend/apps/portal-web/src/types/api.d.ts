@@ -10,6 +10,10 @@ export interface ResponseMeta {
   errorCode?: string
   timestamp?: string
   serverTimezone?: string
+  tenantId?: string
+  language?: string
+  timezone?: string
+  idempotencyKey?: string
 }
 
 export interface ApiResponse<T> {
@@ -25,6 +29,10 @@ export interface BackendResponseMeta {
   errorCode?: string
   timestamp?: string
   serverTimezone?: string
+  tenantId?: string
+  language?: string
+  timezone?: string
+  idempotencyKey?: string
 }
 
 export interface BackendApiResponse<T> {

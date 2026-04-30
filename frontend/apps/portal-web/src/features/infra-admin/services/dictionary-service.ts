@@ -20,6 +20,8 @@ interface BackendDictionaryItem {
   sortOrder: number
   enabled: boolean
   multiLangValue?: string | null
+  defaultItem?: boolean
+  extensionJson?: string | null
 }
 
 interface BackendDictionaryType {
@@ -29,10 +31,36 @@ interface BackendDictionaryType {
   category?: string | null
   hierarchical: boolean
   cacheable: boolean
+  sortOrder?: number
+  systemManaged?: boolean
   status: 'ACTIVE' | 'DISABLED'
   tenantId?: string | null
   updatedAt?: string
   items: BackendDictionaryItem[]
+}
+
+interface BackendRuntimeItem {
+  id: string
+  code: string
+  label: string
+  value: string
+  parentId?: string | null
+  sortOrder: number
+  enabled: boolean
+  defaultItem: boolean
+  extensionJson?: string | null
+  children?: BackendRuntimeItem[]
+}
+
+interface BackendRuntimeDictionary {
+  id: string
+  code: string
+  name: string
+  category?: string | null
+  hierarchical: boolean
+  tenantId?: string | null
+  language: string
+  items: BackendRuntimeItem[]
 }
 
 interface CreateDictionaryTypeRequest {
@@ -41,6 +69,16 @@ interface CreateDictionaryTypeRequest {
   category?: string
   hierarchical: boolean
   cacheable: boolean
+  sortOrder?: number
+  tenantId?: string | null
+}
+
+interface UpdateDictionaryTypeRequest {
+  name?: string
+  category?: string
+  hierarchical?: boolean
+  cacheable?: boolean
+  sortOrder?: number
 }
 
 interface AddDictionaryItemRequest {
@@ -48,11 +86,18 @@ interface AddDictionaryItemRequest {
   displayName: string
   parentItemId?: string
   sortOrder: number
+  defaultItem?: boolean
+  multiLangValue?: string
+  extensionJson?: string
 }
 
 interface UpdateDictionaryItemRequest {
   displayName: string
+  parentItemId?: string
   sortOrder: number
+  defaultItem?: boolean
+  multiLangValue?: string
+  extensionJson?: string
 }
 
 function mapDictionaryItem(item: BackendDictionaryItem): DictionaryItem {
@@ -64,6 +109,23 @@ function mapDictionaryItem(item: BackendDictionaryItem): DictionaryItem {
     sortOrder: item.sortOrder,
     enabled: item.enabled,
     parentId: item.parentItemId ?? undefined,
+    defaultItem: item.defaultItem ?? false,
+    extensionJson: item.extensionJson ?? undefined,
+  }
+}
+
+function mapRuntimeItem(item: BackendRuntimeItem): DictionaryItem {
+  return {
+    id: item.id,
+    code: item.code,
+    label: item.label,
+    value: item.value,
+    sortOrder: item.sortOrder,
+    enabled: item.enabled,
+    parentId: item.parentId ?? undefined,
+    defaultItem: item.defaultItem,
+    extensionJson: item.extensionJson ?? undefined,
+    children: item.children?.map(mapRuntimeItem),
   }
 }
 
@@ -76,6 +138,9 @@ function mapDictionaryType(item: BackendDictionaryType): DictionaryType {
     hierarchical: item.hierarchical,
     cacheable: item.cacheable,
     status: item.status === 'ACTIVE' ? 'enabled' : 'disabled',
+    sortOrder: item.sortOrder ?? 0,
+    systemManaged: item.systemManaged ?? false,
+    tenantId: item.tenantId ?? null,
     updatedAt: item.updatedAt,
   }
 }
@@ -104,7 +169,10 @@ export const dictionaryService = {
     const items = await get<BackendDictionaryType[]>(BASE_URL, {
       params: { includeDisabled: true },
     })
-    const filteredItems = filterDictionaryTypes(items.map(mapDictionaryType), query)
+    const filteredItems = filterDictionaryTypes(
+      items.map(mapDictionaryType),
+      query,
+    )
 
     return toPageData(filteredItems, query)
   },
@@ -117,8 +185,28 @@ export const dictionaryService = {
         category: payload.category,
         hierarchical: payload.hierarchical ?? false,
         cacheable: payload.cacheable ?? true,
+        sortOrder: payload.sortOrder ?? 0,
+        tenantId: payload.tenantId,
       },
       { dedupeKey: `dictionary-type:create:${payload.code}` },
+    )
+
+    return mapDictionaryType(item)
+  },
+  async updateType(
+    id: string,
+    payload: DictionaryType,
+  ): Promise<DictionaryType> {
+    const item = await put<BackendDictionaryType, UpdateDictionaryTypeRequest>(
+      `${BASE_URL}/${id}`,
+      {
+        name: payload.name,
+        category: payload.category,
+        hierarchical: payload.hierarchical,
+        cacheable: payload.cacheable,
+        sortOrder: payload.sortOrder,
+      },
+      { dedupeKey: `dictionary-type:update:${id}` },
     )
 
     return mapDictionaryType(item)
@@ -166,6 +254,9 @@ export const dictionaryService = {
         displayName: payload.label,
         parentItemId: payload.parentId,
         sortOrder: payload.sortOrder,
+        defaultItem: payload.defaultItem ?? false,
+        multiLangValue: payload.value,
+        extensionJson: payload.extensionJson,
       },
       { dedupeKey: `dictionary-item:create:${typeId}:${payload.code}` },
     )
@@ -188,7 +279,11 @@ export const dictionaryService = {
       `${BASE_URL}/${typeId}/items/${itemId}`,
       {
         displayName: payload.label,
+        parentItemId: payload.parentId,
         sortOrder: payload.sortOrder,
+        defaultItem: payload.defaultItem ?? false,
+        multiLangValue: payload.value,
+        extensionJson: payload.extensionJson,
       },
       { dedupeKey: `dictionary-item:update:${typeId}:${itemId}` },
     )
@@ -242,5 +337,88 @@ export const dictionaryService = {
       undefined,
       { dedupeKey: 'dictionary-system-enums:import' },
     )
+  },
+  async getRuntime(
+    code: string,
+    options: { enabledOnly?: boolean; tree?: boolean; language?: string } = {},
+  ): Promise<BackendRuntimeDictionary> {
+    return get<BackendRuntimeDictionary>(`${BASE_URL}/${code}`, {
+      params: {
+        enabledOnly: options.enabledOnly ?? true,
+        tree: options.tree ?? false,
+        language: options.language,
+      },
+    })
+  },
+  async listRuntimeItems(
+    code: string,
+    options: { enabledOnly?: boolean; language?: string } = {},
+  ): Promise<DictionaryItem[]> {
+    const items = await get<BackendRuntimeItem[]>(`${BASE_URL}/${code}/items`, {
+      params: {
+        enabledOnly: options.enabledOnly ?? true,
+        language: options.language,
+      },
+    })
+
+    return items.map(mapRuntimeItem)
+  },
+  async tree(
+    code: string,
+    options: { enabledOnly?: boolean; language?: string } = {},
+  ): Promise<DictionaryItem[]> {
+    const items = await get<BackendRuntimeItem[]>(`${BASE_URL}/${code}/tree`, {
+      params: {
+        enabledOnly: options.enabledOnly ?? true,
+        language: options.language,
+      },
+    })
+
+    return items.map(mapRuntimeItem)
+  },
+  async batchRuntime(
+    codes: string[],
+    options: { enabledOnly?: boolean; tree?: boolean; language?: string } = {},
+  ): Promise<Record<string, DictionaryItem[]>> {
+    const data = await post<
+      Record<string, BackendRuntimeDictionary>,
+      { codes: string[]; enabledOnly?: boolean; tree?: boolean }
+    >(
+      `${BASE_URL}/batch`,
+      {
+        codes,
+        enabledOnly: options.enabledOnly ?? true,
+        tree: options.tree ?? false,
+      },
+      {
+        params: { language: options.language },
+        dedupeKey: `dictionary-runtime:batch:${codes.join(',')}`,
+      },
+    )
+
+    return Object.fromEntries(
+      Object.entries(data).map(([code, dictionary]) => [
+        code,
+        dictionary.items.map(mapRuntimeItem),
+      ]),
+    )
+  },
+  async refreshCache(
+    code: string,
+    options: { tree?: boolean; language?: string } = {},
+  ): Promise<DictionaryItem[]> {
+    const dictionary = await post<BackendRuntimeDictionary, undefined>(
+      `${BASE_URL}/${code}/cache/refresh`,
+      undefined,
+      {
+        params: {
+          tree: options.tree ?? true,
+          language: options.language,
+        },
+        dedupeKey: `dictionary-runtime:refresh:${code}`,
+      },
+    )
+
+    return dictionary.items.map(mapRuntimeItem)
   },
 }

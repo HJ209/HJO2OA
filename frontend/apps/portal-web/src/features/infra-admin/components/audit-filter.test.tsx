@@ -8,22 +8,22 @@ describe('AuditFilter', () => {
 
     render(<AuditFilter onSearch={onSearch} />)
 
-    fireEvent.change(screen.getByLabelText('操作者'), {
-      target: { value: 'admin' },
+    fireEvent.change(screen.getByLabelText('Module'), {
+      target: { value: 'scheduler' },
     })
-    fireEvent.change(screen.getByLabelText('操作'), {
+    fireEvent.change(screen.getByLabelText('Action'), {
       target: { value: 'UPDATE' },
     })
-    fireEvent.change(screen.getByLabelText('资源'), {
-      target: { value: 'config' },
+    fireEvent.change(screen.getByLabelText('Object ID'), {
+      target: { value: 'job-1' },
     })
-    fireEvent.click(screen.getByText('查询'))
+    fireEvent.click(screen.getByText('Search'))
 
     expect(onSearch).toHaveBeenCalledWith(
       expect.objectContaining({
-        actor: 'admin',
+        moduleCode: 'scheduler',
         action: 'UPDATE',
-        resource: 'config',
+        objectId: 'job-1',
       }),
     )
   })

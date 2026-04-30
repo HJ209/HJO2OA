@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { CheckSquare, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,29 +13,35 @@ import { useTodoCounts } from '@/features/todo/hooks/use-todo-counts'
 import { CopiedTodoList } from '@/features/todo/pages/copied-todo-list'
 import { TodoCountsBar } from '@/features/todo/pages/todo-counts-bar'
 import { TodoList } from '@/features/todo/pages/todo-list'
+import {
+  getArchivedProcesses,
+  getDraftProcesses,
+  getInitiatedProcesses,
+} from '@/features/todo/services/todo-service'
 import { useTodoStore } from '@/features/todo/stores/todo-store'
-import type { TodoSortOption, TodoTab } from '@/features/todo/types/todo'
+import type {
+  ArchiveProcessSummary,
+  DraftProcessSummary,
+  InitiatedProcessSummary,
+  TodoItemTab,
+  TodoSortOption,
+  TodoTab,
+} from '@/features/todo/types/todo'
 import { cn } from '@/utils/cn'
 
-const COPY = {
-  titleKey: 'todo.center.title',
-  titleText: '待办中心',
-  descriptionKey: 'todo.center.description',
-  descriptionText: '统一查看流程待办、已办、逾期任务和抄送通知。',
-  sortText: '排序',
-  tabs: {
-    pending: '待办',
-    completed: '已办',
-    overdue: '逾期',
-    copied: '抄送',
-  },
-} as const
+type ProcessListItem =
+  | InitiatedProcessSummary
+  | DraftProcessSummary
+  | ArchiveProcessSummary
 
 const tabs: Array<{ value: TodoTab; label: string }> = [
-  { value: 'pending', label: COPY.tabs.pending },
-  { value: 'completed', label: COPY.tabs.completed },
-  { value: 'overdue', label: COPY.tabs.overdue },
-  { value: 'copied', label: COPY.tabs.copied },
+  { value: 'pending', label: 'Pending' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'copied', label: 'Copied' },
+  { value: 'initiated', label: 'Initiated' },
+  { value: 'drafts', label: 'Drafts' },
+  { value: 'archives', label: 'Archives' },
 ]
 
 const sortOptions: Array<{
@@ -44,27 +51,126 @@ const sortOptions: Array<{
 }> = [
   {
     value: 'createdAt-desc',
-    label: '创建时间倒序',
+    label: 'Created time desc',
     sort: { field: 'createdAt', direction: 'desc' },
   },
   {
     value: 'dueTime-asc',
-    label: '截止时间正序',
+    label: 'Due time asc',
     sort: { field: 'dueTime', direction: 'asc' },
   },
   {
     value: 'urgency-desc',
-    label: '紧急程度倒序',
+    label: 'Urgency desc',
     sort: { field: 'urgency', direction: 'desc' },
   },
 ]
+
+function isTodoItemTab(tab: TodoTab): tab is TodoItemTab {
+  return tab === 'pending' || tab === 'completed' || tab === 'overdue'
+}
+
+function processKey(item: ProcessListItem): string {
+  return 'submissionId' in item ? item.submissionId : item.instanceId
+}
+
+function ProcessListRow({ item }: { item: ProcessListItem }): ReactElement {
+  if ('submissionId' in item) {
+    return (
+      <article className="border-b border-slate-100 px-5 py-4 last:border-b-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-semibold text-slate-950">{item.metadataCode}</h3>
+          <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
+            v{item.metadataVersion}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-slate-500">
+          {item.submissionId} / {item.nodeId ?? '-'}
+        </p>
+      </article>
+    )
+  }
+
+  return (
+    <article className="border-b border-slate-100 px-5 py-4 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-semibold text-slate-950">{item.title}</h3>
+        <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
+          {item.status}
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-slate-500">
+        {item.definitionCode} / {item.category ?? '-'} / {item.instanceId}
+      </p>
+    </article>
+  )
+}
+
+function ProcessList({
+  type,
+}: {
+  type: 'initiated' | 'drafts' | 'archives'
+}): ReactElement {
+  const query = useQuery({
+    queryKey: ['todo-processes', type],
+    queryFn: async (): Promise<ProcessListItem[]> => {
+      if (type === 'initiated') {
+        return getInitiatedProcesses()
+      }
+
+      if (type === 'drafts') {
+        return getDraftProcesses()
+      }
+
+      return getArchivedProcesses()
+    },
+  })
+
+  if (query.isLoading) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">
+        Loading...
+      </div>
+    )
+  }
+
+  if (query.isError) {
+    return (
+      <div className="rounded-lg border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+        Failed to load process list.
+      </div>
+    )
+  }
+
+  const items = query.data ?? []
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+        No records.
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      {items.map((item) => (
+        <ProcessListRow item={item} key={processKey(item)} />
+      ))}
+    </div>
+  )
+}
 
 function renderTabPanel(activeTab: TodoTab): ReactElement {
   if (activeTab === 'copied') {
     return <CopiedTodoList />
   }
 
-  return <TodoList tab={activeTab} />
+  if (isTodoItemTab(activeTab)) {
+    return <TodoList tab={activeTab} />
+  }
+
+  return <ProcessList type={activeTab} />
 }
 
 export default function TodoCenterPage(): ReactElement {
@@ -82,14 +188,15 @@ export default function TodoCenterPage(): ReactElement {
           <div>
             <CardTitle className="flex items-center gap-2 text-2xl">
               <CheckSquare className="h-6 w-6 text-sky-600" />
-              {COPY.titleText}
+              Todo center
             </CardTitle>
             <CardDescription className="mt-2">
-              {COPY.descriptionText}
+              Pending, completed, copied, reminders, drafts and process
+              archives.
             </CardDescription>
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-600">
-            <span>{COPY.sortText}</span>
+            <span>Sort</span>
             <span className="relative">
               <select
                 className="h-10 appearance-none rounded-lg border border-slate-200 bg-white px-3 pr-9 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
@@ -121,7 +228,7 @@ export default function TodoCenterPage(): ReactElement {
 
       <div className="grid gap-4 lg:grid-cols-[13rem_1fr]">
         <div
-          aria-label={COPY.titleText}
+          aria-label="Todo center"
           className="flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-white p-2 shadow-sm lg:flex-col lg:overflow-visible"
           role="tablist"
         >

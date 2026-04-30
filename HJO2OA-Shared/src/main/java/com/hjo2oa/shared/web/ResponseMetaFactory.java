@@ -4,8 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 @Component
 public class ResponseMetaFactory {
@@ -14,22 +14,58 @@ public class ResponseMetaFactory {
     private static final ZoneId SERVER_TIMEZONE = ZoneId.of("UTC");
 
     private final Clock clock;
+    private final SharedRequestContextFactory requestContextFactory;
 
     @Autowired
-
     public ResponseMetaFactory() {
-        this(Clock.systemUTC());
+        this(Clock.systemUTC(), new SharedRequestContextFactory());
     }
 
     public ResponseMetaFactory(Clock clock) {
+        this(clock, new SharedRequestContextFactory());
+    }
+
+    ResponseMetaFactory(Clock clock, SharedRequestContextFactory requestContextFactory) {
         this.clock = clock;
+        this.requestContextFactory = requestContextFactory;
     }
 
     public ResponseMeta create(HttpServletRequest request) {
-        String requestId = request == null ? null : request.getHeader(REQUEST_ID_HEADER);
-        if (requestId == null || requestId.isBlank()) {
-            requestId = UUID.randomUUID().toString();
+        SharedRequestContext context = SharedRequestContextHolder.current()
+                .orElseGet(() -> createRequestContextSafely(request));
+        return new ResponseMeta(
+                context.requestId(),
+                clock.instant(),
+                SERVER_TIMEZONE.getId(),
+                context.tenantId(),
+                context.language(),
+                context.timezone(),
+                context.idempotencyKey()
+        );
+    }
+
+    private SharedRequestContext createRequestContextSafely(HttpServletRequest request) {
+        try {
+            return requestContextFactory.create(request);
+        } catch (RuntimeException ex) {
+            return new SharedRequestContext(
+                    null,
+                    resolveRequestId(request),
+                    "zh-CN",
+                    SERVER_TIMEZONE.getId(),
+                    null
+            );
         }
-        return new ResponseMeta(requestId, clock.instant(), SERVER_TIMEZONE.getId());
+    }
+
+    private static String resolveRequestId(HttpServletRequest request) {
+        if (request == null) {
+            return UUID.randomUUID().toString();
+        }
+        String requestId = request.getHeader(REQUEST_ID_HEADER);
+        if (requestId == null || requestId.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+        return requestId.trim();
     }
 }

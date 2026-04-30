@@ -10,7 +10,7 @@ import type {
   SyncAuditRecord,
 } from '@/features/org-perm/types/org-perm'
 
-const IDENTITY_CONTEXT_URL = '/org-perm/identity-context/current'
+const IDENTITY_CONTEXT_URL = '/v1/org/identity-context/current'
 const SYNC_AUDIT_SOURCE_URL = '/v1/org/sync-audit/sources'
 const SYNC_AUDIT_TASK_URL = '/v1/org/sync-audit/tasks'
 

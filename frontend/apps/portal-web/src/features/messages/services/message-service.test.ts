@@ -1,21 +1,41 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PaginationQuery } from '@/types/api'
-import { get, post } from '@/services/request'
+import { get, post, put } from '@/services/request'
 import {
+  archiveMessage,
+  deleteMessage,
   getMessageNotificationDetail,
   getMessageNotifications,
   getUnreadMessageCount,
   markAllMessagesAsRead,
   markMessageAsRead,
+  publishMessageTemplate,
 } from '@/features/messages/services/message-service'
 
 vi.mock('@/services/request', () => ({
   get: vi.fn(),
   post: vi.fn(),
+  put: vi.fn(),
 }))
 
 const mockedGet = vi.mocked(get)
 const mockedPost = vi.mocked(post)
+const mockedPut = vi.mocked(put)
+
+const backendSummary = {
+  notificationId: 'notif-001',
+  title: '待办创建',
+  bodySummary: '您有一条新待办',
+  category: 'TODO_CREATED',
+  priority: 'NORMAL',
+  inboxStatus: 'UNREAD',
+  deliveryStatus: 'DELIVERED',
+  sourceModule: 'todo-center',
+  deepLink: '/todo/1',
+  targetAssignmentId: null,
+  targetPositionId: null,
+  createdAt: '2026-04-28T00:00:00.000Z',
+}
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -40,22 +60,7 @@ describe('message-service', () => {
   })
 
   it('transforms backend NotificationSummary to frontend MessageNotificationSummary', async () => {
-    mockedGet.mockResolvedValueOnce([
-      {
-        notificationId: 'notif-001',
-        title: '待办创建',
-        bodySummary: '您有一条新待办',
-        category: 'TODO_CREATED',
-        priority: 'NORMAL',
-        inboxStatus: 'UNREAD',
-        deliveryStatus: 'DELIVERED',
-        sourceModule: 'todo-center',
-        deepLink: '/todo/1',
-        targetAssignmentId: null,
-        targetPositionId: null,
-        createdAt: '2026-04-28T00:00:00.000Z',
-      },
-    ])
+    mockedGet.mockResolvedValueOnce([backendSummary])
 
     const result = await getMessageNotifications()
 
@@ -63,9 +68,14 @@ describe('message-service', () => {
       {
         id: 'notif-001',
         type: 'TASK',
+        category: 'TODO_CREATED',
         title: '待办创建',
         summary: '您有一条新待办',
         readStatus: 'UNREAD',
+        inboxStatus: 'UNREAD',
+        deliveryStatus: 'DELIVERED',
+        sourceModule: 'todo-center',
+        deepLink: '/todo/1',
         createdAt: '2026-04-28T00:00:00.000Z',
       },
     ])
@@ -73,20 +83,14 @@ describe('message-service', () => {
 
   it('calls the detail endpoint and transforms response', async () => {
     mockedGet.mockResolvedValueOnce({
-      notificationId: 'notif-001',
+      ...backendSummary,
       title: '系统通知',
       bodySummary: '详情内容',
       category: 'SYSTEM_SECURITY',
-      priority: 'URGENT',
       inboxStatus: 'READ',
-      deliveryStatus: 'DELIVERED',
       sourceModule: 'system',
       sourceEventType: 'SECURITY_ALERT',
       sourceBusinessId: 'evt-001',
-      deepLink: '/detail',
-      targetAssignmentId: null,
-      targetPositionId: null,
-      createdAt: '2026-04-28T00:00:00.000Z',
       readAt: '2026-04-28T01:00:00.000Z',
       archivedAt: null,
       revokedAt: null,
@@ -97,32 +101,23 @@ describe('message-service', () => {
     const result = await getMessageNotificationDetail('notif-001')
 
     expect(mockedGet).toHaveBeenCalledWith('/v1/msg/messages/notif-001')
-    expect(result).toEqual({
-      id: 'notif-001',
-      type: 'SYSTEM',
-      title: '系统通知',
-      body: '详情内容',
-      readStatus: 'READ',
-      createdAt: '2026-04-28T00:00:00.000Z',
-      readAt: '2026-04-28T01:00:00.000Z',
-    })
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'notif-001',
+        type: 'SYSTEM',
+        category: 'SYSTEM_SECURITY',
+        title: '系统通知',
+        body: '详情内容',
+        readStatus: 'READ',
+        inboxStatus: 'READ',
+        createdAt: '2026-04-28T00:00:00.000Z',
+        readAt: '2026-04-28T01:00:00.000Z',
+      }),
+    )
   })
 
   it('marks a single message as read with idempotency and dedupe keys', async () => {
-    mockedPost.mockResolvedValueOnce({
-      notificationId: 'notif-001',
-      title: '系统通知',
-      bodySummary: '摘要',
-      category: 'TODO_CREATED',
-      priority: 'NORMAL',
-      inboxStatus: 'READ',
-      deliveryStatus: 'DELIVERED',
-      sourceModule: 'todo-center',
-      deepLink: '/todo/1',
-      targetAssignmentId: null,
-      targetPositionId: null,
-      createdAt: '2026-04-28T00:00:00.000Z',
-    })
+    mockedPost.mockResolvedValueOnce({ ...backendSummary, inboxStatus: 'READ' })
 
     const result = await markMessageAsRead('notif-001')
 
@@ -150,8 +145,35 @@ describe('message-service', () => {
       { notificationIds: ['notif-001', 'notif-002', 'notif-003'] },
       {
         dedupeKey: 'message-read-all',
-        idempotencyKey: 'message-read-all',
+        idempotencyKey: expect.stringContaining('message-read-all'),
       },
+    )
+  })
+
+  it('archives and deletes messages through status action endpoints', async () => {
+    mockedPost.mockResolvedValueOnce({
+      ...backendSummary,
+      inboxStatus: 'ARCHIVED',
+    })
+    mockedPost.mockResolvedValueOnce({
+      ...backendSummary,
+      inboxStatus: 'DELETED',
+    })
+
+    await archiveMessage('notif-001')
+    await deleteMessage('notif-001')
+
+    expect(mockedPost).toHaveBeenNthCalledWith(
+      1,
+      '/v1/msg/messages/notif-001/archive',
+      { reason: 'archived from portal' },
+      expect.objectContaining({ dedupeKey: 'message-archive:notif-001' }),
+    )
+    expect(mockedPost).toHaveBeenNthCalledWith(
+      2,
+      '/v1/msg/messages/notif-001/delete',
+      { reason: 'deleted from portal' },
+      expect.objectContaining({ dedupeKey: 'message-delete:notif-001' }),
     )
   })
 
@@ -166,5 +188,17 @@ describe('message-service', () => {
 
     expect(mockedGet).toHaveBeenCalledWith('/v1/msg/unread-summary')
     expect(result).toEqual({ count: 5 })
+  })
+
+  it('publishes templates through the channel sender endpoint', async () => {
+    mockedPut.mockResolvedValueOnce({ id: 'tpl-1' })
+
+    await publishMessageTemplate('tpl-1')
+
+    expect(mockedPut).toHaveBeenCalledWith(
+      '/v1/msg/channel-sender/templates/tpl-1/publish',
+      {},
+      expect.objectContaining({ dedupeKey: 'message-template:publish:tpl-1' }),
+    )
   })
 })

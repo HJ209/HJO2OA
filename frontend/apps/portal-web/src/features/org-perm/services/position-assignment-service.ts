@@ -1,45 +1,42 @@
-import { get, post, put } from '@/services/request'
+import { del, get, post, put } from '@/services/request'
 import type { PageData } from '@/types/api'
 import {
   resolveCurrentTenantId,
   toPageData,
 } from '@/features/org-perm/services/service-utils'
 import type {
+  Assignment,
+  AssignmentPayload,
+  AssignmentType,
   ListQuery,
+  OrgPosition,
   PositionAssignment,
   PositionAssignmentPayload,
+  PositionPayload,
+  PositionRoleBinding,
 } from '@/features/org-perm/types/org-perm'
 
-const POSITION_URL = '/v1/org/position-assignments/positions'
+const BASE_URL = '/v1/org/position-assignments'
+const POSITION_URL = `${BASE_URL}/positions`
+const ASSIGNMENT_URL = `${BASE_URL}/assignments`
 
-interface BackendPositionResponse {
-  id: string
-  name: string
-  organizationId: string
-  status: string
-  createdAt?: string
+interface BackendExportResponse {
+  positions: OrgPosition[]
+  assignments: Assignment[]
+  positionRoles: PositionRoleBinding[]
 }
 
-function mapPositionToAssignment(
-  item: BackendPositionResponse,
-): PositionAssignment {
-  return {
-    id: item.id,
-    personId: '',
-    personName: '-',
-    orgId: item.organizationId,
-    orgName: item.organizationId,
-    positionId: item.id,
-    positionName: item.name,
-    primary: false,
-    effectiveFromUtc: item.createdAt,
-  }
+function tenantParams(tenantId: string): URLSearchParams {
+  const params = new URLSearchParams()
+  params.set('tenantId', tenantId)
+  return params
 }
 
-function filterAssignments(
-  items: PositionAssignment[],
+function filterByKeyword<T>(
+  items: T[],
   query: ListQuery,
-): PositionAssignment[] {
+  getFields: (item: T) => Array<string | undefined | null>,
+): T[] {
   const keyword = query.keyword?.trim().toLowerCase()
 
   if (!keyword) {
@@ -47,86 +44,240 @@ function filterAssignments(
   }
 
   return items.filter((item) =>
-    [item.personName, item.orgName, item.positionName]
+    getFields(item)
       .filter(Boolean)
       .some((value) => value?.toLowerCase().includes(keyword)),
+  )
+}
+
+function toPositionAssignment(
+  assignment: Assignment,
+  position?: OrgPosition,
+): PositionAssignment {
+  return {
+    id: assignment.id,
+    personId: assignment.personId,
+    personName: assignment.personId,
+    orgId: position?.organizationId ?? '',
+    orgName: position?.organizationId ?? '',
+    positionId: assignment.positionId,
+    positionName: position?.name ?? assignment.positionId,
+    primary: assignment.type === 'PRIMARY',
+    status: assignment.status,
+    effectiveFromUtc: assignment.startDate ?? undefined,
+    effectiveToUtc: assignment.endDate ?? undefined,
+  }
+}
+
+export async function listPositions(
+  query: ListQuery = {},
+  scope: { organizationId?: string; departmentId?: string } = {},
+): Promise<PageData<OrgPosition>> {
+  const tenantId = await resolveCurrentTenantId()
+  const params = tenantParams(tenantId)
+  if (scope.organizationId) {
+    params.set('organizationId', scope.organizationId)
+  }
+  if (scope.departmentId) {
+    params.set('departmentId', scope.departmentId)
+  }
+  const items = await get<OrgPosition[]>(POSITION_URL, { params })
+  const filtered = filterByKeyword(items, query, (item) => [
+    item.name,
+    item.code,
+    item.organizationId,
+    item.departmentId,
+  ])
+
+  return toPageData(filtered, query)
+}
+
+export async function createPosition(
+  payload: PositionPayload,
+  idempotencyKey?: string,
+): Promise<OrgPosition> {
+  const tenantId = await resolveCurrentTenantId()
+
+  return post<OrgPosition, PositionPayload & { tenantId: string }>(
+    POSITION_URL,
+    { ...payload, tenantId },
+    {
+      dedupeKey: `position:create:${payload.code}`,
+      idempotencyKey,
+    },
+  )
+}
+
+export function updatePosition(
+  id: string,
+  payload: PositionPayload,
+  idempotencyKey?: string,
+): Promise<OrgPosition> {
+  return put<OrgPosition, PositionPayload>(`${POSITION_URL}/${id}`, payload, {
+    dedupeKey: `position:update:${id}`,
+    idempotencyKey,
+  })
+}
+
+export function setPositionEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<OrgPosition> {
+  return put<OrgPosition, Record<string, never>>(
+    `${POSITION_URL}/${id}/${enabled ? 'activate' : 'disable'}`,
+    {},
+    { dedupeKey: `position:status:${id}:${enabled}` },
   )
 }
 
 export async function listPositionAssignments(
   query: ListQuery = {},
 ): Promise<PageData<PositionAssignment>> {
-  const tenantId = await resolveCurrentTenantId()
-  const params = new URLSearchParams()
-  params.set('tenantId', tenantId)
-  const items = await get<BackendPositionResponse[]>(POSITION_URL, { params })
-  const mappedItems = filterAssignments(
-    items.map(mapPositionToAssignment),
-    query,
+  const exported = await exportPositionAssignments()
+  const positionMap = new Map(
+    exported.positions.map((position) => [position.id, position]),
   )
+  const items = exported.assignments.map((assignment) =>
+    toPositionAssignment(assignment, positionMap.get(assignment.positionId)),
+  )
+  const filtered = filterByKeyword(items, query, (item) => [
+    item.personId,
+    item.positionName,
+    item.orgId,
+    item.status,
+  ])
 
-  return toPageData(mappedItems, query)
+  return toPageData(filtered, query)
 }
 
-interface BackendAssignmentResponse {
-  id: string
-  personId: string
-  positionId: string
-  type: 'PRIMARY' | 'SECONDARY' | 'PART_TIME'
-  startDate?: string
-  endDate?: string
-}
-
-export async function getPositionAssignments(
+export async function listAssignmentsByPosition(
   positionId: string,
-): Promise<PositionAssignment[]> {
+): Promise<Assignment[]> {
   const tenantId = await resolveCurrentTenantId()
-  const params = new URLSearchParams()
-  params.set('tenantId', tenantId)
-  const items = await get<BackendAssignmentResponse[]>(
-    `${POSITION_URL}/${positionId}/assignments`,
-    { params },
-  )
-
-  return items.map((item) => ({
-    id: item.id,
-    personId: item.personId,
-    personName: item.personId,
-    orgId: '',
-    orgName: '-',
-    positionId: item.positionId,
-    positionName: item.positionId,
-    primary: item.type === 'PRIMARY',
-    effectiveFromUtc: item.startDate,
-    effectiveToUtc: item.endDate,
-  }))
+  return get<Assignment[]>(`${POSITION_URL}/${positionId}/assignments`, {
+    params: tenantParams(tenantId),
+  })
 }
 
-export function createPositionAssignment(
-  payload: PositionAssignmentPayload,
+export async function listAssignmentsByPerson(
+  personId: string,
+): Promise<Assignment[]> {
+  const tenantId = await resolveCurrentTenantId()
+  return get<Assignment[]>(`${BASE_URL}/persons/${personId}/assignments`, {
+    params: tenantParams(tenantId),
+  })
+}
+
+export async function createAssignment(
+  payload: AssignmentPayload,
   idempotencyKey?: string,
-): Promise<PositionAssignment> {
-  return post<PositionAssignment, PositionAssignmentPayload>(
-    POSITION_URL,
-    payload,
+): Promise<Assignment> {
+  const tenantId = await resolveCurrentTenantId()
+
+  return post<Assignment, AssignmentPayload & { tenantId: string }>(
+    ASSIGNMENT_URL,
+    { ...payload, tenantId },
     {
-      dedupeKey: `position:create:${payload.personId}:${payload.positionId}`,
+      dedupeKey: `assignment:create:${payload.personId}:${payload.positionId}`,
       idempotencyKey,
     },
   )
 }
 
-export function updatePositionAssignment(
+export async function createPositionAssignment(
+  payload: PositionAssignmentPayload,
+  idempotencyKey?: string,
+): Promise<PositionAssignment> {
+  const assignment = await createAssignment(
+    {
+      personId: payload.personId,
+      positionId: payload.positionId,
+      type: payload.primary ? 'PRIMARY' : 'SECONDARY',
+      startDate: payload.effectiveFromUtc,
+      endDate: payload.effectiveToUtc,
+    },
+    idempotencyKey,
+  )
+
+  return toPositionAssignment(assignment)
+}
+
+export async function updatePositionAssignment(
   id: string,
   payload: PositionAssignmentPayload,
   idempotencyKey?: string,
 ): Promise<PositionAssignment> {
-  return put<PositionAssignment, PositionAssignmentPayload>(
-    `${POSITION_URL}/${id}`,
-    payload,
+  const assignment = await put<Assignment, { type: AssignmentType }>(
+    `${ASSIGNMENT_URL}/${id}/type`,
+    { type: payload.primary ? 'PRIMARY' : 'SECONDARY' },
     {
-      dedupeKey: `position:update:${id}`,
+      dedupeKey: `assignment:type:${id}`,
       idempotencyKey,
     },
   )
+
+  return toPositionAssignment(assignment)
+}
+
+export function changePrimaryAssignment(
+  personId: string,
+  assignmentId: string,
+): Promise<Assignment> {
+  return put<Assignment, Record<string, never>>(
+    `${BASE_URL}/persons/${personId}/primary-assignment/${assignmentId}`,
+    {},
+    { dedupeKey: `assignment:primary:${personId}:${assignmentId}` },
+  )
+}
+
+export function deactivateAssignment(
+  assignmentId: string,
+  endDate?: string | null,
+): Promise<Assignment> {
+  return put<Assignment, { endDate?: string | null }>(
+    `${ASSIGNMENT_URL}/${assignmentId}/deactivate`,
+    { endDate },
+    { dedupeKey: `assignment:deactivate:${assignmentId}` },
+  )
+}
+
+export async function listPositionRoles(
+  positionId: string,
+): Promise<PositionRoleBinding[]> {
+  const tenantId = await resolveCurrentTenantId()
+  return get<PositionRoleBinding[]>(`${POSITION_URL}/${positionId}/roles`, {
+    params: tenantParams(tenantId),
+  })
+}
+
+export async function addPositionRole(
+  positionId: string,
+  roleId: string,
+): Promise<PositionRoleBinding> {
+  const tenantId = await resolveCurrentTenantId()
+  return post<PositionRoleBinding, { roleId: string; tenantId: string }>(
+    `${POSITION_URL}/${positionId}/roles`,
+    { roleId, tenantId },
+    { dedupeKey: `position-role:add:${positionId}:${roleId}` },
+  )
+}
+
+export async function removePositionRole(
+  positionId: string,
+  roleId: string,
+): Promise<void> {
+  const tenantId = await resolveCurrentTenantId()
+  const params = tenantParams(tenantId)
+  await del<void>(`${POSITION_URL}/${positionId}/roles/${roleId}`, {
+    params,
+    dedupeKey: `position-role:remove:${positionId}:${roleId}`,
+  })
+}
+
+export async function exportPositionAssignments(): Promise<{
+  positions: OrgPosition[]
+  assignments: Assignment[]
+  positionRoles: PositionRoleBinding[]
+}> {
+  return get<BackendExportResponse>(`${BASE_URL}/export`)
 }

@@ -87,10 +87,8 @@ function toIdentityContext(
 
 export async function getCurrentContext(): Promise<IdentityContext> {
   const [view, options] = await Promise.all([
-    get<BackendIdentityContextView>('/org-perm/identity-context/current'),
-    get<BackendAvailableIdentityOption[]>(
-      '/org-perm/identity-context/available',
-    ),
+    get<BackendIdentityContextView>('/v1/org/identity-context/current'),
+    get<BackendAvailableIdentityOption[]>('/v1/org/identity-context/available'),
   ])
 
   const assignments = options.map(toAvailableAssignment)
@@ -103,7 +101,7 @@ export async function switchAssignment(
   reason?: string,
 ): Promise<IdentityContext> {
   const view = await post<BackendIdentityContextView, SwitchAssignmentRequest>(
-    '/org-perm/identity-context/switch',
+    '/v1/org/identity-context/switch',
     { targetPositionId, reason },
     {
       dedupeKey: `identity-switch:${targetPositionId}`,

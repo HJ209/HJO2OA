@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { Suspense, type ReactElement } from 'react'
 import {
   getWorkspaceAppByKey,
   resolveWorkspaceAppKey,
@@ -23,7 +23,15 @@ export default function WorkspacePage(): ReactElement {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-slate-100">
       <section className="p-1.5" role="tabpanel">
-        <ActiveComponent />
+        <Suspense
+          fallback={
+            <div className="flex min-h-[16rem] items-center justify-center text-sm text-slate-500">
+              Loading workspace...
+            </div>
+          }
+        >
+          <ActiveComponent />
+        </Suspense>
       </section>
     </div>
   )

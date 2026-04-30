@@ -1,5 +1,13 @@
 import type { ReactElement } from 'react'
-import { Bell, Building2, CheckSquare, Home, Settings } from 'lucide-react'
+import {
+  Bell,
+  Building2,
+  CheckSquare,
+  DatabaseZap,
+  Handshake,
+  Home,
+  Settings,
+} from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 
@@ -32,6 +40,18 @@ const NAV_ITEMS: NavItem[] = [
     titleText: '消息',
     to: '/messages',
     icon: Bell,
+  },
+  {
+    titleKey: 'app.nav.collaboration',
+    titleText: '协同',
+    to: '/collaboration',
+    icon: Handshake,
+  },
+  {
+    titleKey: 'app.nav.data',
+    titleText: '数据',
+    to: '/data',
+    icon: DatabaseZap,
   },
   {
     titleKey: 'app.nav.org',

@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useSystemEnumOptions } from '@/features/infra-admin/hooks/use-dictionary'
 import type {
   AccountStatus,
   PersonAccount,
@@ -15,15 +14,14 @@ const DEFAULT_FORM: PersonAccountPayload = {
   email: '',
   mobile: '',
   orgId: '',
+  departmentId: '',
   status: 'ACTIVE',
 }
 
-const ACCOUNT_STATUS_ENUM_CLASS =
-  'com.hjo2oa.org.person.account.domain.AccountStatus'
-const ACCOUNT_STATUS_FALLBACK_OPTIONS = [
-  { value: 'ACTIVE', label: '启用' },
-  { value: 'LOCKED', label: '锁定' },
-  { value: 'DISABLED', label: '停用' },
+const ACCOUNT_STATUS_OPTIONS: Array<{ value: AccountStatus; label: string }> = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'LOCKED', label: 'Locked' },
+  { value: 'DISABLED', label: 'Disabled' },
 ]
 
 export interface PersonFormDialogProps {
@@ -45,6 +43,7 @@ function toFormValue(person?: PersonAccount): PersonAccountPayload {
     email: person.email ?? '',
     mobile: person.mobile ?? '',
     orgId: person.orgId ?? '',
+    departmentId: person.departmentId ?? '',
     status: person.status,
   }
 }
@@ -59,11 +58,6 @@ export function PersonFormDialog({
   const [formValue, setFormValue] = useState<PersonAccountPayload>(() =>
     toFormValue(person),
   )
-  const accountStatusOptionsQuery = useSystemEnumOptions(ACCOUNT_STATUS_ENUM_CLASS)
-  const accountStatusOptions =
-    accountStatusOptionsQuery.data && accountStatusOptionsQuery.data.length > 0
-      ? accountStatusOptionsQuery.data
-      : ACCOUNT_STATUS_FALLBACK_OPTIONS
 
   useEffect(() => {
     if (open) {
@@ -97,20 +91,17 @@ export function PersonFormDialog({
       role="dialog"
     >
       <form
-        className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl"
+        className="w-full max-w-xl rounded-lg bg-white p-6 shadow-xl"
         onSubmit={handleSubmit}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">
-              {person ? '编辑人员账号' : '新增人员账号'}
+              {person ? 'Edit person' : 'Create person'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              维护账号基础资料，提交时由请求层写入幂等键。
-            </p>
           </div>
           <Button
-            aria-label="关闭弹窗"
+            aria-label="Close dialog"
             onClick={onClose}
             size="icon"
             variant="ghost"
@@ -121,7 +112,7 @@ export function PersonFormDialog({
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <label className="space-y-2 text-sm font-medium text-slate-700">
-            登录账号
+            Login account
             <Input
               onChange={(event) =>
                 updateField('accountName', event.target.value)
@@ -131,7 +122,7 @@ export function PersonFormDialog({
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700">
-            显示名称
+            Display name
             <Input
               onChange={(event) =>
                 updateField('displayName', event.target.value)
@@ -141,7 +132,7 @@ export function PersonFormDialog({
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700">
-            邮箱
+            Email
             <Input
               onChange={(event) => updateField('email', event.target.value)}
               type="email"
@@ -149,29 +140,39 @@ export function PersonFormDialog({
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700">
-            手机
+            Mobile
             <Input
               onChange={(event) => updateField('mobile', event.target.value)}
               value={formValue.mobile}
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700">
-            组织 ID
+            Organization ID
             <Input
               onChange={(event) => updateField('orgId', event.target.value)}
+              required
               value={formValue.orgId}
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700">
-            状态
+            Department ID
+            <Input
+              onChange={(event) =>
+                updateField('departmentId', event.target.value)
+              }
+              value={formValue.departmentId}
+            />
+          </label>
+          <label className="space-y-2 text-sm font-medium text-slate-700">
+            Status
             <select
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               onChange={(event) =>
                 updateField('status', event.target.value as AccountStatus)
               }
               value={formValue.status}
             >
-              {accountStatusOptions.map((option) => (
+              {ACCOUNT_STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -182,10 +183,10 @@ export function PersonFormDialog({
 
         <div className="mt-6 flex justify-end gap-3">
           <Button onClick={onClose} variant="outline">
-            取消
+            Cancel
           </Button>
           <Button disabled={submitting} type="submit">
-            {submitting ? '提交中' : '保存'}
+            Save
           </Button>
         </div>
       </form>

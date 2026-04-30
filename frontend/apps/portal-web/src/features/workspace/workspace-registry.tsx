@@ -1,29 +1,73 @@
 /* eslint-disable react-refresh/only-export-components */
-import type { ComponentType, ReactElement } from 'react'
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import {
   ClipboardCheck,
+  DatabaseZap,
+  FileText,
   FolderKanban,
+  Handshake,
   Home,
   MessageSquareMore,
+  PanelsTopLeft,
   Settings,
   UsersRound,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react'
-import InfraAdminPage from '@/features/infra-admin/pages/infra-admin-page'
-import MessageCenterPage from '@/features/messages/pages/message-center-page'
-import OrgPermPage from '@/features/org-perm/pages/org-perm-page'
-import PortalHomePage from '@/features/portal-home/pages/portal-home-page'
-import TodoCenterPage from '@/features/todo/pages/todo-center-page'
+const CollaborationPage = lazy(
+  () => import('@/features/collaboration/pages/collaboration-page'),
+)
+const ContentManagementPage = lazy(
+  () => import('@/features/content/pages/content-management-page'),
+)
+const DataServicesPage = lazy(
+  () => import('@/features/data-services/pages/data-services-page'),
+)
+const InfraAdminPage = lazy(
+  () => import('@/features/infra-admin/pages/infra-admin-page'),
+)
+const MessageCenterPage = lazy(
+  () => import('@/features/messages/pages/message-center-page'),
+)
+const OrgPermPage = lazy(
+  () => import('@/features/org-perm/pages/org-perm-page'),
+)
+const PortalAdminPage = lazy(
+  () => import('@/features/portal/pages/portal-admin-page'),
+)
+const PortalHomePage = lazy(
+  () => import('@/features/portal-home/pages/portal-home-page'),
+)
+const TodoCenterPage = lazy(
+  () => import('@/features/todo/pages/todo-center-page'),
+)
+const WorkflowPage = lazy(
+  () => import('@/features/workflow/pages/workflow-page'),
+)
+const WorkspaceDocsPage = lazy(() =>
+  import('@/features/infra-admin/pages/infra-admin-page').then((module) => ({
+    default: function WorkspaceDocsPage() {
+      const EmbeddedInfraAdminPage = module.default
 
-function WorkspaceDocsPage(): ReactElement {
-  return <InfraAdminPage embedded initialTab="attachment" />
-}
+      return <EmbeddedInfraAdminPage embedded initialTab="attachment" />
+    },
+  })),
+)
+
+type WorkspaceAppComponent =
+  | ComponentType
+  | LazyExoticComponent<ComponentType<Record<string, never>>>
 
 export type WorkspaceAppKey =
   | 'home'
   | 'messages'
+  | 'collaboration'
+  | 'content'
   | 'docs'
   | 'todo'
+  | 'workflow'
+  | 'portal'
+  | 'data'
   | 'org'
   | 'admin'
 
@@ -40,7 +84,7 @@ export interface WorkspaceAppDefinition {
     label: string
     path: string
   }>
-  component: ComponentType
+  component: WorkspaceAppComponent
 }
 
 export const WORKSPACE_APPS: WorkspaceAppDefinition[] = [
@@ -79,6 +123,49 @@ export const WORKSPACE_APPS: WorkspaceAppDefinition[] = [
     component: MessageCenterPage,
   },
   {
+    key: 'collaboration',
+    railLabel: '协同',
+    menuLabel: '团队协同',
+    windowTitle: '团队协同',
+    description: '空间、讨论、评论、任务、会议、通知和审计',
+    defaultPath: '/collaboration',
+    paths: ['/collaboration'],
+    icon: Handshake,
+    sidebarItems: [
+      {
+        label: '协同工作台',
+        path: '/collaboration',
+      },
+    ],
+    component: CollaborationPage,
+  },
+  {
+    key: 'content',
+    railLabel: 'Content',
+    menuLabel: 'Content management',
+    windowTitle: 'Content management',
+    description:
+      'Categories, articles, publishing, approval, versions and portal content feed',
+    defaultPath: '/content/articles',
+    paths: ['/content'],
+    icon: FileText,
+    sidebarItems: [
+      {
+        label: 'Articles',
+        path: '/content/articles',
+      },
+      {
+        label: 'Categories',
+        path: '/content/categories',
+      },
+      {
+        label: 'Versions',
+        path: '/content/versions',
+      },
+    ],
+    component: ContentManagementPage,
+  },
+  {
     key: 'docs',
     railLabel: '文档',
     menuLabel: '文件管理',
@@ -111,6 +198,69 @@ export const WORKSPACE_APPS: WorkspaceAppDefinition[] = [
       },
     ],
     component: TodoCenterPage,
+  },
+  {
+    key: 'workflow',
+    railLabel: '流程',
+    menuLabel: '流程引擎',
+    windowTitle: '流程引擎',
+    description: '流程定义、发布、发起、动作和轨迹',
+    defaultPath: '/workflow',
+    paths: ['/workflow'],
+    icon: Workflow,
+    sidebarItems: [
+      {
+        label: '流程引擎',
+        path: '/workflow',
+      },
+      {
+        label: '表单设计',
+        path: '/workflow/forms',
+      },
+      {
+        label: '表单渲染',
+        path: '/workflow/render',
+      },
+      {
+        label: '流程监控',
+        path: '/workflow/monitor',
+      },
+    ],
+    component: WorkflowPage,
+  },
+  {
+    key: 'portal',
+    railLabel: '门户',
+    menuLabel: '门户配置',
+    windowTitle: '门户配置',
+    description: '门户模型、组件配置、个性化和设计器',
+    defaultPath: '/portal',
+    paths: ['/portal'],
+    icon: PanelsTopLeft,
+    sidebarItems: [
+      {
+        label: '门户配置',
+        path: '/portal',
+      },
+    ],
+    component: PortalAdminPage,
+  },
+  {
+    key: 'data',
+    railLabel: '数据',
+    menuLabel: '数据服务',
+    windowTitle: '数据服务',
+    description: '连接器、同步、服务、开放接口、报表和治理',
+    defaultPath: '/data',
+    paths: ['/data'],
+    icon: DatabaseZap,
+    sidebarItems: [
+      {
+        label: '数据服务工作台',
+        path: '/data',
+      },
+    ],
+    component: DataServicesPage,
   },
   {
     key: 'org',

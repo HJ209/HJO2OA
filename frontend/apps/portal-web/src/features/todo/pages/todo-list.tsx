@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { completeTodo, remindTodo } from '@/features/todo/services/todo-service'
 import { useTodoQuery } from '@/features/todo/hooks/use-todo-query'
 import { useTodoStore } from '@/features/todo/stores/todo-store'
-import type { TodoTab } from '@/features/todo/types/todo'
+import type { TodoItemTab } from '@/features/todo/types/todo'
 import { TodoItemRow } from '@/features/todo/pages/todo-item-row'
 
 const COPY = {
@@ -14,12 +16,24 @@ const COPY = {
 } as const
 
 export interface TodoListProps {
-  tab: Exclude<TodoTab, 'copied'>
+  tab: TodoItemTab
 }
 
 export function TodoList({ tab }: TodoListProps): ReactElement {
+  const queryClient = useQueryClient()
   const sort = useTodoStore((state) => state.sort)
   const { data, isError, isLoading } = useTodoQuery(tab, sort)
+  const invalidateTodos = () =>
+    void queryClient.invalidateQueries({ queryKey: ['todo-items'] })
+
+  const completeMutation = useMutation({
+    mutationFn: completeTodo,
+    onSuccess: invalidateTodos,
+  })
+  const remindMutation = useMutation({
+    mutationFn: (todoId: string) => remindTodo(todoId, 'Manual reminder'),
+    onSuccess: invalidateTodos,
+  })
 
   if (isLoading) {
     return (
@@ -51,7 +65,20 @@ export function TodoList({ tab }: TodoListProps): ReactElement {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       {data.map((item) => (
-        <TodoItemRow item={item} key={item.todoId} />
+        <TodoItemRow
+          item={item}
+          key={item.todoId}
+          onComplete={
+            item.status === 'PENDING'
+              ? () => completeMutation.mutate(item.todoId)
+              : undefined
+          }
+          onRemind={
+            item.status === 'PENDING'
+              ? () => remindMutation.mutate(item.todoId)
+              : undefined
+          }
+        />
       ))}
     </div>
   )

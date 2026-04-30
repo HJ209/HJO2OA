@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  archiveMessage,
+  deleteMessage,
   markAllMessagesAsRead,
   markMessageAsRead,
 } from '@/features/messages/services/message-service'
@@ -24,12 +26,28 @@ export function useMessageAction() {
     onSuccess: invalidateMessages,
   })
 
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => archiveMessage(id),
+    onSuccess: invalidateMessages,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteMessage(id),
+    onSuccess: invalidateMessages,
+  })
+
   return {
     markRead: markReadMutation.mutate,
     markReadAsync: markReadMutation.mutateAsync,
     markAllRead: markAllReadMutation.mutate,
     markAllReadAsync: markAllReadMutation.mutateAsync,
+    archiveMessage: archiveMutation.mutate,
+    archiveMessageAsync: archiveMutation.mutateAsync,
+    deleteMessage: deleteMutation.mutate,
+    deleteMessageAsync: deleteMutation.mutateAsync,
     isMarkingRead: markReadMutation.isPending,
     isMarkingAllRead: markAllReadMutation.isPending,
+    isArchiving: archiveMutation.isPending,
+    isDeleting: deleteMutation.isPending,
   }
 }

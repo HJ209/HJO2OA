@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchPortalHome } from '@/features/portal-home/services/portal-home-service'
 import { fetchPortalSnapshot } from '@/features/portal-home/services/portal-snapshot-service'
-import type { PortalHomePageAssembly } from '@/features/portal-home/types/portal-home'
+import type { PortalHomePageView } from '@/features/portal/types/portal'
 import { get } from '@/services/request'
 
 vi.mock('@/services/request', () => ({
@@ -16,14 +16,33 @@ describe('portal home services', () => {
   })
 
   it('fetches portal home assembly from the backend contract path', async () => {
-    const assembly: PortalHomePageAssembly = {
-      sections: [],
+    const assembly: PortalHomePageView = {
+      sceneType: 'HOME',
+      layoutType: 'THREE_SECTION',
+      branding: {
+        title: 'HJO2OA',
+        subtitle: 'Portal',
+        logoText: 'H',
+      },
+      navigation: [],
+      regions: [],
+      footer: {
+        text: 'Portal footer',
+      },
+      refreshState: {
+        sceneType: 'HOME',
+        status: 'IDLE',
+        updatedAt: '2026-04-29T00:00:00.000Z',
+      },
+      assembledAt: '2026-04-29T00:00:00.000Z',
     }
 
     mockedGet.mockResolvedValueOnce(assembly)
 
     await expect(fetchPortalHome()).resolves.toEqual(assembly)
-    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/home/page')
+    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/home/page', {
+      params: new URLSearchParams('sceneType=HOME'),
+    })
   })
 
   it('fetches portal snapshot from the backend contract path', async () => {
@@ -94,6 +113,8 @@ describe('portal home services', () => {
         },
       ],
     })
-    expect(mockedGet).toHaveBeenCalledWith('/v1/portal/aggregation/dashboard')
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/v1/portal/aggregation/dashboard?cards=TODO&cards=MESSAGE&cards=CONTENT',
+    )
   })
 })

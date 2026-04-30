@@ -1,64 +1,145 @@
 import { get } from '@/services/request'
-import { buildListParams } from '@/features/infra-admin/services/service-utils'
+import {
+  buildListParams,
+  toPageData,
+} from '@/features/infra-admin/services/service-utils'
 import type {
   AuditFilterValues,
   AuditRecord,
+  AuditRecordDetail,
   InfraListQuery,
   InfraPageData,
 } from '@/features/infra-admin/types/infra'
-import type { PaginationFilter } from '@/types/api'
 
-const BASE_URL = '/v1/infra/audit/records'
+const BASE_URL = '/v1/infra/audits'
 
-export function buildAuditQuery(filters: AuditFilterValues): InfraListQuery {
-  const queryFilters: PaginationFilter[] = []
+export interface AuditQuery extends InfraListQuery {
+  tenantId?: string
+  moduleCode?: string
+  objectType?: string
+  objectId?: string
+  actionType?: string
+  operatorAccountId?: string
+  operatorPersonId?: string
+  requestId?: string
+  from?: string
+  to?: string
+}
 
-  if (filters.actor) {
-    queryFilters.push({
-      field: 'actor',
-      operator: 'like',
-      value: filters.actor,
-    })
+interface BackendAuditFieldChange {
+  id: string
+  auditRecordId: string
+  fieldName: string
+  oldValue?: string | null
+  newValue?: string | null
+  sensitivityLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | null
+}
+
+interface BackendAuditRecord {
+  id: string
+  moduleCode: string
+  objectType: string
+  objectId: string
+  actionType: string
+  operatorAccountId?: string | null
+  operatorPersonId?: string | null
+  tenantId?: string | null
+  traceId?: string | null
+  summary?: string | null
+  occurredAt: string
+  archiveStatus: 'ACTIVE' | 'ARCHIVED'
+  createdAt: string
+  fieldChanges?: BackendAuditFieldChange[]
+}
+
+function normalizeDateTime(value?: string): string | undefined {
+  if (!value) {
+    return undefined
   }
 
-  if (filters.action) {
-    queryFilters.push({ field: 'action', value: filters.action })
-  }
+  const date = new Date(value)
 
-  if (filters.resource) {
-    queryFilters.push({
-      field: 'resource',
-      operator: 'like',
-      value: filters.resource,
-    })
-  }
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+}
 
-  if (filters.from) {
-    queryFilters.push({
-      field: 'createdAt',
-      operator: 'gte',
-      value: filters.from,
-    })
-  }
-
-  if (filters.to) {
-    queryFilters.push({
-      field: 'createdAt',
-      operator: 'lte',
-      value: filters.to,
-    })
-  }
-
+export function buildAuditQuery(filters: AuditFilterValues): AuditQuery {
   return {
     page: 1,
     size: 20,
-    filters: queryFilters,
-    sort: [{ field: 'createdAt', direction: 'desc' }],
+    moduleCode: filters.moduleCode,
+    actionType: filters.action || undefined,
+    objectType: filters.objectType ?? filters.resource,
+    objectId: filters.objectId,
+    operatorAccountId: filters.operatorAccountId ?? filters.actor,
+    requestId: filters.requestId,
+    from: normalizeDateTime(filters.from),
+    to: normalizeDateTime(filters.to),
+  }
+}
+
+function buildAuditParams(query: AuditQuery = {}): URLSearchParams {
+  const params = buildListParams(query)
+
+  for (const key of [
+    'tenantId',
+    'moduleCode',
+    'objectType',
+    'objectId',
+    'actionType',
+    'operatorAccountId',
+    'operatorPersonId',
+    'requestId',
+    'from',
+    'to',
+  ] as const) {
+    const value = query[key]
+
+    if (value) {
+      params.set(key, value)
+    }
+  }
+
+  return params
+}
+
+function mapAuditRecord(item: BackendAuditRecord): AuditRecord {
+  return {
+    id: item.id,
+    moduleCode: item.moduleCode,
+    objectType: item.objectType,
+    objectId: item.objectId,
+    actionType: item.actionType,
+    actor:
+      item.operatorAccountId ?? item.operatorPersonId ?? item.tenantId ?? '-',
+    action: item.actionType,
+    resource: [item.objectType, item.objectId].filter(Boolean).join(':'),
+    operatorAccountId: item.operatorAccountId,
+    operatorPersonId: item.operatorPersonId,
+    tenantId: item.tenantId,
+    traceId: item.traceId,
+    summary: item.summary,
+    occurredAt: item.occurredAt,
+    archiveStatus: item.archiveStatus,
+    createdAt: item.createdAt,
+  }
+}
+
+function mapAuditDetail(item: BackendAuditRecord): AuditRecordDetail {
+  return {
+    ...mapAuditRecord(item),
+    fieldChanges: item.fieldChanges ?? [],
   }
 }
 
 export const auditService = {
-  list(query?: InfraListQuery): Promise<InfraPageData<AuditRecord>> {
-    return get(BASE_URL, { params: buildListParams(query) })
+  async list(query?: AuditQuery): Promise<InfraPageData<AuditRecord>> {
+    const items = await get<BackendAuditRecord[]>(BASE_URL, {
+      params: buildAuditParams(query),
+    })
+
+    return toPageData(items.map(mapAuditRecord), query)
+  },
+  async detail(id: string): Promise<AuditRecordDetail> {
+    return mapAuditDetail(await get<BackendAuditRecord>(`${BASE_URL}/${id}`))
   },
 }

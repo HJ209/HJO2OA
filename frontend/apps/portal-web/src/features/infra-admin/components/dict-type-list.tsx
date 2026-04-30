@@ -22,7 +22,7 @@ export function DictTypeList({
     <div className="rounded-2xl border border-slate-200 bg-white p-3">
       <div className="mb-3 flex items-center gap-2 px-1 text-sm font-semibold text-slate-900">
         <Database className="h-4 w-4 text-sky-600" />
-        字典类型
+        Dictionary Types
       </div>
       <div className="space-y-2">
         {isLoading ? (
@@ -54,6 +54,8 @@ export function DictTypeList({
                   </span>
                   <span className="block truncate text-xs text-slate-500">
                     {item.code}
+                    {item.systemManaged ? ' / system' : ''}
+                    {item.status === 'disabled' ? ' / disabled' : ''}
                   </span>
                 </span>
               </Button>

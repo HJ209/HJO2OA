@@ -8,6 +8,7 @@ export interface TodoItemSummary {
   todoId: string
   taskId: string
   instanceId: string
+  tenantId?: string
   title: string
   category: string
   urgency: string
@@ -24,6 +25,7 @@ export interface CopiedTodoSummary {
   todoId: string
   taskId: string
   instanceId: string
+  tenantId?: string
   type: string
   category: string
   title: string
@@ -44,7 +46,57 @@ export interface TodoCounts {
   archivedCount: number
 }
 
-export type TodoTab = 'pending' | 'completed' | 'overdue' | 'copied'
+export interface InitiatedProcessSummary {
+  instanceId: string
+  definitionId: string
+  definitionCode: string
+  title: string
+  category?: string
+  status: string
+  startTime: string
+  endTime?: string
+  updatedAt?: string
+}
+
+export interface DraftProcessSummary {
+  submissionId: string
+  metadataId: string
+  metadataCode: string
+  metadataVersion: number
+  processInstanceId?: string
+  nodeId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ArchiveProcessSummary {
+  instanceId: string
+  definitionId: string
+  definitionCode: string
+  title: string
+  category?: string
+  status: string
+  startTime: string
+  endTime?: string
+  updatedAt?: string
+}
+
+export interface TodoBatchActionResult {
+  requestedCount: number
+  successCount: number
+  skippedCount: number
+  succeededTodoIds: string[]
+  skippedTodoIds: string[]
+}
+
+export type TodoItemTab = 'pending' | 'completed' | 'overdue'
+
+export type TodoTab =
+  | TodoItemTab
+  | 'copied'
+  | 'initiated'
+  | 'drafts'
+  | 'archives'
 
 export type TodoSortField = 'createdAt' | 'dueTime' | 'urgency'
 

@@ -22,9 +22,11 @@ export function useDictionaryOptions(typeCode: string) {
     enabled: typeCode.length > 0,
     queryKey: ['infra', 'dictionary-options', typeCode],
     queryFn: async () => {
-      const page = await dictionaryService.listItems(typeCode, { page: 1, size: 200 })
+      const items = await dictionaryService.listRuntimeItems(typeCode, {
+        enabledOnly: true,
+      })
 
-      return page.items
+      return items
         .filter((item) => item.enabled)
         .sort((left, right) => left.sortOrder - right.sortOrder)
         .map((item) => ({
@@ -37,13 +39,23 @@ export function useDictionaryOptions(typeCode: string) {
   })
 }
 
+export function useDictionaryTree(typeCode: string) {
+  return useQuery({
+    enabled: typeCode.length > 0,
+    queryKey: ['infra', 'dictionary-tree', typeCode],
+    queryFn: () => dictionaryService.tree(typeCode, { enabledOnly: false }),
+  })
+}
+
 export function useSystemEnumOptions(className: string) {
   return useQuery({
     enabled: className.length > 0,
     queryKey: ['infra', 'system-enum-options', className],
     queryFn: async () => {
       const systemEnums = await dictionaryService.previewSystemEnums()
-      const systemEnum = systemEnums.find((item) => item.className === className)
+      const systemEnum = systemEnums.find(
+        (item) => item.className === className,
+      )
 
       if (!systemEnum) {
         return []

@@ -6,6 +6,7 @@ import type { MessageNotificationSummary } from '@/features/messages/types/messa
 const baseMessage: MessageNotificationSummary = {
   id: 'msg-001',
   type: 'SYSTEM',
+  category: 'SYSTEM_SECURITY',
   title: '系统通知',
   summary: '这是一条系统通知摘要',
   readStatus: 'UNREAD',

@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { timezoneService } from '@/features/infra-admin/services/timezone-service'
-import type { InfraListQuery } from '@/features/infra-admin/types/infra'
+import {
+  timezoneService,
+  type TimezoneQuery,
+} from '@/features/infra-admin/services/timezone-service'
 
-export function useTimezoneSettings(query?: InfraListQuery) {
+export function useTimezoneSettings(query?: TimezoneQuery) {
   return useQuery({
     queryKey: ['infra', 'timezone', query],
     queryFn: () => timezoneService.list(query),

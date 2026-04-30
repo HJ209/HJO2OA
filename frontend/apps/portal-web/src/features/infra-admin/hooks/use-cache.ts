@@ -15,3 +15,24 @@ export function useCacheStats() {
     queryFn: () => cacheService.getStats(),
   })
 }
+
+export function useCacheKeys(query: {
+  namespace?: string
+  tenantId?: string
+  keyword?: string
+}) {
+  return useQuery({
+    queryKey: ['infra', 'cache-keys', query],
+    queryFn: () => cacheService.queryKeys(query),
+  })
+}
+
+export function useCacheInvalidations(query: {
+  namespace?: string
+  limit?: number
+}) {
+  return useQuery({
+    queryKey: ['infra', 'cache-invalidations', query],
+    queryFn: () => cacheService.listInvalidations(query),
+  })
+}

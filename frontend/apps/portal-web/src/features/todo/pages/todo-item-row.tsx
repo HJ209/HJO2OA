@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
-import { AlertCircle, CheckCircle2, Clock3 } from 'lucide-react'
+import { AlertCircle, Bell, CheckCircle2, Clock3 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { formatUtcToUserTimezone } from '@/utils/format-time'
 import type {
   TodoItemStatus,
@@ -68,9 +69,15 @@ function StatusIcon({ status }: { status: TodoItemStatus }): ReactElement {
 
 export interface TodoItemRowProps {
   item: TodoItemSummary
+  onComplete?: () => void
+  onRemind?: () => void
 }
 
-export function TodoItemRow({ item }: TodoItemRowProps): ReactElement {
+export function TodoItemRow({
+  item,
+  onComplete,
+  onRemind,
+}: TodoItemRowProps): ReactElement {
   const primaryTime = item.completedAt ?? item.dueTime ?? item.createdAt
   const primaryTimeLabel = item.completedAt
     ? COPY.completedAtText
@@ -98,9 +105,23 @@ export function TodoItemRow({ item }: TodoItemRowProps): ReactElement {
           </span>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600">
-        <StatusIcon status={item.status} />
-        <span>{statusTextMap[item.status]}</span>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 text-sm font-medium text-slate-600">
+        {onRemind ? (
+          <Button onClick={onRemind} size="sm" variant="outline">
+            <Bell className="h-4 w-4" />
+            Remind
+          </Button>
+        ) : null}
+        {onComplete ? (
+          <Button onClick={onComplete} size="sm">
+            <CheckCircle2 className="h-4 w-4" />
+            Complete
+          </Button>
+        ) : null}
+        <span className="inline-flex items-center gap-2">
+          <StatusIcon status={item.status} />
+          {statusTextMap[item.status]}
+        </span>
       </div>
     </article>
   )

@@ -74,8 +74,8 @@ export function MessageList(): ReactElement {
           onClick={() => {
             const unreadIds =
               messagesQuery.data?.items
-                .filter((m) => m.readStatus === 'UNREAD')
-                .map((m) => m.id) ?? []
+                .filter((message) => message.readStatus === 'UNREAD')
+                .map((message) => message.id) ?? []
 
             if (unreadIds.length > 0) {
               markAllRead(unreadIds)

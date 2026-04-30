@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   InfraTable,
   StatusPill,
 } from '@/features/infra-admin/components/infra-table'
-import { Button } from '@/components/ui/button'
 import type { DictionaryItem } from '@/features/infra-admin/types/infra'
 
 export interface DictItemTableProps {
@@ -14,6 +14,26 @@ export interface DictItemTableProps {
   onDelete?: (item: DictionaryItem) => void
 }
 
+interface FlatDictionaryItem extends DictionaryItem {
+  depth: number
+}
+
+function flattenItems(
+  items: DictionaryItem[],
+  depth = 0,
+  output: FlatDictionaryItem[] = [],
+): FlatDictionaryItem[] {
+  items
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .forEach((item) => {
+      output.push({ ...item, depth })
+      flattenItems(item.children ?? [], depth + 1, output)
+    })
+
+  return output
+}
+
 export function DictItemTable({
   items,
   isLoading = false,
@@ -21,34 +41,58 @@ export function DictItemTable({
   onToggle,
   onDelete,
 }: DictItemTableProps): ReactElement {
+  const rows = flattenItems(items)
+
   return (
     <InfraTable
       columns={[
-        { key: 'label', title: '名称', render: (item) => item.label },
-        { key: 'code', title: '编码', render: (item) => item.code },
-        { key: 'value', title: '值', render: (item) => item.value },
-        { key: 'sortOrder', title: '排序', render: (item) => item.sortOrder },
+        {
+          key: 'label',
+          title: 'Name',
+          render: (item) => (
+            <span
+              className="block min-w-[160px]"
+              style={{ paddingLeft: `${item.depth * 20}px` }}
+            >
+              {item.depth > 0 ? '- ' : ''}
+              {item.label}
+            </span>
+          ),
+        },
+        { key: 'code', title: 'Code', render: (item) => item.code },
+        { key: 'value', title: 'Value', render: (item) => item.value },
+        {
+          key: 'parentId',
+          title: 'Parent',
+          render: (item) => item.parentId ?? '-',
+        },
+        {
+          key: 'defaultItem',
+          title: 'Default',
+          render: (item) => (item.defaultItem ? 'Yes' : 'No'),
+        },
+        { key: 'sortOrder', title: 'Sort', render: (item) => item.sortOrder },
         {
           key: 'enabled',
-          title: '状态',
+          title: 'Status',
           render: (item) => (
             <StatusPill active={item.enabled}>
-              {item.enabled ? '启用' : '停用'}
+              {item.enabled ? 'Enabled' : 'Disabled'}
             </StatusPill>
           ),
         },
         {
           key: 'actions',
-          title: '操作',
+          title: 'Actions',
           render: (item) => (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 disabled={!onEdit}
                 onClick={() => onEdit?.(item)}
                 size="sm"
                 variant="outline"
               >
-                编辑
+                Edit
               </Button>
               <Button
                 disabled={!onToggle}
@@ -56,7 +100,7 @@ export function DictItemTable({
                 size="sm"
                 variant="outline"
               >
-                {item.enabled ? '停用' : '启用'}
+                {item.enabled ? 'Disable' : 'Enable'}
               </Button>
               <Button
                 disabled={!onDelete}
@@ -64,7 +108,7 @@ export function DictItemTable({
                 size="sm"
                 variant="outline"
               >
-                删除
+                Delete
               </Button>
             </div>
           ),
@@ -72,7 +116,7 @@ export function DictItemTable({
       ]}
       getRowKey={(item) => item.id ?? item.code}
       isLoading={isLoading}
-      items={items}
+      items={rows}
     />
   )
 }

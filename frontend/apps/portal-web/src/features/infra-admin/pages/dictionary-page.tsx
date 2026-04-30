@@ -6,6 +6,7 @@ import {
   type ReactElement,
 } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Download, Pencil, Plus, RefreshCw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DictItemTable } from '@/features/infra-admin/components/dict-item-table'
@@ -29,6 +30,7 @@ const emptyType: DictionaryType = {
   category: '',
   hierarchical: false,
   cacheable: true,
+  sortOrder: 0,
   status: 'enabled',
 }
 
@@ -38,12 +40,44 @@ const emptyItem: DictionaryItem = {
   value: '',
   sortOrder: 0,
   enabled: true,
+  defaultItem: false,
+  extensionJson: '',
+}
+
+function buildItemTree(items: DictionaryItem[]): DictionaryItem[] {
+  const itemsById = new Map<string, DictionaryItem>()
+  const roots: DictionaryItem[] = []
+
+  items.forEach((item) => {
+    itemsById.set(item.id ?? item.code, { ...item, children: [] })
+  })
+
+  itemsById.forEach((item) => {
+    if (item.parentId && itemsById.has(item.parentId)) {
+      itemsById.get(item.parentId)?.children?.push(item)
+      return
+    }
+
+    roots.push(item)
+  })
+
+  const sortTree = (entries: DictionaryItem[]): DictionaryItem[] =>
+    entries
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((entry) => ({
+        ...entry,
+        children: sortTree(entry.children ?? []),
+      }))
+
+  return sortTree(roots)
 }
 
 export default function DictionaryPage(): ReactElement {
   const queryClient = useQueryClient()
   const [selectedCode, setSelectedCode] = useState('')
   const [typeDialogOpen, setTypeDialogOpen] = useState(false)
+  const [editingType, setEditingType] = useState<DictionaryType>()
   const [typeDraft, setTypeDraft] = useState<DictionaryType>(emptyType)
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<DictionaryItem>()
@@ -51,12 +85,14 @@ export default function DictionaryPage(): ReactElement {
   const [systemEnums, setSystemEnums] = useState<SystemEnumDictionary[]>([])
   const [systemEnumImportResult, setSystemEnumImportResult] =
     useState<SystemEnumImportResult>()
-  const typesQuery = useDictionaryTypes({ page: 1, size: 50 })
+
+  const typesQuery = useDictionaryTypes({ page: 1, size: 200 })
   const typeItems = useMemo(
     () => typesQuery.data?.items ?? [],
     [typesQuery.data?.items],
   )
   const selectedType = typeItems.find((item) => item.code === selectedCode)
+  const selectedTypeIsSystem = Boolean(selectedType?.systemManaged)
 
   useEffect(() => {
     if (!selectedCode && typeItems[0]) {
@@ -64,19 +100,37 @@ export default function DictionaryPage(): ReactElement {
     }
   }, [selectedCode, typeItems])
 
-  const itemsQuery = useDictionaryItems(selectedCode, { page: 1, size: 50 })
+  const itemsQuery = useDictionaryItems(selectedCode, { page: 1, size: 500 })
+  const flatItems = itemsQuery.data?.items ?? []
+  const treeItems = selectedType?.hierarchical
+    ? buildItemTree(flatItems)
+    : flatItems
 
   const invalidateDictionaries = async (): Promise<void> => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['infra', 'dictionary-types'] }),
-      queryClient.invalidateQueries({ queryKey: ['infra', 'dictionary-items'] }),
+      queryClient.invalidateQueries({
+        queryKey: ['infra', 'dictionary-types'],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['infra', 'dictionary-items'],
+      }),
+      queryClient.invalidateQueries({ queryKey: ['infra', 'dictionary-tree'] }),
+      queryClient.invalidateQueries({
+        queryKey: ['infra', 'dictionary-options'],
+      }),
+      queryClient.invalidateQueries({ queryKey: ['infra', 'cache-stats'] }),
+      queryClient.invalidateQueries({ queryKey: ['infra', 'cache-keys'] }),
     ])
   }
 
-  const createTypeMutation = useMutation({
-    mutationFn: (payload: DictionaryType) => dictionaryService.createType(payload),
+  const saveTypeMutation = useMutation({
+    mutationFn: (payload: DictionaryType) =>
+      editingType?.id
+        ? dictionaryService.updateType(editingType.id, payload)
+        : dictionaryService.createType(payload),
     onSuccess: async (nextType) => {
       setTypeDialogOpen(false)
+      setEditingType(undefined)
       setSelectedCode(nextType.code)
       await invalidateDictionaries()
     },
@@ -93,7 +147,7 @@ export default function DictionaryPage(): ReactElement {
   const saveItemMutation = useMutation({
     mutationFn: (payload: DictionaryItem) => {
       if (!selectedType?.id) {
-        throw new Error('请选择字典类型')
+        throw new Error('Select a dictionary type first')
       }
 
       return editingItem?.id
@@ -110,7 +164,7 @@ export default function DictionaryPage(): ReactElement {
   const deleteItemMutation = useMutation({
     mutationFn: (item: DictionaryItem) => {
       if (!selectedType?.id || !item.id) {
-        throw new Error('请选择字典项')
+        throw new Error('Select a dictionary item first')
       }
 
       return dictionaryService.deleteItem(selectedType.id, item.id)
@@ -121,7 +175,7 @@ export default function DictionaryPage(): ReactElement {
   const toggleItemMutation = useMutation({
     mutationFn: (item: DictionaryItem) => {
       if (!selectedType?.id || !item.id) {
-        throw new Error('请选择字典项')
+        throw new Error('Select a dictionary item first')
       }
 
       return item.enabled
@@ -144,19 +198,39 @@ export default function DictionaryPage(): ReactElement {
     },
   })
 
+  const refreshCacheMutation = useMutation({
+    mutationFn: () =>
+      dictionaryService.refreshCache(selectedCode, { tree: true }),
+    onSuccess: invalidateDictionaries,
+  })
+
   function openCreateTypeDialog(): void {
+    setEditingType(undefined)
     setTypeDraft(emptyType)
+    setTypeDialogOpen(true)
+  }
+
+  function openEditTypeDialog(): void {
+    if (!selectedType) {
+      return
+    }
+
+    setEditingType(selectedType)
+    setTypeDraft(selectedType)
     setTypeDialogOpen(true)
   }
 
   function submitType(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
-    createTypeMutation.mutate(typeDraft)
+    saveTypeMutation.mutate(typeDraft)
   }
 
   function openCreateItemDialog(): void {
     setEditingItem(undefined)
-    setItemDraft(emptyItem)
+    setItemDraft({
+      ...emptyItem,
+      sortOrder: flatItems.length + 1,
+    })
     setItemDialogOpen(true)
   }
 
@@ -172,13 +246,16 @@ export default function DictionaryPage(): ReactElement {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+    <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
       <div className="space-y-3">
         <Button className="w-full" onClick={openCreateTypeDialog}>
-          新增字典类型
+          <Plus className="h-4 w-4" />
+          New Dictionary Type
         </Button>
-        <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3">
-          <div className="text-sm font-semibold text-slate-900">系统枚举</div>
+        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+          <div className="text-sm font-semibold text-slate-900">
+            System Enums
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Button
               disabled={previewSystemEnumsMutation.isPending}
@@ -186,7 +263,8 @@ export default function DictionaryPage(): ReactElement {
               size="sm"
               variant="outline"
             >
-              扫描
+              <Search className="h-4 w-4" />
+              Scan
             </Button>
             <Button
               disabled={importSystemEnumsMutation.isPending}
@@ -194,20 +272,34 @@ export default function DictionaryPage(): ReactElement {
               size="sm"
               variant="outline"
             >
-              导入
+              <Download className="h-4 w-4" />
+              Import
             </Button>
           </div>
           {systemEnums.length > 0 ? (
-            <p className="text-xs text-slate-500">
-              已扫描 {systemEnums.length} 个枚举，约{' '}
-              {systemEnums.reduce((total, item) => total + item.items.length, 0)}{' '}
-              个枚举项。
-            </p>
+            <div className="max-h-44 space-y-2 overflow-auto text-xs text-slate-600">
+              {systemEnums.map((item) => (
+                <div
+                  className="rounded-xl border border-slate-100 bg-slate-50 p-2"
+                  key={item.code}
+                >
+                  <div className="font-medium text-slate-800">{item.name}</div>
+                  <div>{item.code}</div>
+                  <div>
+                    new {item.newItemCodes?.length ?? 0} / changed{' '}
+                    {item.changedItemCodes?.length ?? 0} / disabled{' '}
+                    {item.disabledItemCodes?.length ?? 0}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : null}
           {systemEnumImportResult ? (
             <p className="text-xs text-slate-500">
-              本次新增 {systemEnumImportResult.createdTypes} 个类型、{' '}
-              {systemEnumImportResult.createdItems} 个枚举项。
+              Imported {systemEnumImportResult.createdTypes} types,{' '}
+              {systemEnumImportResult.createdItems} new items,{' '}
+              {systemEnumImportResult.updatedItems ?? 0} updated items,{' '}
+              {systemEnumImportResult.disabledItems ?? 0} disabled items.
             </p>
           ) : null}
         </div>
@@ -220,28 +312,70 @@ export default function DictionaryPage(): ReactElement {
       </div>
       <InfraPageSection
         actions={
-          <div className="flex gap-2">
-            <Button disabled={!selectedType} onClick={openCreateItemDialog}>
-              新增字典项
-            </Button>
+          <div className="flex flex-wrap gap-2">
             <Button
-              disabled={!selectedType || toggleTypeMutation.isPending}
-              onClick={() => selectedType && toggleTypeMutation.mutate(selectedType)}
+              disabled={!selectedType || selectedTypeIsSystem}
+              onClick={openEditTypeDialog}
               variant="outline"
             >
-              {selectedType?.status === 'enabled' ? '停用类型' : '启用类型'}
+              <Pencil className="h-4 w-4" />
+              Edit Type
+            </Button>
+            <Button
+              disabled={!selectedType || selectedTypeIsSystem}
+              onClick={openCreateItemDialog}
+            >
+              <Plus className="h-4 w-4" />
+              New Item
+            </Button>
+            <Button
+              disabled={
+                !selectedType ||
+                selectedTypeIsSystem ||
+                toggleTypeMutation.isPending
+              }
+              onClick={() =>
+                selectedType && toggleTypeMutation.mutate(selectedType)
+              }
+              variant="outline"
+            >
+              {selectedType?.status === 'enabled'
+                ? 'Disable Type'
+                : 'Enable Type'}
+            </Button>
+            <Button
+              disabled={!selectedType || refreshCacheMutation.isPending}
+              onClick={() => refreshCacheMutation.mutate()}
+              variant="outline"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh Cache
             </Button>
           </div>
         }
-        description="维护选中字典类型下的展示项、编码和值。"
-        title="字典项"
+        description={
+          selectedType
+            ? `${selectedType.code} / ${selectedType.hierarchical ? 'tree' : 'flat'} / sort ${
+                selectedType.sortOrder ?? 0
+              }`
+            : 'Select a dictionary type to manage items.'
+        }
+        title={selectedType?.name ?? 'Dictionary Items'}
       >
         <DictItemTable
           isLoading={itemsQuery.isLoading}
-          items={itemsQuery.data?.items ?? []}
-          onDelete={(item) => deleteItemMutation.mutate(item)}
-          onEdit={openEditItemDialog}
-          onToggle={(item) => toggleItemMutation.mutate(item)}
+          items={treeItems}
+          onDelete={
+            selectedTypeIsSystem
+              ? undefined
+              : (item) => deleteItemMutation.mutate(item)
+          }
+          onEdit={selectedTypeIsSystem ? undefined : openEditItemDialog}
+          onToggle={
+            selectedTypeIsSystem
+              ? undefined
+              : (item) => toggleItemMutation.mutate(item)
+          }
         />
       </InfraPageSection>
       {typeDialogOpen ? (
@@ -255,12 +389,13 @@ export default function DictionaryPage(): ReactElement {
             onSubmit={submitType}
           >
             <h2 className="text-lg font-semibold text-slate-950">
-              新增字典类型
+              {editingType ? 'Edit Dictionary Type' : 'New Dictionary Type'}
             </h2>
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                编码
+                Code
                 <Input
+                  disabled={Boolean(editingType)}
                   onChange={(event) =>
                     setTypeDraft((current) => ({
                       ...current,
@@ -272,7 +407,7 @@ export default function DictionaryPage(): ReactElement {
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                名称
+                Name
                 <Input
                   onChange={(event) =>
                     setTypeDraft((current) => ({
@@ -285,7 +420,7 @@ export default function DictionaryPage(): ReactElement {
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                分类
+                Category
                 <Input
                   onChange={(event) =>
                     setTypeDraft((current) => ({
@@ -294,6 +429,20 @@ export default function DictionaryPage(): ReactElement {
                     }))
                   }
                   value={typeDraft.category ?? ''}
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Sort Order
+                <Input
+                  min={0}
+                  onChange={(event) =>
+                    setTypeDraft((current) => ({
+                      ...current,
+                      sortOrder: Number(event.target.value),
+                    }))
+                  }
+                  type="number"
+                  value={typeDraft.sortOrder ?? 0}
                 />
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -307,7 +456,7 @@ export default function DictionaryPage(): ReactElement {
                   }
                   type="checkbox"
                 />
-                层级字典
+                Tree dictionary
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
@@ -320,15 +469,18 @@ export default function DictionaryPage(): ReactElement {
                   }
                   type="checkbox"
                 />
-                允许缓存
+                Cache runtime queries
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <Button onClick={() => setTypeDialogOpen(false)} variant="outline">
-                取消
+              <Button
+                onClick={() => setTypeDialogOpen(false)}
+                variant="outline"
+              >
+                Cancel
               </Button>
-              <Button disabled={createTypeMutation.isPending} type="submit">
-                保存
+              <Button disabled={saveTypeMutation.isPending} type="submit">
+                Save
               </Button>
             </div>
           </form>
@@ -345,11 +497,11 @@ export default function DictionaryPage(): ReactElement {
             onSubmit={submitItem}
           >
             <h2 className="text-lg font-semibold text-slate-950">
-              {editingItem ? '编辑字典项' : '新增字典项'}
+              {editingItem ? 'Edit Dictionary Item' : 'New Dictionary Item'}
             </h2>
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                编码
+                Code
                 <Input
                   disabled={Boolean(editingItem)}
                   onChange={(event) =>
@@ -364,7 +516,7 @@ export default function DictionaryPage(): ReactElement {
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                名称
+                Label
                 <Input
                   onChange={(event) =>
                     setItemDraft((current) => ({
@@ -377,7 +529,44 @@ export default function DictionaryPage(): ReactElement {
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                排序
+                Runtime Value
+                <Input
+                  onChange={(event) =>
+                    setItemDraft((current) => ({
+                      ...current,
+                      value: event.target.value,
+                    }))
+                  }
+                  required
+                  value={itemDraft.value}
+                />
+              </label>
+              {selectedType?.hierarchical ? (
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  Parent
+                  <select
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                    onChange={(event) =>
+                      setItemDraft((current) => ({
+                        ...current,
+                        parentId: event.target.value || undefined,
+                      }))
+                    }
+                    value={itemDraft.parentId ?? ''}
+                  >
+                    <option value="">Root</option>
+                    {flatItems
+                      .filter((item) => item.id && item.id !== editingItem?.id)
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Sort Order
                 <Input
                   min={0}
                   onChange={(event) =>
@@ -390,13 +579,43 @@ export default function DictionaryPage(): ReactElement {
                   value={itemDraft.sortOrder}
                 />
               </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  checked={itemDraft.defaultItem ?? false}
+                  onChange={(event) =>
+                    setItemDraft((current) => ({
+                      ...current,
+                      defaultItem: event.target.checked,
+                    }))
+                  }
+                  type="checkbox"
+                />
+                Default item
+              </label>
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Extension JSON
+                <textarea
+                  className="min-h-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  onChange={(event) =>
+                    setItemDraft((current) => ({
+                      ...current,
+                      extensionJson: event.target.value,
+                    }))
+                  }
+                  placeholder='{"color":"#2563eb"}'
+                  value={itemDraft.extensionJson ?? ''}
+                />
+              </label>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <Button onClick={() => setItemDialogOpen(false)} variant="outline">
-                取消
+              <Button
+                onClick={() => setItemDialogOpen(false)}
+                variant="outline"
+              >
+                Cancel
               </Button>
               <Button disabled={saveItemMutation.isPending} type="submit">
-                保存
+                Save
               </Button>
             </div>
           </form>

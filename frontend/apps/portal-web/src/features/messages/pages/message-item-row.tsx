@@ -8,7 +8,7 @@ import type { MessageNotificationSummary } from '@/features/messages/types/messa
 const COPY = {
   unreadText: '未读',
   readText: '已读',
-  openText: '查看详情',
+  openText: '查看',
 } as const
 
 interface MessageItemRowProps {
@@ -54,7 +54,7 @@ export function MessageItemRow({
           <Badge variant={unread ? 'default' : 'secondary'}>
             {unread ? COPY.unreadText : COPY.readText}
           </Badge>
-          <Badge variant="secondary">{message.type}</Badge>
+          <Badge variant="secondary">{message.category ?? message.type}</Badge>
         </span>
         <span className="line-clamp-2 block text-sm text-slate-500">
           {message.summary}

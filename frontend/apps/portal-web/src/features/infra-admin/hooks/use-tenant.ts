@@ -8,3 +8,11 @@ export function useTenants(query?: InfraListQuery) {
     queryFn: () => tenantService.list(query),
   })
 }
+
+export function useTenantDetail(tenantId?: string) {
+  return useQuery({
+    enabled: Boolean(tenantId),
+    queryKey: ['infra', 'tenants', tenantId],
+    queryFn: () => tenantService.detail(tenantId ?? ''),
+  })
+}

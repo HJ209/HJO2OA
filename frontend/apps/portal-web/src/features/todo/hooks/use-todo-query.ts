@@ -6,13 +6,13 @@ import {
 } from '@/features/todo/services/todo-service'
 import type {
   TodoItemSummary,
+  TodoItemTab,
   TodoSortOption,
-  TodoTab,
 } from '@/features/todo/types/todo'
 
 const TODO_QUERY_KEY = 'todo-items'
 
-function resolveQuery(tab: Exclude<TodoTab, 'copied'>) {
+function resolveQuery(tab: TodoItemTab) {
   if (tab === 'completed') {
     return getCompletedTodos
   }
@@ -61,7 +61,7 @@ function sortTodos(
 }
 
 export function useTodoQuery(
-  tab: Exclude<TodoTab, 'copied'>,
+  tab: TodoItemTab,
   sort: TodoSortOption,
 ): UseQueryResult<TodoItemSummary[]> {
   return useQuery({

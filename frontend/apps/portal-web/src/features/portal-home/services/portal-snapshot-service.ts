@@ -1,5 +1,6 @@
 import { get } from '@/services/request'
 import type {
+  AnnouncementItem,
   MessageItem,
   PortalSnapshot,
 } from '@/features/portal-home/types/portal-home'
@@ -26,6 +27,16 @@ interface PortalDashboardResponse {
       title?: string
       createdAt?: string
       priority?: string
+    }>
+  }>
+  content?: PortalCardSnapshot<{
+    totalCount?: number
+    latestArticles?: Array<{
+      articleId?: string
+      title?: string
+      summary?: string
+      publishedAt?: string
+      authorName?: string
     }>
   }>
 }
@@ -79,7 +90,7 @@ const emptySnapshot: PortalSnapshot = {
 
 export async function fetchPortalSnapshot(): Promise<PortalSnapshot> {
   const dashboard = await get<PortalSnapshot | PortalDashboardResponse>(
-    '/v1/portal/aggregation/dashboard',
+    '/v1/portal/aggregation/dashboard?cards=TODO&cards=MESSAGE&cards=CONTENT',
   )
 
   if (isPortalSnapshot(dashboard)) {
@@ -92,9 +103,9 @@ export async function fetchPortalSnapshot(): Promise<PortalSnapshot> {
 function isPortalSnapshot(value: unknown): value is PortalSnapshot {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'todoSummary' in value &&
-      'messageSummary' in value,
+    typeof value === 'object' &&
+    'todoSummary' in value &&
+    'messageSummary' in value,
   )
 }
 
@@ -103,6 +114,7 @@ function mapDashboardToSnapshot(
 ): PortalSnapshot {
   const todoData = dashboard.todo?.data
   const messageData = dashboard.message?.data
+  const contentData = dashboard.content?.data
   const identityData = dashboard.identity?.data
   const latestMessages = (messageData?.topItems ?? []).map<MessageItem>(
     (item, index) => ({
@@ -112,6 +124,14 @@ function mapDashboardToSnapshot(
       senderName: item.priority,
     }),
   )
+  const latestArticles = (
+    contentData?.latestArticles ?? []
+  ).map<AnnouncementItem>((item, index) => ({
+    id: item.articleId ?? `content-${index}`,
+    title: item.title ?? 'Untitled',
+    publishedAtUtc: item.publishedAt ?? new Date(0).toISOString(),
+    publisherName: item.authorName,
+  }))
 
   return {
     ...emptySnapshot,
@@ -120,6 +140,11 @@ function mapDashboardToSnapshot(
       overdueCount: 0,
       todayDueCount: todoData?.urgentCount ?? 0,
       entryHref: '/todo',
+    },
+    announcementSummary: {
+      totalCount: contentData?.totalCount ?? 0,
+      latest: latestArticles,
+      entryHref: '/content/articles',
     },
     messageSummary: {
       unreadCount: messageData?.unreadCount ?? 0,
@@ -131,7 +156,8 @@ function mapDashboardToSnapshot(
         id: 'identity',
         title: '当前岗位',
         value: identityData?.positionName ?? '未设置',
-        trendText: identityData?.organizationName ?? identityData?.departmentName,
+        trendText:
+          identityData?.organizationName ?? identityData?.departmentName,
       },
       {
         id: 'todo',

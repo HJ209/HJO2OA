@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useIdentityStore } from '@/stores/identity-store'
 import { BizError, resolveErrorCode } from '@/services/error-mapper'
 import type { ApiResponse, BackendApiResponse } from '@/types/api'
-import { getUserTimezone } from '@/utils/format-time'
+import { getUserLocale, getUserTimezone } from '@/utils/format-time'
 
 const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete'])
 
@@ -94,6 +94,10 @@ function normalizeApiResponse<T>(
       errorCode,
       timestamp: payload.meta?.timestamp,
       serverTimezone: payload.meta?.serverTimezone,
+      tenantId: payload.meta?.tenantId,
+      language: payload.meta?.language,
+      timezone: payload.meta?.timezone,
+      idempotencyKey: payload.meta?.idempotencyKey,
     },
   }
 }
@@ -111,7 +115,7 @@ function toBizError<T>(payload: ApiResponse<T>, status?: number): BizError {
 function isUuid(value: string | null | undefined): value is string {
   return Boolean(
     value &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       value,
     ),
   )
@@ -144,6 +148,27 @@ function decodeJwtTenantId(token: string | null | undefined): string | null {
   }
 }
 
+function isAuthRequest(url: string | undefined): boolean {
+  if (!url) {
+    return false
+  }
+
+  const path = (() => {
+    try {
+      return new URL(url, 'http://hjo2oa.local').pathname
+    } catch {
+      return url.split('?', 1)[0] ?? ''
+    }
+  })()
+  const segments = path.split('/').filter(Boolean)
+  const contractOffset = segments[0] === 'api' ? 1 : 0
+
+  return (
+    segments[contractOffset] === 'v1' &&
+    segments[contractOffset + 1] === 'auth'
+  )
+}
+
 function resolveTenantId(
   authState: ReturnType<typeof useAuthStore.getState>,
 ): string | null {
@@ -163,6 +188,7 @@ function applyRequestHeaders(
   const method = config.method?.toLowerCase()
   const authState = useAuthStore.getState()
   const identityState = useIdentityStore.getState()
+  const skipIdentityHeaders = isAuthRequest(config.url)
 
   if (!readHeader(headers, 'X-Request-Id')) {
     headers.set('X-Request-Id', generateClientId())
@@ -177,7 +203,8 @@ function applyRequestHeaders(
   if (!readHeader(headers, 'Accept-Language')) {
     headers.set(
       'Accept-Language',
-      authState.user?.locale ??
+      getUserLocale() ??
+        authState.user?.locale ??
         navigator.language ??
         import.meta.env.VITE_DEFAULT_LOCALE ??
         'zh-CN',
@@ -188,18 +215,43 @@ function applyRequestHeaders(
     headers.set('X-Timezone', getUserTimezone())
   }
 
-  if (authState.token && !readHeader(headers, 'Authorization')) {
+  if (
+    authState.token &&
+    !skipIdentityHeaders &&
+    !readHeader(headers, 'Authorization')
+  ) {
     headers.set('Authorization', `Bearer ${authState.token}`)
   }
 
   if (
-    identityState.currentAssignment?.assignmentId &&
+    !skipIdentityHeaders &&
+    isUuid(identityState.currentAssignment?.assignmentId) &&
     !readHeader(headers, 'X-Identity-Assignment-Id')
   ) {
     headers.set(
       'X-Identity-Assignment-Id',
       identityState.currentAssignment.assignmentId,
     )
+  }
+
+  if (
+    !skipIdentityHeaders &&
+    isUuid(identityState.currentAssignment?.positionId) &&
+    !readHeader(headers, 'X-Identity-Position-Id')
+  ) {
+    headers.set(
+      'X-Identity-Position-Id',
+      identityState.currentAssignment.positionId,
+    )
+  }
+
+  if (!readHeader(headers, 'X-Person-Id')) {
+    const personId =
+      authState.user?.id ?? identityState.currentAssignment?.assignmentId
+
+    if (isUuid(personId)) {
+      headers.set('X-Person-Id', personId)
+    }
   }
 
   if (

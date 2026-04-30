@@ -1,15 +1,15 @@
 import type { ApiErrorDetail } from '@/types/api'
 
 const ERROR_MESSAGE_MAP = {
-  RESOURCE_NOT_FOUND: '请求的资源不存在，请刷新后重试',
-  VALIDATION_ERROR: '提交信息不完整或格式不正确，请检查后重试',
-  UNAUTHORIZED: '登录状态已失效，请重新登录',
-  FORBIDDEN: '当前身份暂无访问权限，请切换身份或联系管理员',
-  BUSINESS_RULE_VIOLATION: '当前操作不满足业务规则，请确认后再提交',
-  INTERNAL_ERROR: '系统暂时不可用，请稍后重试',
-  SERVICE_UNAVAILABLE: '服务暂不可用，请稍后重试',
-  NETWORK_ERROR: '网络连接异常，请检查网络后重试',
-  UNKNOWN: '系统处理请求时发生异常，请稍后重试',
+  RESOURCE_NOT_FOUND: 'The requested resource was not found.',
+  VALIDATION_ERROR: 'The submitted data is incomplete or invalid.',
+  UNAUTHORIZED: 'Your session has expired. Please sign in again.',
+  FORBIDDEN: 'You do not have permission to perform this action.',
+  BUSINESS_RULE_VIOLATION: 'The operation does not satisfy the business rules.',
+  INTERNAL_ERROR: 'The service encountered an internal error.',
+  SERVICE_UNAVAILABLE: 'The service is temporarily unavailable.',
+  NETWORK_ERROR: 'The network request failed.',
+  UNKNOWN: 'The request could not be completed.',
 } as const
 
 type KnownErrorCode = keyof typeof ERROR_MESSAGE_MAP
@@ -66,7 +66,10 @@ export class BizError extends Error {
 
   constructor(options: BizErrorOptions) {
     const resolvedCode = resolveErrorCode(options.code, options.status)
-    super(mapErrorCodeToMessage(resolvedCode, options.status))
+    super(
+      options.backendMessage?.trim() ||
+        mapErrorCodeToMessage(resolvedCode, options.status),
+    )
     this.name = 'BizError'
     this.code = resolvedCode
     this.requestId = options.requestId

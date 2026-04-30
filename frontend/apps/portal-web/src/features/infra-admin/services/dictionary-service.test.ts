@@ -21,10 +21,12 @@ const mockedPut = vi.mocked(put)
 const backendType = {
   id: 'type-1',
   code: 'person_status',
-  name: '人员状态',
+  name: 'Person Status',
   category: 'org',
-  hierarchical: false,
+  hierarchical: true,
   cacheable: true,
+  sortOrder: 3,
+  systemManaged: false,
   status: 'ACTIVE',
   tenantId: null,
   updatedAt: '2026-04-29T01:00:00Z',
@@ -33,11 +35,13 @@ const backendType = {
       id: 'item-1',
       dictionaryTypeId: 'type-1',
       itemCode: 'ACTIVE',
-      displayName: '启用',
+      displayName: 'Active',
       parentItemId: null,
       sortOrder: 1,
       enabled: true,
-      multiLangValue: null,
+      multiLangValue: 'active',
+      defaultItem: true,
+      extensionJson: '{"color":"green"}',
     },
   ],
 }
@@ -47,7 +51,7 @@ describe('dictionaryService', () => {
     vi.clearAllMocks()
   })
 
-  it('lists backend dictionary types and maps to page data', async () => {
+  it('lists backend dictionary types with system and sort metadata', async () => {
     mockedGet.mockResolvedValueOnce([backendType])
 
     const page = await dictionaryService.listTypes({
@@ -60,32 +64,34 @@ describe('dictionaryService', () => {
       params: { includeDisabled: true },
     })
     expect(page.items).toEqual([
-      {
+      expect.objectContaining({
         id: 'type-1',
         code: 'person_status',
-        name: '人员状态',
-        category: 'org',
-        hierarchical: false,
+        name: 'Person Status',
+        hierarchical: true,
         cacheable: true,
+        sortOrder: 3,
+        systemManaged: false,
         status: 'enabled',
-        updatedAt: '2026-04-29T01:00:00Z',
-      },
+      }),
     ])
   })
 
-  it('creates and toggles dictionary types with backend ids', async () => {
+  it('creates, updates and toggles dictionary types through backend ids', async () => {
     const payload: DictionaryType = {
       code: 'person_status',
-      name: '人员状态',
+      name: 'Person Status',
       category: 'org',
-      hierarchical: false,
+      hierarchical: true,
       cacheable: true,
+      sortOrder: 3,
       status: 'enabled',
     }
     mockedPost.mockResolvedValueOnce(backendType)
     mockedPut.mockResolvedValue(backendType)
 
     await dictionaryService.createType(payload)
+    await dictionaryService.updateType('type-1', payload)
     await dictionaryService.disableType('type-1')
     await dictionaryService.enableType('type-1')
 
@@ -93,12 +99,25 @@ describe('dictionaryService', () => {
       '/v1/infra/dictionaries',
       {
         code: 'person_status',
-        name: '人员状态',
+        name: 'Person Status',
         category: 'org',
-        hierarchical: false,
+        hierarchical: true,
         cacheable: true,
+        sortOrder: 3,
+        tenantId: undefined,
       },
       { dedupeKey: 'dictionary-type:create:person_status' },
+    )
+    expect(mockedPut).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/type-1',
+      {
+        name: 'Person Status',
+        category: 'org',
+        hierarchical: true,
+        cacheable: true,
+        sortOrder: 3,
+      },
+      { dedupeKey: 'dictionary-type:update:type-1' },
     )
     expect(mockedPut).toHaveBeenCalledWith(
       '/v1/infra/dictionaries/type-1/disable',
@@ -112,13 +131,16 @@ describe('dictionaryService', () => {
     )
   })
 
-  it('lists and mutates dictionary items under the selected backend type', async () => {
+  it('lists and mutates tree dictionary items with default and extension data', async () => {
     const payload: DictionaryItem = {
       code: 'ACTIVE',
-      label: '启用',
-      value: 'ACTIVE',
+      label: 'Active',
+      value: 'active',
+      parentId: 'parent-1',
       sortOrder: 1,
       enabled: true,
+      defaultItem: true,
+      extensionJson: '{"color":"green"}',
     }
     mockedGet.mockResolvedValueOnce(backendType)
     mockedPost.mockResolvedValueOnce(backendType)
@@ -139,15 +161,25 @@ describe('dictionaryService', () => {
       '/v1/infra/dictionaries/type-1/items',
       {
         itemCode: 'ACTIVE',
-        displayName: '启用',
-        parentItemId: undefined,
+        displayName: 'Active',
+        parentItemId: 'parent-1',
         sortOrder: 1,
+        defaultItem: true,
+        multiLangValue: 'active',
+        extensionJson: '{"color":"green"}',
       },
       { dedupeKey: 'dictionary-item:create:type-1:ACTIVE' },
     )
     expect(mockedPut).toHaveBeenCalledWith(
       '/v1/infra/dictionaries/type-1/items/item-1',
-      { displayName: '启用', sortOrder: 1 },
+      {
+        displayName: 'Active',
+        parentItemId: 'parent-1',
+        sortOrder: 1,
+        defaultItem: true,
+        multiLangValue: 'active',
+        extensionJson: '{"color":"green"}',
+      },
       { dedupeKey: 'dictionary-item:update:type-1:item-1' },
     )
     expect(mockedPut).toHaveBeenCalledWith(
@@ -166,13 +198,99 @@ describe('dictionaryService', () => {
     )
   })
 
-  it('previews and imports system enums', async () => {
+  it('uses runtime dictionary APIs for items, tree, batch and refresh', async () => {
+    const runtimeItem = {
+      id: 'item-1',
+      code: 'ACTIVE',
+      label: 'Active',
+      value: 'active',
+      parentId: null,
+      sortOrder: 1,
+      enabled: true,
+      defaultItem: true,
+      extensionJson: null,
+      children: [],
+    }
+    mockedGet
+      .mockResolvedValueOnce([runtimeItem])
+      .mockResolvedValueOnce([runtimeItem])
+    mockedPost
+      .mockResolvedValueOnce({
+        person_status: {
+          id: 'type-1',
+          code: 'person_status',
+          name: 'Person Status',
+          hierarchical: false,
+          language: 'en-US',
+          items: [runtimeItem],
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'type-1',
+        code: 'person_status',
+        name: 'Person Status',
+        hierarchical: false,
+        language: 'en-US',
+        items: [runtimeItem],
+      })
+
+    const runtimeItems =
+      await dictionaryService.listRuntimeItems('person_status')
+    const tree = await dictionaryService.tree('person_status', {
+      enabledOnly: false,
+    })
+    const batch = await dictionaryService.batchRuntime(['person_status'], {
+      language: 'en-US',
+    })
+    const refreshed = await dictionaryService.refreshCache('person_status')
+
+    expect(runtimeItems[0]).toEqual(
+      expect.objectContaining({ value: 'active' }),
+    )
+    expect(tree[0]).toEqual(expect.objectContaining({ code: 'ACTIVE' }))
+    expect(batch.person_status).toHaveLength(1)
+    expect(refreshed).toHaveLength(1)
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/person_status/items',
+      {
+        params: { enabledOnly: true, language: undefined },
+      },
+    )
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/person_status/tree',
+      {
+        params: { enabledOnly: false, language: undefined },
+      },
+    )
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/batch',
+      { codes: ['person_status'], enabledOnly: true, tree: false },
+      {
+        params: { language: 'en-US' },
+        dedupeKey: 'dictionary-runtime:batch:person_status',
+      },
+    )
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/person_status/cache/refresh',
+      undefined,
+      {
+        params: { tree: true, language: undefined },
+        dedupeKey: 'dictionary-runtime:refresh:person_status',
+      },
+    )
+  })
+
+  it('previews and imports system enum diffs', async () => {
     mockedGet.mockResolvedValueOnce([
       {
         code: 'system.enum.person_status.abc123',
         name: 'PersonStatus',
         className: 'com.hjo2oa.org.person.account.domain.PersonStatus',
         category: 'system-enum',
+        imported: true,
+        newItemCodes: ['ACTIVE'],
+        changedItemCodes: [],
+        disabledItemCodes: [],
         items: [{ code: 'ACTIVE', name: 'Active', sortOrder: 0 }],
       },
     ])
@@ -180,15 +298,19 @@ describe('dictionaryService', () => {
       discoveredTypes: 1,
       createdTypes: 1,
       createdItems: 1,
+      updatedItems: 0,
+      disabledItems: 0,
       importedCodes: ['system.enum.person_status.abc123'],
     })
 
     const preview = await dictionaryService.previewSystemEnums()
     const result = await dictionaryService.importSystemEnums()
 
-    expect(preview).toHaveLength(1)
+    expect(preview[0].newItemCodes).toEqual(['ACTIVE'])
     expect(result.createdItems).toBe(1)
-    expect(mockedGet).toHaveBeenCalledWith('/v1/infra/dictionaries/system-enums')
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/v1/infra/dictionaries/system-enums',
+    )
     expect(mockedPost).toHaveBeenCalledWith(
       '/v1/infra/dictionaries/system-enums/import',
       undefined,

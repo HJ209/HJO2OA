@@ -41,7 +41,7 @@ describe('configService', () => {
       expect.objectContaining({ params: expect.any(URLSearchParams) }),
     )
     expect(page.items).toEqual([
-      {
+      expect.objectContaining({
         id: 'entry-1',
         key: 'regression.browser',
         value: 'created',
@@ -49,7 +49,7 @@ describe('configService', () => {
         description: undefined,
         encrypted: false,
         updatedAt: '2026-04-29T01:00:00Z',
-      },
+      }),
     ])
     expect(page.pagination.total).toBe(1)
   })

@@ -5,42 +5,41 @@ import {
   toPageData,
 } from '@/features/org-perm/services/service-utils'
 import type {
+  Account,
+  AccountPayload,
+  AccountStatus,
   ListQuery,
   PersonAccount,
+  PersonAccountDetail,
   PersonAccountPayload,
+  PersonProfile,
 } from '@/features/org-perm/types/org-perm'
 
-const PERSON_URL = '/v1/org/person-accounts/persons'
-
-interface BackendPersonResponse {
-  id: string
-  employeeNo: string
-  name: string
-  mobile?: string | null
-  email?: string | null
-  organizationId?: string | null
-  status: 'ACTIVE' | 'DISABLED' | 'RESIGNED'
-  updatedAt?: string
-}
-
-interface BackendAccountResponse {
-  id: string
-  username: string
-  primaryAccount: boolean
-  locked: boolean
-  status: 'ACTIVE' | 'LOCKED' | 'DISABLED'
-}
+const BASE_URL = '/v1/org/person-accounts'
+const PERSON_URL = `${BASE_URL}/persons`
+const ACCOUNT_URL = `${BASE_URL}/accounts`
 
 interface BackendPersonAccountResponse {
-  person: BackendPersonResponse
-  accounts: BackendAccountResponse[]
+  person: PersonProfile
+  accounts: Account[]
+}
+
+interface BackendExportResponse {
+  persons: PersonProfile[]
+  personAccounts: BackendPersonAccountResponse[]
+}
+
+function tenantParams(tenantId: string): URLSearchParams {
+  const params = new URLSearchParams()
+  params.set('tenantId', tenantId)
+  return params
 }
 
 function mapPersonStatus(
-  person: BackendPersonResponse,
-  primaryAccount?: BackendAccountResponse,
-): PersonAccount['status'] {
-  if (primaryAccount?.locked || primaryAccount?.status === 'LOCKED') {
+  person: PersonProfile,
+  primaryAccount?: Account,
+): AccountStatus {
+  if (primaryAccount?.locked) {
     return 'LOCKED'
   }
 
@@ -52,7 +51,7 @@ function mapPersonStatus(
 }
 
 function mapPersonAccountResponse(
-  item: BackendPersonResponse | BackendPersonAccountResponse,
+  item: PersonProfile | BackendPersonAccountResponse,
 ): PersonAccount {
   const person = 'person' in item ? item.person : item
   const primaryAccount =
@@ -65,11 +64,14 @@ function mapPersonAccountResponse(
     id: person.id,
     accountName: primaryAccount?.username ?? person.employeeNo,
     displayName: person.name,
+    employeeNo: person.employeeNo,
     email: person.email ?? undefined,
     mobile: person.mobile ?? undefined,
-    orgId: person.organizationId ?? undefined,
-    orgName: person.organizationId ?? undefined,
+    orgId: person.organizationId,
+    orgName: person.organizationId,
+    departmentId: person.departmentId ?? undefined,
     status: mapPersonStatus(person, primaryAccount),
+    personStatus: person.status,
     updatedAtUtc: person.updatedAt,
   }
 }
@@ -85,7 +87,15 @@ function filterPersonAccounts(
   }
 
   return items.filter((item) =>
-    [item.accountName, item.displayName, item.email, item.mobile, item.orgId]
+    [
+      item.accountName,
+      item.displayName,
+      item.employeeNo,
+      item.email,
+      item.mobile,
+      item.orgId,
+      item.departmentId,
+    ]
       .filter(Boolean)
       .some((value) => value?.toLowerCase().includes(keyword)),
   )
@@ -95,9 +105,9 @@ export async function listPersonAccounts(
   query: ListQuery = {},
 ): Promise<PageData<PersonAccount>> {
   const tenantId = await resolveCurrentTenantId()
-  const params = new URLSearchParams()
-  params.set('tenantId', tenantId)
-  const items = await get<BackendPersonResponse[]>(PERSON_URL, { params })
+  const items = await get<PersonProfile[]>(PERSON_URL, {
+    params: tenantParams(tenantId),
+  })
   const mappedItems = filterPersonAccounts(
     items.map(mapPersonAccountResponse),
     query,
@@ -110,6 +120,12 @@ export async function getPersonAccount(id: string): Promise<PersonAccount> {
   const item = await get<BackendPersonAccountResponse>(`${PERSON_URL}/${id}`)
 
   return mapPersonAccountResponse(item)
+}
+
+export async function getPersonAccountDetail(
+  id: string,
+): Promise<PersonAccountDetail> {
+  return get<BackendPersonAccountResponse>(`${PERSON_URL}/${id}`)
 }
 
 export async function createPersonAccount(
@@ -125,6 +141,7 @@ export async function createPersonAccount(
       mobile?: string
       email?: string
       organizationId?: string
+      departmentId?: string
       tenantId: string
     }
   >(
@@ -135,6 +152,7 @@ export async function createPersonAccount(
       mobile: payload.mobile,
       email: payload.email,
       organizationId: payload.orgId,
+      departmentId: payload.departmentId,
       tenantId,
     },
     {
@@ -158,6 +176,7 @@ export async function updatePersonAccount(
       mobile?: string
       email?: string
       organizationId?: string
+      departmentId?: string
     }
   >(
     `${PERSON_URL}/${id}`,
@@ -166,6 +185,7 @@ export async function updatePersonAccount(
       mobile: payload.mobile,
       email: payload.email,
       organizationId: payload.orgId,
+      departmentId: payload.departmentId,
     },
     {
       dedupeKey: `person:update:${id}`,
@@ -176,8 +196,112 @@ export async function updatePersonAccount(
   return mapPersonAccountResponse(item)
 }
 
+export function activatePerson(id: string): Promise<PersonAccountDetail> {
+  return put<BackendPersonAccountResponse, Record<string, never>>(
+    `${PERSON_URL}/${id}/activate`,
+    {},
+    { dedupeKey: `person:activate:${id}` },
+  )
+}
+
+export function disablePerson(id: string): Promise<PersonAccountDetail> {
+  return put<BackendPersonAccountResponse, Record<string, never>>(
+    `${PERSON_URL}/${id}/disable`,
+    {},
+    { dedupeKey: `person:disable:${id}` },
+  )
+}
+
+export function resignPerson(id: string): Promise<PersonAccountDetail> {
+  return put<BackendPersonAccountResponse, Record<string, never>>(
+    `${PERSON_URL}/${id}/resign`,
+    {},
+    { dedupeKey: `person:resign:${id}` },
+  )
+}
+
 export async function deletePersonAccount(id: string): Promise<void> {
   await del<void>(`${PERSON_URL}/${id}`, {
     dedupeKey: `person:delete:${id}`,
   })
+}
+
+export function createAccount(
+  personId: string,
+  payload: AccountPayload,
+  idempotencyKey?: string,
+): Promise<PersonAccountDetail> {
+  return post<BackendPersonAccountResponse, AccountPayload>(
+    `${PERSON_URL}/${personId}/accounts`,
+    payload,
+    {
+      dedupeKey: `account:create:${personId}:${payload.username}`,
+      idempotencyKey,
+    },
+  )
+}
+
+export function resetAccountCredential(
+  accountId: string,
+  credential: string,
+  mustChangePassword = true,
+): Promise<Account> {
+  return put<Account, { credential: string; mustChangePassword: boolean }>(
+    `${ACCOUNT_URL}/${accountId}/credential`,
+    { credential, mustChangePassword },
+    { dedupeKey: `account:reset:${accountId}` },
+  )
+}
+
+export function lockAccount(
+  accountId: string,
+  lockedUntil?: string | null,
+): Promise<Account> {
+  return put<Account, { lockedUntil?: string | null }>(
+    `${ACCOUNT_URL}/${accountId}/lock`,
+    { lockedUntil },
+    { dedupeKey: `account:lock:${accountId}` },
+  )
+}
+
+export function unlockAccount(accountId: string): Promise<Account> {
+  return put<Account, Record<string, never>>(
+    `${ACCOUNT_URL}/${accountId}/unlock`,
+    {},
+    { dedupeKey: `account:unlock:${accountId}` },
+  )
+}
+
+export function disableAccount(accountId: string): Promise<Account> {
+  return put<Account, Record<string, never>>(
+    `${ACCOUNT_URL}/${accountId}/disable`,
+    {},
+    { dedupeKey: `account:disable:${accountId}` },
+  )
+}
+
+export function activateAccount(accountId: string): Promise<Account> {
+  return put<Account, Record<string, never>>(
+    `${ACCOUNT_URL}/${accountId}/activate`,
+    {},
+    { dedupeKey: `account:activate:${accountId}` },
+  )
+}
+
+export function setPrimaryAccount(
+  personId: string,
+  accountId: string,
+): Promise<PersonAccountDetail> {
+  return put<BackendPersonAccountResponse, Record<string, never>>(
+    `${PERSON_URL}/${personId}/accounts/${accountId}/primary`,
+    {},
+    { dedupeKey: `account:primary:${personId}:${accountId}` },
+  )
+}
+
+export async function exportPersonAccounts(): Promise<{
+  persons: PersonProfile[]
+  personAccounts: PersonAccountDetail[]
+}> {
+  return get<BackendExportResponse>(`${BASE_URL}/export`)
 }

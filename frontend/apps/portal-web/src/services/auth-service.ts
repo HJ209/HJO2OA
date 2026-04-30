@@ -19,13 +19,17 @@ interface LoginResponse {
 function isUuid(value: string | null | undefined): value is string {
   return Boolean(
     value &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       value,
     ),
   )
 }
 
 function decodeJwtTenantId(token: string): string | null {
+  return decodeJwtStringClaim(token, 'tenantId')
+}
+
+function decodeJwtStringClaim(token: string, claim: string): string | null {
   const segments = token.split('.')
 
   if (segments.length < 2) {
@@ -39,10 +43,9 @@ function decodeJwtTenantId(token: string): string | null {
       '=',
     )
     const payload = JSON.parse(atob(paddedPayload)) as Record<string, unknown>
-    const tenantId =
-      typeof payload.tenantId === 'string' ? payload.tenantId : null
+    const value = typeof payload[claim] === 'string' ? payload[claim] : null
 
-    return isUuid(tenantId) ? tenantId : null
+    return isUuid(value) ? value : null
   } catch {
     return null
   }
@@ -70,7 +73,7 @@ export async function login(
   password: string,
 ): Promise<AuthSession> {
   const loginResponse = await post<LoginResponse, LoginRequest>(
-    '/auth/login',
+    '/v1/auth/login',
     { username, password },
     {
       dedupeKey: `auth-login:${username}`,
@@ -78,7 +81,7 @@ export async function login(
   )
 
   return toAuthSession(loginResponse, {
-    id: '',
+    id: decodeJwtStringClaim(loginResponse.token, 'sub') ?? '',
     accountName: username,
     displayName: username,
     tenantId: resolveSessionTenantId(loginResponse.token),
@@ -88,7 +91,7 @@ export async function login(
 
 export async function logout(): Promise<void> {
   await post<void, Record<string, never>>(
-    '/auth/logout',
+    '/v1/auth/logout',
     {},
     {
       dedupeKey: 'auth-logout',
@@ -98,7 +101,7 @@ export async function logout(): Promise<void> {
 
 export async function refreshToken(tokenValue: string): Promise<AuthSession> {
   const loginResponse = await post<LoginResponse, RefreshRequest>(
-    '/auth/refresh',
+    '/v1/auth/refresh',
     { token: tokenValue },
     {
       dedupeKey: 'auth-refresh-token',
@@ -106,7 +109,7 @@ export async function refreshToken(tokenValue: string): Promise<AuthSession> {
   )
 
   return toAuthSession(loginResponse, {
-    id: '',
+    id: decodeJwtStringClaim(loginResponse.token, 'sub') ?? '',
     accountName: '',
     displayName: '',
     tenantId: resolveSessionTenantId(loginResponse.token),

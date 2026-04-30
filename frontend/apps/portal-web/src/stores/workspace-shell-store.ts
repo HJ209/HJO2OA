@@ -34,8 +34,13 @@ function createDefaultLastPaths(): Record<WorkspaceAppKey, string> {
   return {
     home: getDefaultWorkspacePath('home'),
     messages: getDefaultWorkspacePath('messages'),
+    collaboration: getDefaultWorkspacePath('collaboration'),
+    content: getDefaultWorkspacePath('content'),
     docs: getDefaultWorkspacePath('docs'),
     todo: getDefaultWorkspacePath('todo'),
+    workflow: getDefaultWorkspacePath('workflow'),
+    portal: getDefaultWorkspacePath('portal'),
+    data: getDefaultWorkspacePath('data'),
     org: getDefaultWorkspacePath('org'),
     admin: getDefaultWorkspacePath('admin'),
   }

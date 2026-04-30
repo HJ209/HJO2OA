@@ -11,13 +11,14 @@ describe('DictTypeList', () => {
         items={[
           {
             code: 'status',
-            name: '状态',
+            name: 'Status',
             status: 'enabled',
           },
           {
             code: 'priority',
-            name: '优先级',
+            name: 'Priority',
             status: 'enabled',
+            systemManaged: true,
           },
         ]}
         onSelect={onSelect}
@@ -25,9 +26,10 @@ describe('DictTypeList', () => {
       />,
     )
 
-    expect(screen.getByText('字典类型')).toBeInTheDocument()
-    expect(screen.getByText('状态')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('优先级'))
+    expect(screen.getByText('Dictionary Types')).toBeInTheDocument()
+    expect(screen.getByText('Status')).toBeInTheDocument()
+    expect(screen.getByText('priority / system')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Priority'))
     expect(onSelect).toHaveBeenCalledWith('priority')
   })
 })

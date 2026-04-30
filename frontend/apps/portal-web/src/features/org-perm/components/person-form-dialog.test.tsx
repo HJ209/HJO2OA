@@ -2,28 +2,28 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { PersonFormDialog } from '@/features/org-perm/components/person-form-dialog'
 
-vi.mock('@/features/infra-admin/hooks/use-dictionary', () => ({
-  useSystemEnumOptions: () => ({ data: [] }),
-}))
-
 describe('PersonFormDialog', () => {
   it('renders create form and submits payload', () => {
     const onSubmit = vi.fn()
 
     render(<PersonFormDialog onClose={vi.fn()} onSubmit={onSubmit} open />)
 
-    fireEvent.change(screen.getByLabelText('登录账号'), {
+    fireEvent.change(screen.getByLabelText('Login account'), {
       target: { value: 'zhangsan' },
     })
-    fireEvent.change(screen.getByLabelText('显示名称'), {
-      target: { value: '张三' },
+    fireEvent.change(screen.getByLabelText('Display name'), {
+      target: { value: 'Zhang San' },
     })
-    fireEvent.click(screen.getByText('保存'))
+    fireEvent.change(screen.getByLabelText('Organization ID'), {
+      target: { value: 'org-1' },
+    })
+    fireEvent.click(screen.getByText('Save'))
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         accountName: 'zhangsan',
-        displayName: '张三',
+        displayName: 'Zhang San',
+        orgId: 'org-1',
         status: 'ACTIVE',
       }),
     )

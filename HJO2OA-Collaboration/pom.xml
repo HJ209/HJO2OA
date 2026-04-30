@@ -16,6 +16,7 @@
     <name>HJO2OA-Collaboration</name>
 
     <modules>
+        <module>HJO2OA-CollaborationHub</module>
         <module>HJO2OA-DocumentMgmt</module>
         <module>HJO2OA-MeetingMgmt</module>
         <module>HJO2OA-ScheduleTask</module>
