@@ -101,8 +101,7 @@ public class MybatisDataServiceDefinitionRepository implements DataServiceDefini
     public java.util.Optional<DataServiceDefinition> findByCode(UUID tenantId, String code) {
         LambdaQueryWrapper<DataServiceDefinitionEntity> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(DataServiceDefinitionEntity::getTenantId, tenantId)
-                .eq(DataServiceDefinitionEntity::getCode, code)
-                .last("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY");
+                .eq(DataServiceDefinitionEntity::getCode, code);
         DataServiceDefinitionEntity entity = definitionMapper.selectOne(wrapper);
         if (entity == null) {
             return java.util.Optional.empty();
@@ -115,8 +114,7 @@ public class MybatisDataServiceDefinitionRepository implements DataServiceDefini
         LambdaQueryWrapper<DataServiceDefinitionEntity> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(DataServiceDefinitionEntity::getTenantId, tenantId)
                 .eq(DataServiceDefinitionEntity::getCode, code)
-                .eq(DataServiceDefinitionEntity::getStatus, DataServiceDefinition.Status.ACTIVE.name())
-                .last("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY");
+                .eq(DataServiceDefinitionEntity::getStatus, DataServiceDefinition.Status.ACTIVE.name());
         DataServiceDefinitionEntity entity = definitionMapper.selectOne(wrapper);
         if (entity == null) {
             return java.util.Optional.empty();
