@@ -313,6 +313,13 @@ function ContentManagementContent(): ReactElement {
     publishMutation.isPending ||
     simpleActionMutation.isPending ||
     rollbackMutation.isPending
+  const operationError =
+    categoryMutation.error ??
+    categoryToggleMutation.error ??
+    saveArticleMutation.error ??
+    publishMutation.error ??
+    simpleActionMutation.error ??
+    rollbackMutation.error
 
   const updateArticleDraft = <TKey extends keyof UpsertArticleInput>(
     key: TKey,
@@ -369,6 +376,12 @@ function ContentManagementContent(): ReactElement {
           </Button>
         </div>
       </section>
+
+      {operationError ? (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {String(operationError)}
+        </p>
+      ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">

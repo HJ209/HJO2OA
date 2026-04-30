@@ -28,7 +28,7 @@ export default function AppRoutes(): ReactElement {
             <Route element={<WorkspacePage />} index />
             <Route element={<WorkspacePage />} path="docs" />
             <Route element={<WorkspacePage />} path="todo" />
-            <Route element={<WorkspacePage />} path="workflow" />
+            <Route element={<WorkspacePage />} path="workflow/*" />
             <Route element={<WorkspacePage />} path="messages" />
             <Route element={<WorkspacePage />} path="collaboration" />
             <Route element={<WorkspacePage />} path="content/*" />

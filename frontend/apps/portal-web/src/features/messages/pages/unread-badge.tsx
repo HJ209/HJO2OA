@@ -1,5 +1,4 @@
-import { useState, type ReactElement } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { useUnreadCount } from '@/features/messages/hooks/use-unread-count'
 
 interface UnreadBadgeProps {
@@ -31,32 +30,11 @@ export function UnreadBadge({ count }: UnreadBadgeProps): ReactElement | null {
     return <UnreadBadgeCount count={count} />
   }
 
-  return <UnreadBadgeWithProvider />
+  return <UnreadBadgeQueryContent />
 }
 
 function UnreadBadgeQueryContent(): ReactElement | null {
   const unreadCountQuery = useUnreadCount()
 
   return <UnreadBadgeCount count={unreadCountQuery.data?.count ?? 0} />
-}
-
-function UnreadBadgeWithProvider(): ReactElement {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            retry: 1,
-            refetchOnWindowFocus: false,
-            staleTime: 30000,
-          },
-        },
-      }),
-  )
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <UnreadBadgeQueryContent />
-    </QueryClientProvider>
-  )
 }

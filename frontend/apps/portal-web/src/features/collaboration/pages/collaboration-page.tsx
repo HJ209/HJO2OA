@@ -546,6 +546,7 @@ function WorkspacePanel({
               <div className="space-y-1">
                 <FieldLabel>空间编码</FieldLabel>
                 <Input
+                  aria-label="空间编码"
                   onChange={(event) =>
                     onWorkspaceFormChange({ code: event.target.value })
                   }
@@ -556,6 +557,7 @@ function WorkspacePanel({
               <div className="space-y-1">
                 <FieldLabel>空间名称</FieldLabel>
                 <Input
+                  aria-label="空间名称"
                   onChange={(event) =>
                     onWorkspaceFormChange({ name: event.target.value })
                   }
@@ -567,6 +569,7 @@ function WorkspacePanel({
             <div className="space-y-1">
               <FieldLabel>描述</FieldLabel>
               <TextArea
+                aria-label="空间描述"
                 onChange={(event) =>
                   onWorkspaceFormChange({ description: event.target.value })
                 }
@@ -1130,7 +1133,10 @@ function TaskPanel({
                 />
               </div>
             </div>
-            <Button disabled={isCreating || !workspace} type="submit">
+            <Button
+              disabled={isCreating || !workspace || !taskForm.assigneeIds[0]}
+              type="submit"
+            >
               <Plus className="h-4 w-4" />
               创建任务
             </Button>

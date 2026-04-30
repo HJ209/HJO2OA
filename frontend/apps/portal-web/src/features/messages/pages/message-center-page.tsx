@@ -1,5 +1,4 @@
 import { useState, type ReactElement } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Bell, Inbox, PlugZap, Settings, Workflow } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -137,22 +136,5 @@ function MessageCenterContent(): ReactElement {
 }
 
 export default function MessageCenterPage(): ReactElement {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            retry: 1,
-            refetchOnWindowFocus: false,
-            staleTime: 30000,
-          },
-        },
-      }),
-  )
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <MessageCenterContent />
-    </QueryClientProvider>
-  )
+  return <MessageCenterContent />
 }
