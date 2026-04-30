@@ -36,6 +36,8 @@
 
 ## 当前索引
 
+- `o2oa-application-layer-analysis.md`
+
 ### architecture
 
 - `architecture/backend-architecture-spec.md`
