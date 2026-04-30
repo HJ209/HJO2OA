@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/data-services/runtime/{serviceCode}")
+@RequestMapping({"/api/v1/data/services/runtime/{serviceCode}", "/api/v1/data-services/runtime/{serviceCode}"})
 public class DataServiceInvocationController {
 
     private final DataServiceInvocationApplicationService applicationService;

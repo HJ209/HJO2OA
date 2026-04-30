@@ -4,6 +4,7 @@ import com.hjo2oa.data.report.domain.ReportAnalysisQuery;
 import com.hjo2oa.data.report.domain.ReportCardDataSource;
 import com.hjo2oa.data.report.domain.ReportCardProtocol;
 import com.hjo2oa.data.report.domain.ReportCardType;
+import com.hjo2oa.data.report.domain.ReportDataRecord;
 import com.hjo2oa.data.report.domain.ReportDefinition;
 import com.hjo2oa.data.report.domain.ReportDefinitionRepository;
 import com.hjo2oa.data.report.domain.ReportFreshnessStatus;
@@ -20,8 +21,12 @@ import com.hjo2oa.data.report.domain.ReportSummaryView;
 import com.hjo2oa.data.report.domain.ReportTrendPoint;
 import com.hjo2oa.data.report.domain.ReportTrendView;
 import com.hjo2oa.shared.kernel.BizException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeSet;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -190,6 +195,30 @@ public class ReportQueryApplicationService {
         return reportSnapshotRepository.pageByReportId(reportDefinition.id(), page, size);
     }
 
+    public ReportExportFile exportCsv(String code, ReportAnalysisQuery query) {
+        ReportDefinition reportDefinition = getByCode(code);
+        SnapshotHolder snapshotHolder = loadSnapshot(reportDefinition);
+        List<ReportDataRecord> rows = reportAnalysisEngine.filterForExport(
+                reportDefinition,
+                snapshotHolder.snapshot().payload().rows(),
+                query
+        );
+        List<String> headers = exportHeaders(rows);
+        StringBuilder csv = new StringBuilder();
+        csv.append(toCsvLine(headers)).append('\n');
+        for (ReportDataRecord row : rows) {
+            List<String> values = headers.stream()
+                    .map(header -> "occurredAt".equals(header)
+                            ? stringValue(row.occurredAt())
+                            : stringValue(row.fields().get(header)))
+                    .toList();
+            csv.append(toCsvLine(values)).append('\n');
+        }
+        String filename = reportDefinition.code().toLowerCase(Locale.ROOT) + "-report.csv";
+        byte[] content = ("\uFEFF" + csv).getBytes(StandardCharsets.UTF_8);
+        return new ReportExportFile(filename, "text/csv; charset=UTF-8", content);
+    }
+
     private SnapshotHolder loadSnapshot(ReportDefinition reportDefinition) {
         reportRefreshApplicationService.markStaleIfNecessary(reportDefinition);
         ReportDefinition latestDefinition = getByCode(reportDefinition.code());
@@ -225,6 +254,34 @@ public class ReportQueryApplicationService {
                 .findFirst()
                 .map(ReportMetricDefinition::metricCode)
                 .orElse(reportDefinition.metrics().get(0).metricCode());
+    }
+
+    private List<String> exportHeaders(List<ReportDataRecord> rows) {
+        TreeSet<String> fieldNames = new TreeSet<>();
+        for (ReportDataRecord row : rows) {
+            for (Map.Entry<String, Object> entry : row.fields().entrySet()) {
+                fieldNames.add(entry.getKey());
+            }
+        }
+        return java.util.stream.Stream.concat(java.util.stream.Stream.of("occurredAt"), fieldNames.stream()).toList();
+    }
+
+    private String toCsvLine(List<String> values) {
+        return values.stream().map(this::escapeCsv).collect(java.util.stream.Collectors.joining(","));
+    }
+
+    private String escapeCsv(String value) {
+        String normalized = value == null ? "" : value;
+        boolean requiresQuotes = normalized.contains(",")
+                || normalized.contains("\"")
+                || normalized.contains("\n")
+                || normalized.contains("\r");
+        String escaped = normalized.replace("\"", "\"\"");
+        return requiresQuotes ? "\"" + escaped + "\"" : escaped;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private record SnapshotHolder(

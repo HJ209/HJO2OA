@@ -134,13 +134,11 @@ public class MybatisPlusReportDefinitionRepository implements ReportDefinitionRe
 
     @Override
     public List<ReportDefinition> findDueScheduledReports(Instant now) {
-        QueryWrapper<ReportDefinitionDO> queryWrapper = new QueryWrapper<ReportDefinitionDO>()
-                .eq("refresh_mode", ReportRefreshMode.SCHEDULED.name())
-                .eq("status", ReportStatus.ACTIVE.name())
-                .eq("deleted", 0)
-                .le("next_refresh_at", now)
-                .orderByAsc("next_refresh_at");
-        return reportDefinitionMapper.selectList(queryWrapper).stream().map(this::toDomain).toList();
+        return reportDefinitionMapper.selectDueScheduledForRuntime(
+                ReportRefreshMode.SCHEDULED.name(),
+                ReportStatus.ACTIVE.name(),
+                now
+        ).stream().map(this::toDomain).toList();
     }
 
     private ReportDefinition toDomain(ReportDefinitionDO definitionDO) {

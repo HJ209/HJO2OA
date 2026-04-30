@@ -120,11 +120,10 @@ public class MybatisPlusSyncExchangeTaskRepository implements SyncExchangeTaskRe
 
     @Override
     public List<SyncExchangeTask> findActiveScheduledTasks() {
-        LambdaQueryWrapper<SyncExchangeTaskDO> wrapper = new LambdaQueryWrapper<SyncExchangeTaskDO>()
-                .eq(SyncExchangeTaskDO::getStatus, enumName(SyncTaskStatus.ACTIVE))
-                .orderByDesc(SyncExchangeTaskDO::getUpdatedAt);
-        List<SyncExchangeTaskDO> records = taskMapper.selectList(wrapper);
-        Map<UUID, List<SyncMappingRule>> mappings = loadMappings(records.stream().map(SyncExchangeTaskDO::getId).toList());
+        List<SyncExchangeTaskDO> records = taskMapper.selectActiveForRuntime(enumName(SyncTaskStatus.ACTIVE));
+        Map<UUID, List<SyncMappingRule>> mappings = loadMappingsForRuntime(
+                records.stream().map(SyncExchangeTaskDO::getId).toList()
+        );
         return records.stream()
                 .map(record -> toDomain(record, mappings.getOrDefault(record.getId(), List.of())))
                 .filter(task -> task.scheduleConfig().enabled() || task.triggerConfig().schedulerJobCode() != null)
@@ -165,6 +164,18 @@ public class MybatisPlusSyncExchangeTaskRepository implements SyncExchangeTaskRe
                 .orderByAsc(SyncMappingRuleDO::getCreatedAt);
         Map<UUID, List<SyncMappingRule>> mappings = new LinkedHashMap<>();
         for (SyncMappingRuleDO ruleDO : mappingRuleMapper.selectList(wrapper)) {
+            mappings.computeIfAbsent(ruleDO.getSyncTaskId(), ignored -> new ArrayList<>()).add(toDomain(ruleDO));
+        }
+        mappings.values().forEach(list -> list.sort(Comparator.comparingInt(SyncMappingRule::sortOrder)));
+        return mappings;
+    }
+
+    private Map<UUID, List<SyncMappingRule>> loadMappingsForRuntime(List<UUID> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<SyncMappingRule>> mappings = new LinkedHashMap<>();
+        for (SyncMappingRuleDO ruleDO : mappingRuleMapper.selectByTaskIdsForRuntime(taskIds)) {
             mappings.computeIfAbsent(ruleDO.getSyncTaskId(), ignored -> new ArrayList<>()).add(toDomain(ruleDO));
         }
         mappings.values().forEach(list -> list.sort(Comparator.comparingInt(SyncMappingRule::sortOrder)));

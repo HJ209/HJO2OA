@@ -3,6 +3,8 @@ package com.hjo2oa.data.data.sync.infrastructure;
 import com.hjo2oa.data.data.sync.application.SyncExecutionApplicationService;
 import com.hjo2oa.data.data.sync.domain.SyncExchangeTask;
 import com.hjo2oa.data.data.sync.domain.SyncExchangeTaskRepository;
+import com.hjo2oa.shared.tenant.TenantContextHolder;
+import com.hjo2oa.shared.tenant.TenantRequestContext;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
@@ -52,11 +54,15 @@ public class DataSyncSchedulePoller {
             if (task.scheduleConfig().schedulerJobCode() != null) {
                 triggerContext.put("jobCode", task.scheduleConfig().schedulerJobCode());
             }
-            executionApplicationService.triggerScheduledTask(
-                    task,
-                    "cron:" + task.taskId() + ":" + scheduledAt.toInstant().toEpochMilli(),
-                    triggerContext
-            );
+            String requestId = "cron:" + task.taskId() + ":" + scheduledAt.toInstant().toEpochMilli();
+            TenantRequestContext tenantContext = TenantRequestContext.builder()
+                    .tenantId(task.tenantId())
+                    .requestId(requestId)
+                    .timezone(zoneId.getId())
+                    .build();
+            try (TenantContextHolder.Scope ignored = TenantContextHolder.bind(tenantContext)) {
+                executionApplicationService.triggerScheduledTask(task, requestId, triggerContext);
+            }
         }
     }
 

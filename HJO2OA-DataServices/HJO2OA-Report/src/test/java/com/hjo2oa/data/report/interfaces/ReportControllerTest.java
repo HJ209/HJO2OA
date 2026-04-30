@@ -3,6 +3,8 @@ package com.hjo2oa.data.report.interfaces;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +63,17 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.data.summaryMetric.metricCode").value("volume"))
                 .andExpect(jsonPath("$.data.trend.length()").value(2))
                 .andExpect(jsonPath("$.data.ranking[0].dimensionValue").value("org-a"));
+
+        mockMvc.perform(get("/api/v1/data/report/definitions/task-pressure/export")
+                        .param("organizationCode", "org-a"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/csv; charset=UTF-8"))
+                .andExpect(header().string(
+                        "Content-Disposition",
+                        "attachment; filename=\"task-pressure-report.csv\""
+                ))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("occurredAt")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("org-a")));
     }
 
     private MockMvc buildMockMvc() {

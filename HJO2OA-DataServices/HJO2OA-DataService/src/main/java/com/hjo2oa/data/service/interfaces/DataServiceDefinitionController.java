@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/data-services/definitions")
+@RequestMapping({"/api/v1/data/services/definitions", "/api/v1/data-services/definitions"})
 public class DataServiceDefinitionController {
 
     private final DataServiceDefinitionApplicationService applicationService;

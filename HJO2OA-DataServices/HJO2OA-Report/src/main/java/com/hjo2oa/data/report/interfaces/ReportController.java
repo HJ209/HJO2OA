@@ -25,6 +25,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -204,6 +206,21 @@ public class ReportController {
                 reportQueryApplicationService.cardDataSource(code, toAnalysisQuery(queryParams)),
                 responseMetaFactory.create(request)
         );
+    }
+
+    @GetMapping("/definitions/{code}/export")
+    public ResponseEntity<byte[]> exportCsv(
+            @PathVariable String code,
+            @RequestParam Map<String, String> queryParams
+    ) {
+        var exportFile = reportQueryApplicationService.exportCsv(code, toAnalysisQuery(queryParams));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, exportFile.contentType())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + exportFile.filename().replace("\"", "") + "\""
+                )
+                .body(exportFile.content());
     }
 
     @GetMapping("/definitions/{code}/snapshots")

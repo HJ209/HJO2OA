@@ -73,8 +73,7 @@ class MybatisGovernanceProfileRepository implements GovernanceProfileRepository 
 
     @Override
     public List<GovernanceProfile> findAllActive() {
-        return governanceProfileMapper.selectList(new LambdaQueryWrapper<GovernanceProfileEntity>()
-                        .eq(GovernanceProfileEntity::getStatus, GovernanceProfileStatus.ACTIVE.name()))
+        return governanceProfileMapper.selectAllActiveForRuntime(GovernanceProfileStatus.ACTIVE.name())
                 .stream()
                 .map(this::toDomain)
                 .sorted(Comparator.comparing(GovernanceProfile::code))

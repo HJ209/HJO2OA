@@ -45,6 +45,8 @@ import com.hjo2oa.data.governance.domain.GovernanceTypes.RuntimeTargetStatus;
 import com.hjo2oa.shared.kernel.BizException;
 import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
 import com.hjo2oa.shared.messaging.DomainEventPublisher;
+import com.hjo2oa.shared.tenant.TenantContextHolder;
+import com.hjo2oa.shared.tenant.TenantRequestContext;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -227,15 +229,25 @@ public class GovernanceMonitoringApplicationService {
     }
 
     public GovernancePagedResult<GovernanceHealthSnapshot> runScheduledHealthChecks() {
-        List<GovernanceHealthSnapshot> items = runHealthChecksInternal(
-                null,
-                null,
-                null,
-                "system",
-                "system",
-                UUID.randomUUID().toString()
-        );
-        return new GovernancePagedResult<>(items, items.size());
+        List<GovernanceHealthSnapshot> items = new ArrayList<>();
+        for (GovernanceProfile profile : profileRepository.findAllActive()) {
+            TenantRequestContext tenantContext = TenantRequestContext.builder()
+                    .tenantId(profile.tenantId())
+                    .requestId("governance-health:" + profile.governanceId())
+                    .timezone("UTC")
+                    .build();
+            try (TenantContextHolder.Scope ignored = TenantContextHolder.bind(tenantContext)) {
+                items.addAll(runHealthChecksInternal(
+                        profile.tenantId(),
+                        profile.scopeType(),
+                        profile.targetCode(),
+                        "system",
+                        "system",
+                        UUID.randomUUID().toString()
+                ));
+            }
+        }
+        return new GovernancePagedResult<>(List.copyOf(items), items.size());
     }
 
     public GovernancePagedResult<GovernanceHealthSnapshot> listSnapshots(HealthSnapshotQuery query) {

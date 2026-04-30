@@ -34,7 +34,7 @@ class DataServiceInvocationControllerTest {
     void shouldPrepareQueryExecutionUsingControllerContract() throws Exception {
         MockMvc mockMvc = buildMockMvc();
 
-        mockMvc.perform(post("/api/v1/data-services/runtime/employee-query/query")
+        mockMvc.perform(post("/api/v1/data/services/runtime/employee-query/query")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-data-runtime-query-1")
                         .header("X-Idempotency-Key", "idem-query-1")
@@ -59,7 +59,7 @@ class DataServiceInvocationControllerTest {
     void shouldReturnValidationErrorWhenRequiredParameterMissing() throws Exception {
         MockMvc mockMvc = buildMockMvc();
 
-        mockMvc.perform(post("/api/v1/data-services/runtime/employee-query/query")
+        mockMvc.perform(post("/api/v1/data/services/runtime/employee-query/query")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

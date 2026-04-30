@@ -17,6 +17,8 @@ import com.hjo2oa.data.report.domain.ReportSnapshotRepository;
 import com.hjo2oa.data.report.domain.ReportStatus;
 import com.hjo2oa.shared.kernel.BizException;
 import com.hjo2oa.shared.messaging.DomainEventPublisher;
+import com.hjo2oa.shared.tenant.TenantContextHolder;
+import com.hjo2oa.shared.tenant.TenantRequestContext;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -162,13 +164,37 @@ public class ReportRefreshApplicationService {
         for (ReportDefinition dueReport : dueReports) {
             String batch = "scheduled:" + dueReport.id() + ":" + dueReport.nextRefreshAt();
             try {
-                refreshByCode(dueReport.code(), ReportRefreshTriggerMode.SCHEDULED, triggerReason, batch);
+                if (!hasUuidTenantId(dueReport)) {
+                    refreshByCode(dueReport.code(), ReportRefreshTriggerMode.SCHEDULED, triggerReason, batch);
+                } else {
+                    TenantRequestContext tenantContext = TenantRequestContext.builder()
+                            .tenantId(dueReport.tenantId())
+                            .requestId(batch)
+                            .timezone("UTC")
+                            .build();
+                    try (TenantContextHolder.Scope ignored = TenantContextHolder.bind(tenantContext)) {
+                        refreshByCode(dueReport.code(), ReportRefreshTriggerMode.SCHEDULED, triggerReason, batch);
+                    }
+                }
                 refreshedCount++;
             } catch (RuntimeException ignored) {
                 // Preserve failure snapshot and continue refreshing other due reports.
             }
         }
         return refreshedCount;
+    }
+
+    private boolean hasUuidTenantId(ReportDefinition reportDefinition) {
+        String tenantId = reportDefinition.tenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            return false;
+        }
+        try {
+            UUID.fromString(tenantId);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     public void markStaleIfNecessary(ReportDefinition reportDefinition) {

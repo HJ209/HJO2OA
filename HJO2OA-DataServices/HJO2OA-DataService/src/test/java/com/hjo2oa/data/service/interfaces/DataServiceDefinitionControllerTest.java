@@ -33,7 +33,7 @@ class DataServiceDefinitionControllerTest {
     void shouldCreateDefinitionUsingApiResponseContract() throws Exception {
         MockMvc mockMvc = buildMockMvc();
 
-        mockMvc.perform(post("/api/v1/data-services/definitions")
+        mockMvc.perform(post("/api/v1/data/services/definitions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-data-service-create-1")
                         .content("""
@@ -96,14 +96,14 @@ class DataServiceDefinitionControllerTest {
         ).toCommand());
         MockMvc mockMvc = buildMockMvc(applicationService);
 
-        mockMvc.perform(get("/api/v1/data-services/definitions")
+        mockMvc.perform(get("/api/v1/data/services/definitions")
                         .param("page", "1")
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].code").value("todo-query"))
                 .andExpect(jsonPath("$.data.pagination.total").value(1));
 
-        mockMvc.perform(post("/api/v1/data-services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/activate")
+        mockMvc.perform(post("/api/v1/data/services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/activate")
                         .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-data-service-activate-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"))
@@ -138,7 +138,7 @@ class DataServiceDefinitionControllerTest {
         ).toCommand());
         MockMvc mockMvc = buildMockMvc(applicationService);
 
-        mockMvc.perform(put("/api/v1/data-services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/parameters/keyword")
+        mockMvc.perform(put("/api/v1/data/services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/parameters/keyword")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -151,11 +151,11 @@ class DataServiceDefinitionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.paramCode").value("keyword"));
 
-        mockMvc.perform(post("/api/v1/data-services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/disable"))
+        mockMvc.perform(post("/api/v1/data/services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/disable"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("DISABLED"));
 
-        mockMvc.perform(delete("/api/v1/data-services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+        mockMvc.perform(delete("/api/v1/data/services/definitions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
     }
@@ -188,7 +188,7 @@ class DataServiceDefinitionControllerTest {
         ).toCommand());
         MockMvc mockMvc = buildMockMvc(applicationService);
 
-        mockMvc.perform(post("/api/v1/data-services/definitions")
+        mockMvc.perform(post("/api/v1/data/services/definitions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

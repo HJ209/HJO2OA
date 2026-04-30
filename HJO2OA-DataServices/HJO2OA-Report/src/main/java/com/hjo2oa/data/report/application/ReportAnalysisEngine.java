@@ -98,6 +98,14 @@ public class ReportAnalysisEngine {
         return items;
     }
 
+    public List<ReportDataRecord> filterForExport(
+            ReportDefinition reportDefinition,
+            List<ReportDataRecord> rows,
+            ReportAnalysisQuery query
+    ) {
+        return filterRows(reportDefinition, rows, query);
+    }
+
     private List<ReportDataRecord> filterRows(
             ReportDefinition reportDefinition,
             List<ReportDataRecord> rows,
