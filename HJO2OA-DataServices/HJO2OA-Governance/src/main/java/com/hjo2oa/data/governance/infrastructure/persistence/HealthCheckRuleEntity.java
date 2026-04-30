@@ -3,7 +3,6 @@ package com.hjo2oa.data.governance.infrastructure.persistence;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.Version;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,7 +31,6 @@ class HealthCheckRuleEntity {
     private Integer dedupMinutes;
     private String scheduleExpression;
     private String strategyJson;
-    @Version
     private Long revision;
     @TableLogic
     private Integer deleted;

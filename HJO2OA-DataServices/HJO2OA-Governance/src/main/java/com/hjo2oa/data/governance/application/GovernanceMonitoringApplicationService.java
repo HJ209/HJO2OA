@@ -54,6 +54,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -252,9 +253,11 @@ public class GovernanceMonitoringApplicationService {
 
     public GovernancePagedResult<GovernanceHealthSnapshot> listSnapshots(HealthSnapshotQuery query) {
         Objects.requireNonNull(query, "query must not be null");
-        List<GovernanceHealthSnapshot> items = runtimeRepository.findSnapshots(query).stream()
+        Map<String, GovernanceHealthSnapshot> latestByRule = new LinkedHashMap<>();
+        runtimeRepository.findSnapshots(query).stream()
                 .sorted(Comparator.comparing(GovernanceHealthSnapshot::checkedAt).reversed())
-                .toList();
+                .forEach(snapshot -> latestByRule.putIfAbsent(snapshotKey(snapshot), snapshot));
+        List<GovernanceHealthSnapshot> items = List.copyOf(latestByRule.values());
         return new GovernancePagedResult<>(items, items.size());
     }
 
@@ -433,6 +436,12 @@ public class GovernanceMonitoringApplicationService {
                 snapshotByRuleCode.put(rule.ruleCode(), snapshot);
                 allSnapshots.add(snapshot);
             }
+            if (snapshotByRuleCode.isEmpty()) {
+                GovernanceHealthSnapshot snapshot = defaultHealthSnapshot(profile, signal);
+                runtimeRepository.saveSnapshot(snapshot);
+                snapshotByRuleCode.put(snapshot.ruleCode(), snapshot);
+                allSnapshots.add(snapshot);
+            }
             triggerAlerts(profile, signal, snapshotByRuleCode);
             runtimeRepository.saveAudit(new GovernanceActionAuditRecord(
                     UUID.randomUUID().toString(),
@@ -453,6 +462,40 @@ public class GovernanceMonitoringApplicationService {
             ));
         }
         return List.copyOf(allSnapshots);
+    }
+
+    private GovernanceHealthSnapshot defaultHealthSnapshot(
+            GovernanceProfile profile,
+            GovernanceRuntimeSignal signal
+    ) {
+        GovernanceHealthStatus healthStatus = switch (signal == null ? RuntimeTargetStatus.UNKNOWN : signal.runtimeStatus()) {
+            case ACTIVE -> GovernanceHealthStatus.HEALTHY;
+            case DEGRADED -> GovernanceHealthStatus.DEGRADED;
+            case FAILED, DISABLED -> GovernanceHealthStatus.UNHEALTHY;
+            case UNKNOWN -> GovernanceHealthStatus.UNKNOWN;
+        };
+        String summary = signal == null
+                ? "No runtime signal or health rule configured for target"
+                : "Default runtime status check: " + signal.runtimeStatus();
+        BigDecimal measuredValue = signal == null ? BigDecimal.ZERO : signal.failureRate();
+        return new GovernanceHealthSnapshot(
+                "default:" + profile.governanceId(),
+                profile.governanceId(),
+                "default:" + profile.governanceId(),
+                profile.scopeType(),
+                profile.targetCode(),
+                "default-runtime-status",
+                healthStatus,
+                measuredValue,
+                BigDecimal.ZERO,
+                summary,
+                signal == null ? null : signal.traceId(),
+                now()
+        );
+    }
+
+    private String snapshotKey(GovernanceHealthSnapshot snapshot) {
+        return snapshot.governanceId() + "|" + snapshot.ruleId();
     }
 
     private GovernanceHealthSnapshot evaluateRule(

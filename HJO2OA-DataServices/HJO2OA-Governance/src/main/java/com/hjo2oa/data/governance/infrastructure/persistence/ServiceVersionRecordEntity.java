@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.Version;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -33,7 +32,6 @@ class ServiceVersionRecordEntity {
     private String operatorId;
     private String approvalNote;
     private String auditTraceId;
-    @Version
     private Long revision;
     @TableLogic
     private Integer deleted;

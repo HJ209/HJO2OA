@@ -3,7 +3,6 @@ package com.hjo2oa.data.governance.infrastructure.persistence;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.Version;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -25,7 +24,6 @@ class GovernanceProfileEntity {
     private String alertPolicyJson;
     private String status;
     private String tenantId;
-    @Version
     private Long revision;
     @TableLogic
     private Integer deleted;

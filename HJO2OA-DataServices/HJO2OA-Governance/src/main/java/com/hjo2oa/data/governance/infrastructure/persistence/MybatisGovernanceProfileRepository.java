@@ -89,20 +89,17 @@ class MybatisGovernanceProfileRepository implements GovernanceProfileRepository 
             governanceProfileMapper.updateById(entity);
         }
 
-        healthCheckRuleMapper.delete(new LambdaQueryWrapper<HealthCheckRuleEntity>()
-                .eq(HealthCheckRuleEntity::getGovernanceId, profile.governanceId()));
+        healthCheckRuleMapper.deleteByGovernanceIdPhysically(profile.governanceId());
         for (HealthCheckRule rule : profile.healthCheckRules()) {
             healthCheckRuleMapper.insert(toEntity(rule));
         }
 
-        alertRuleMapper.delete(new LambdaQueryWrapper<AlertRuleEntity>()
-                .eq(AlertRuleEntity::getGovernanceId, profile.governanceId()));
+        alertRuleMapper.deleteByGovernanceIdPhysically(profile.governanceId());
         for (AlertRule rule : profile.alertRules()) {
             alertRuleMapper.insert(toEntity(rule));
         }
 
-        serviceVersionRecordMapper.delete(new LambdaQueryWrapper<ServiceVersionRecordEntity>()
-                .eq(ServiceVersionRecordEntity::getGovernanceId, profile.governanceId()));
+        serviceVersionRecordMapper.deleteByGovernanceIdPhysically(profile.governanceId());
         for (ServiceVersionRecord record : profile.serviceVersionRecords()) {
             serviceVersionRecordMapper.insert(toEntity(record, profile.createdAt(), profile.updatedAt()));
         }
