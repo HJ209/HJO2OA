@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import apiClient from '@/services/api-client'
 import { del, get, post, put } from '@/services/request'
 import { dataServicesService } from '@/features/data-services/services/data-services-service'
+
+vi.mock('@/services/api-client', () => ({
+  default: {
+    get: vi.fn(),
+  },
+}))
 
 vi.mock('@/services/request', () => ({
   get: vi.fn(),
@@ -9,6 +16,7 @@ vi.mock('@/services/request', () => ({
   del: vi.fn(),
 }))
 
+const apiGetMock = vi.mocked(apiClient.get)
 const getMock = vi.mocked(get)
 const postMock = vi.mocked(post)
 const putMock = vi.mocked(put)
@@ -29,6 +37,15 @@ describe('dataServicesService', () => {
     postMock.mockResolvedValue({})
     putMock.mockResolvedValue({})
     delMock.mockResolvedValue(undefined)
+    apiGetMock.mockResolvedValue({
+      data: {
+        data: new Blob(['id,name\n1,Report\n'], { type: 'text/csv' }),
+        meta: { requestId: 'req-export', success: true },
+      },
+      headers: {
+        'content-disposition': 'attachment; filename="task_report-report.csv"',
+      },
+    })
   })
 
   it('calls connector list and upsert endpoints with query params', async () => {
@@ -176,6 +193,17 @@ describe('dataServicesService', () => {
     expect(readParams().get('metricCode')).toBe('total')
     expect(readParams().get('orgId')).toBe('org-1')
 
+    const exportFile = await dataServicesService.exportReportCsv('task_report')
+    expect(apiGetMock).toHaveBeenCalledWith(
+      '/v1/data/report/definitions/task_report/export',
+      expect.objectContaining({
+        params: expect.any(URLSearchParams),
+        responseType: 'blob',
+      }),
+    )
+    expect(exportFile.filename).toBe('task_report-report.csv')
+    expect(exportFile.blob).toBeInstanceOf(Blob)
+
     await dataServicesService.listGovernanceAlerts({
       targetType: 'API',
       status: 'OPEN',
@@ -199,6 +227,44 @@ describe('dataServicesService', () => {
       }),
       expect.objectContaining({
         dedupeKey: 'governance:intervention:API:todo_api',
+      }),
+    )
+
+    await dataServicesService.upsertGovernanceHealthRule('gov-api', {
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      ruleCode: 'hc-api-failure-rate',
+      ruleName: 'API failure rate',
+      checkType: 'FAILURE_RATE',
+      severity: 'ERROR',
+      status: 'ENABLED',
+      metricName: 'FAILURE_RATE',
+      comparisonOperator: 'GREATER_THAN',
+      thresholdValue: 0,
+    })
+    expect(postMock).toHaveBeenCalledWith(
+      '/v1/data/governance/profiles/gov-api/health-rules',
+      expect.objectContaining({ ruleCode: 'hc-api-failure-rate' }),
+      expect.objectContaining({
+        dedupeKey: 'governance:health-rule:gov-api:hc-api-failure-rate',
+      }),
+    )
+
+    await dataServicesService.upsertGovernanceAlertRule('gov-api', {
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      ruleCode: 'ar-api-failure-rate',
+      ruleName: 'API failure alert',
+      sourceRuleCode: 'hc-api-failure-rate',
+      alertType: 'DATA_QUALITY',
+      alertLevel: 'ERROR',
+      status: 'ENABLED',
+      comparisonOperator: 'GREATER_THAN',
+      thresholdValue: 0,
+    })
+    expect(postMock).toHaveBeenCalledWith(
+      '/v1/data/governance/profiles/gov-api/alert-rules',
+      expect.objectContaining({ sourceRuleCode: 'hc-api-failure-rate' }),
+      expect.objectContaining({
+        dedupeKey: 'governance:alert-rule:gov-api:ar-api-failure-rate',
       }),
     )
   })

@@ -14,6 +14,7 @@ import {
   FileDown,
   KeyRound,
   Pause,
+  Plus,
   Play,
   Power,
   RefreshCcw,
@@ -43,12 +44,17 @@ import type {
   ApiCredentialGrant,
   ApiInvocationAuditLog,
   ApiRateLimitPolicy,
+  AlertLevel,
+  AlertRuleStatus,
   CheckpointMode,
   CompensationAction,
+  ComparisonOperator,
   ConflictStrategy,
   ConnectorAuthMode,
   ConnectorDetail,
   ConnectorHealthSnapshot,
+  ConnectorParameter,
+  ConnectorParameterTemplate,
   ConnectorStatus,
   ConnectorSummary,
   ConnectorType,
@@ -66,19 +72,27 @@ import type {
   ExecutionTriggerType,
   GovernanceActionType,
   GovernanceAlertRecord,
+  GovernanceAlertRule,
+  GovernanceHealthRule,
   GovernanceProfile,
   GovernanceScopeType,
   GovernanceTraceRecord,
+  HealthCheckRuleStatus,
+  HealthCheckSeverity,
+  HealthCheckType,
   OpenApiAuthType,
   OpenApiEndpointDetail,
   OpenApiEndpointSummary,
   OpenApiHttpMethod,
   OpenApiStatus,
   ReportDefinition,
+  ReportRankingPreview,
   ReportRefreshMode,
   ReportSnapshot,
   ReportSourceScope,
   ReportStatus,
+  ReportSummaryPreview,
+  ReportTrendPreview,
   ReportType,
   ReportVisibilityMode,
   SaveDataServiceRequest,
@@ -108,6 +122,8 @@ type TabKey =
   | 'governance'
 
 const PAGE_SIZE = 10
+const CONNECTOR_KEY_REF_PREFIX = 'keyRef:'
+const OPEN_API_PATH_PREFIX = '/api/open/'
 
 const TAB_ITEMS: Array<{
   key: TabKey
@@ -278,6 +294,29 @@ const ALERT_STATUSES: AlertStatus[] = [
   'ESCALATED',
   'CLOSED',
 ]
+const HEALTH_RULE_STATUSES: HealthCheckRuleStatus[] = ['ENABLED', 'DISABLED']
+const HEALTH_CHECK_TYPES: HealthCheckType[] = [
+  'HEARTBEAT',
+  'FRESHNESS',
+  'FAILURE_RATE',
+  'VERSION_DRIFT',
+  'CUSTOM',
+]
+const HEALTH_SEVERITIES: HealthCheckSeverity[] = [
+  'INFO',
+  'WARN',
+  'ERROR',
+  'CRITICAL',
+]
+const COMPARISON_OPERATORS: ComparisonOperator[] = [
+  'GREATER_THAN',
+  'GREATER_OR_EQUAL',
+  'LESS_THAN',
+  'LESS_OR_EQUAL',
+  'EQUAL',
+]
+const ALERT_LEVELS: AlertLevel[] = ['INFO', 'WARN', 'ERROR', 'CRITICAL']
+const ALERT_RULE_STATUSES: AlertRuleStatus[] = ['ENABLED', 'DISABLED']
 const GOVERNANCE_ACTIONS: GovernanceActionType[] = [
   'REQUEST_DISABLE',
   'REQUEST_RETRY',
@@ -337,6 +376,27 @@ interface ServiceForm {
   fieldMappingsText: string
 }
 
+function createServiceForm(): ServiceForm {
+  return {
+    serviceId: createClientId('service'),
+    code: '',
+    name: '',
+    serviceType: 'QUERY',
+    sourceMode: 'INTERNAL_QUERY',
+    permissionMode: 'PUBLIC_INTERNAL',
+    sourceRef: 'internal.query',
+    connectorId: '',
+    description: '',
+    allowedAppCodes: '',
+    allowedSubjectIds: '',
+    requiredRoles: '',
+    cacheEnabled: false,
+    cacheTtlSeconds: 300,
+    parametersText: 'keyword:STRING:false',
+    fieldMappingsText: 'id->id',
+  }
+}
+
 interface OpenApiForm {
   code: string
   version: string
@@ -376,12 +436,75 @@ interface ReportForm {
   filtersText: string
 }
 
+function reportDetailToForm(detail: ReportDefinition): ReportForm {
+  return {
+    code: detail.code,
+    name: detail.name,
+    reportType: detail.reportType,
+    sourceScope: detail.sourceScope,
+    refreshMode: detail.refreshMode,
+    visibilityMode: detail.visibilityMode,
+    status: detail.status,
+    sourceProviderKey: detail.caliber.sourceProviderKey,
+    subjectCode: detail.caliber.subjectCode,
+    dataServiceCode: detail.caliber.dataServiceCode ?? '',
+    metricCode: detail.metrics[0]?.metricCode ?? 'total',
+    metricName: detail.metrics[0]?.metricName ?? 'Total',
+    dimensionCode: detail.dimensions[0]?.dimensionCode ?? 'time',
+    dimensionName: detail.dimensions[0]?.dimensionName ?? 'Time',
+    filtersText: Object.entries(detail.caliber.baseFilters)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n'),
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isReportSummaryPreview(value: unknown): value is ReportSummaryPreview {
+  return isRecord(value) && Array.isArray(value.metrics)
+}
+
+function isReportTrendPreview(value: unknown): value is ReportTrendPreview {
+  return isRecord(value) && Array.isArray(value.points)
+}
+
+function isReportRankingPreview(value: unknown): value is ReportRankingPreview {
+  return isRecord(value) && Array.isArray(value.items)
+}
+
 interface GovernanceForm {
   profileCode: string
   scopeType: GovernanceScopeType
   targetCode: string
   slaPolicyJson: string
   alertPolicyJson: string
+  healthRuleCode: string
+  healthRuleName: string
+  healthCheckType: HealthCheckType
+  healthSeverity: HealthCheckSeverity
+  healthRuleStatus: HealthCheckRuleStatus
+  healthMetricName: string
+  healthComparisonOperator: ComparisonOperator
+  healthThresholdValue: number
+  healthWindowMinutes: number
+  healthDedupMinutes: number
+  healthScheduleExpression: string
+  healthStrategyJson: string
+  alertRuleCode: string
+  alertRuleName: string
+  alertSourceRuleCode: string
+  alertMetricName: string
+  alertType: string
+  alertLevel: AlertLevel
+  alertRuleStatus: AlertRuleStatus
+  alertComparisonOperator: ComparisonOperator
+  alertThresholdValue: number
+  alertDedupMinutes: number
+  alertEscalationMinutes: number
+  alertNotificationPolicyJson: string
+  alertStrategyJson: string
   version: string
   changeSummary: string
   approvalNote: string
@@ -471,22 +594,74 @@ function toJson(value: unknown): string {
   return JSON.stringify(value, null, 2)
 }
 
-function parseConnectorParameters(value: string) {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [left, sensitiveText = 'false'] = line.split('|')
-      const [paramKey, ...rest] = left.split('=')
+function parseConnectorParameters(
+  value: string,
+  templates: ConnectorParameterTemplate[] = [],
+): ConnectorParameter[] {
+  const templateMap = new Map(
+    templates.map((template) => [template.paramKey, template]),
+  )
+  const hasTemplates = templateMap.size > 0
+  const seenKeys = new Set<string>()
+  const parameters: ConnectorParameter[] = []
 
-      return {
-        paramKey: paramKey.trim(),
-        paramValueRef: rest.join('=').trim(),
-        sensitive: sensitiveText.trim().toLowerCase() === 'true',
-      }
-    })
-    .filter((item) => item.paramKey)
+  value.split('\n').forEach((rawLine, index) => {
+    const line = rawLine.trim()
+
+    if (!line) {
+      return
+    }
+
+    const [left, sensitiveText = 'false', extra] = line.split('|')
+    const [paramKeyText, ...valueParts] = left.split('=')
+    const paramKey = paramKeyText.trim()
+    const paramValueRef = valueParts.join('=').trim()
+    const sensitiveValue = sensitiveText.trim().toLowerCase()
+
+    if (extra !== undefined || !paramKey || valueParts.length === 0) {
+      throw new Error(`第 ${index + 1} 行参数格式应为 key=value|true/false`)
+    }
+    if (!paramValueRef) {
+      throw new Error(`第 ${index + 1} 行参数值不能为空`)
+    }
+    if (seenKeys.has(paramKey)) {
+      throw new Error(`连接参数键重复: ${paramKey}`)
+    }
+    if (sensitiveValue !== 'true' && sensitiveValue !== 'false') {
+      throw new Error(`第 ${index + 1} 行 sensitive 只能填写 true 或 false`)
+    }
+
+    const sensitive = sensitiveValue === 'true'
+    const template = templateMap.get(paramKey)
+
+    if (hasTemplates && !template) {
+      throw new Error(`存在未定义的连接参数: ${paramKey}`)
+    }
+    if (template && template.sensitive !== sensitive) {
+      throw new Error(`连接参数敏感标记不符合模板要求: ${paramKey}`)
+    }
+    if (sensitive && !paramValueRef.startsWith(CONNECTOR_KEY_REF_PREFIX)) {
+      throw new Error(
+        `敏感连接参数必须使用 ${CONNECTOR_KEY_REF_PREFIX} 引用: ${paramKey}`,
+      )
+    }
+
+    seenKeys.add(paramKey)
+    parameters.push({ paramKey, paramValueRef, sensitive })
+  })
+
+  if (hasTemplates) {
+    const missingRequiredKeys = templates
+      .filter((template) => template.required)
+      .map((template) => template.paramKey)
+      .filter((paramKey) => !seenKeys.has(paramKey))
+
+    if (missingRequiredKeys.length) {
+      throw new Error(`连接参数缺失: ${missingRequiredKeys.join(', ')}`)
+    }
+  }
+
+  return parameters
 }
 
 function connectorParametersToText(detail?: ConnectorDetail): string {
@@ -883,6 +1058,150 @@ function JsonBlock({ value }: { value: unknown }): ReactElement {
   )
 }
 
+function ReportPreviewResult({ value }: { value: unknown }): ReactElement {
+  if (isReportSummaryPreview(value)) {
+    return (
+      <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div>
+            <div className="font-semibold text-slate-950">
+              {value.reportName}
+            </div>
+            <div className="text-xs text-slate-500">{value.reportCode}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={value.freshnessStatus} />
+            <span className="text-xs text-slate-500">
+              {formatTime(value.refreshedAt)}
+            </span>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {value.metrics.map((metric) => (
+            <div className="rounded-lg bg-slate-50 p-3" key={metric.metricCode}>
+              <div className="text-xs text-slate-500">
+                {metric.metricName ?? metric.metricCode}
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-slate-950">
+                {metric.value}
+                {metric.unit ? (
+                  <span className="ml-1 text-sm text-slate-500">
+                    {metric.unit}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (isReportTrendPreview(value)) {
+    const maxValue = Math.max(...value.points.map((point) => point.value), 1)
+
+    return (
+      <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div>
+            <div className="font-semibold text-slate-950">
+              {value.reportName}
+            </div>
+            <div className="text-xs text-slate-500">
+              {value.dimensionCode ?? '-'} / {value.metricCode ?? '-'}
+            </div>
+          </div>
+          <StatusBadge status={value.freshnessStatus} />
+        </div>
+        <div className="space-y-2">
+          {value.points.map((point) => (
+            <div
+              className="grid grid-cols-[96px_minmax(0,1fr)_56px] items-center gap-2 text-xs"
+              key={point.bucket}
+            >
+              <span className="truncate text-slate-600">{point.bucket}</span>
+              <span className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <span
+                  className="block h-full rounded-full bg-sky-500"
+                  style={{
+                    width: `${Math.max((point.value / maxValue) * 100, 4)}%`,
+                  }}
+                />
+              </span>
+              <span className="text-right font-medium text-slate-900">
+                {point.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (isReportRankingPreview(value)) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 p-3 text-sm">
+          <div>
+            <div className="font-semibold text-slate-950">
+              {value.reportName}
+            </div>
+            <div className="text-xs text-slate-500">
+              {value.dimensionCode ?? '-'} / {value.metricCode ?? '-'}
+            </div>
+          </div>
+          <StatusBadge status={value.freshnessStatus} />
+        </div>
+        {value.items.length ? (
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-2">Rank</th>
+                <th className="px-3 py-2">Dimension</th>
+                <th className="px-3 py-2 text-right">Value</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {value.items.map((item) => (
+                <tr key={`${item.rank}-${item.dimensionValue}`}>
+                  <td className="px-3 py-2 font-semibold text-slate-950">
+                    {item.rank}
+                  </td>
+                  <td className="px-3 py-2 text-slate-700">
+                    {item.label ?? item.dimensionValue}
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium text-slate-900">
+                    {item.value ?? item.metricValue ?? 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="p-3 text-sm text-slate-500">暂无排名数据</div>
+        )}
+      </div>
+    )
+  }
+
+  return <JsonBlock value={value} />
+}
+
+function ReportExportResult({ value }: { value: unknown }): ReactElement {
+  const filename = isRecord(value) ? String(value.filename ?? '-') : '-'
+  const size = isRecord(value) ? Number(value.size ?? 0) : 0
+  const contentType = isRecord(value) ? String(value.contentType ?? '-') : '-'
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+      <div className="font-semibold">导出文件已生成</div>
+      <div className="mt-1 break-all text-xs">
+        {filename} · {size} bytes · {contentType}
+      </div>
+    </div>
+  )
+}
+
 function PermissionState(): ReactElement {
   const roleIds = useIdentityStore((state) => state.roleIds)
   const canOperate = roleIds.some(
@@ -962,7 +1281,13 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
       dataServicesService.listConnectorParameterTemplates(selectedId),
   })
   const healthQuery = useQuery({
-    enabled: active && Boolean(selectedId),
+    enabled:
+      active &&
+      Boolean(selectedId) &&
+      Boolean(
+        detailQuery.data?.latestHealthSnapshot ||
+        detailQuery.data?.latestTestSnapshot,
+      ),
     queryKey: ['data-services', 'connectors', selectedId, 'health'],
     queryFn: () => dataServicesService.connectorHealth(selectedId),
   })
@@ -996,17 +1321,20 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
       return dataServicesService.upsertConnector(form.connectorId, payload)
     },
     onSuccess: (detail) => {
+      setFormError('')
       setSelectedId(detail.connectorId)
       invalidate()
     },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const saveParametersMutation = useMutation({
-    mutationFn: () =>
-      dataServicesService.saveConnectorParameters(
-        selectedId,
-        parseConnectorParameters(form.parametersText),
-      ),
-    onSuccess: invalidate,
+    mutationFn: (parameters: ConnectorParameter[]) =>
+      dataServicesService.saveConnectorParameters(selectedId, parameters),
+    onError: (error) => setFormError(getErrorText(error)),
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
   })
   const connectorActionMutation = useMutation({
     mutationFn: async (request: {
@@ -1036,7 +1364,11 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
 
       await dataServicesService.refreshConnectorHealth(selectedId)
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
 
   const loadDetailToForm = (detail?: ConnectorDetail) => {
@@ -1068,6 +1400,25 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
     }
     setFormError('')
     saveMutation.mutate()
+  }
+
+  const handleSaveParameters = () => {
+    if (!selectedId) {
+      setFormError('请先选择或保存连接器')
+      return
+    }
+
+    try {
+      const parameters = parseConnectorParameters(
+        form.parametersText,
+        templatesQuery.data ?? [],
+      )
+
+      setFormError('')
+      saveParametersMutation.mutate(parameters)
+    } catch (error) {
+      setFormError(getErrorText(error))
+    }
   }
 
   return (
@@ -1144,7 +1495,10 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
                       </td>
                       <td className="px-3 py-2">
                         <StatusBadge
-                          status={item.latestHealthSnapshot?.healthStatus}
+                          status={
+                            item.latestHealthSnapshot?.healthStatus ??
+                            item.latestTestSnapshot?.healthStatus
+                          }
                         />
                       </td>
                       <td className="px-3 py-2 text-slate-500">
@@ -1356,7 +1710,7 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
             />
           </div>
           <TextareaField
-            label="参数 key=value|sensitive"
+            label="参数 key=value|true/false，敏感值使用 keyRef:name"
             onChange={(value) =>
               setForm((prev) => ({ ...prev, parametersText: value }))
             }
@@ -1369,7 +1723,7 @@ function ConnectorPanel({ active }: { active: boolean }): ReactElement {
             </Button>
             <Button
               disabled={!selectedId || saveParametersMutation.isPending}
-              onClick={() => saveParametersMutation.mutate()}
+              onClick={handleSaveParameters}
               variant="outline"
             >
               保存参数
@@ -1552,7 +1906,11 @@ function SyncPanel({ active }: { active: boolean }): ReactElement {
 
       await dataServicesService.deleteSyncTask(selectedTaskId)
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const executionActionMutation = useMutation({
     mutationFn: (action: 'retry' | 'reconcile' | CompensationAction) => {
@@ -1590,7 +1948,11 @@ function SyncPanel({ active }: { active: boolean }): ReactElement {
         `portal-web ${action}`,
       )
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
 
   const loadTaskToForm = (detail?: SyncTaskDetail) => {
@@ -2060,27 +2422,12 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
   const [type, setType] = useState<DataServiceType | ''>('')
   const [status, setStatus] = useState<DataServiceStatus | ''>('')
   const [selectedId, setSelectedId] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [previewJson, setPreviewJson] = useState('{}')
   const [previewResult, setPreviewResult] = useState<unknown>(null)
-  const [form, setForm] = useState<ServiceForm>({
-    serviceId: createClientId('service'),
-    code: '',
-    name: '',
-    serviceType: 'QUERY',
-    sourceMode: 'INTERNAL_QUERY',
-    permissionMode: 'PUBLIC_INTERNAL',
-    sourceRef: 'internal.query',
-    connectorId: '',
-    description: '',
-    allowedAppCodes: '',
-    allowedSubjectIds: '',
-    requiredRoles: '',
-    cacheEnabled: false,
-    cacheTtlSeconds: 300,
-    parametersText: 'keyword:STRING:false',
-    fieldMappingsText: 'id->id',
-  })
+  const [form, setForm] = useState<ServiceForm>(() => createServiceForm())
 
   const servicesQuery = useQuery({
     enabled: active,
@@ -2100,10 +2447,10 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
   )
 
   useEffect(() => {
-    if (!selectedId && serviceItems[0]) {
+    if (!selectedId && !isCreating && serviceItems[0]) {
       setSelectedId(serviceItems[0].serviceId)
     }
-  }, [selectedId, serviceItems])
+  }, [isCreating, selectedId, serviceItems])
 
   const detailQuery = useQuery({
     enabled: active && Boolean(selectedId),
@@ -2152,13 +2499,16 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      selectedId
+      selectedId && !isCreating && form.serviceId === selectedId
         ? dataServicesService.updateDataService(selectedId, buildPayload())
         : dataServicesService.createDataService(buildPayload()),
     onSuccess: (detail) => {
+      setFormError('')
+      setIsCreating(false)
       setSelectedId(detail.serviceId)
       invalidate()
     },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const actionMutation = useMutation({
     mutationFn: async (action: 'activate' | 'disable' | 'delete') => {
@@ -2172,7 +2522,18 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
       }
       await dataServicesService.deleteDataService(selectedId)
     },
-    onSuccess: invalidate,
+    onSuccess: (_result, action) => {
+      setFormError('')
+      if (action === 'delete') {
+        setIsCreating(true)
+        setSelectedId('')
+        setIsDeleteConfirmOpen(false)
+        setForm(createServiceForm())
+        setPreviewResult(null)
+      }
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const previewMutation = useMutation({
     mutationFn: () => {
@@ -2188,7 +2549,11 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
         payload,
       )
     },
-    onSuccess: setPreviewResult,
+    onSuccess: (result) => {
+      setFormError('')
+      setPreviewResult(result)
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const upsertParameterMutation = useMutation({
     mutationFn: () => {
@@ -2202,7 +2567,11 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
         first,
       )
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const upsertMappingMutation = useMutation({
     mutationFn: () => {
@@ -2216,7 +2585,11 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
         first,
       )
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
 
   const loadDetailToForm = (detail?: DataServiceDetail) => {
@@ -2224,6 +2597,8 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
       return
     }
 
+    setIsCreating(false)
+    setIsDeleteConfirmOpen(false)
     setForm({
       serviceId: detail.serviceId,
       code: detail.code,
@@ -2242,6 +2617,20 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
       parametersText: serviceParametersToText(detail.parameters),
       fieldMappingsText: fieldMappingsToText(detail.fieldMappings),
     })
+  }
+
+  const startCreate = () => {
+    setIsCreating(true)
+    setSelectedId('')
+    setIsDeleteConfirmOpen(false)
+    setFormError('')
+    setPreviewJson('{}')
+    setPreviewResult(null)
+    setForm(createServiceForm())
+  }
+
+  const confirmDeleteService = () => {
+    setIsDeleteConfirmOpen(true)
   }
 
   const handleSave = (event: FormEvent<HTMLFormElement>) => {
@@ -2318,7 +2707,11 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
                         selectedId === item.serviceId && 'bg-sky-50',
                       )}
                       key={item.serviceId}
-                      onClick={() => setSelectedId(item.serviceId)}
+                      onClick={() => {
+                        setIsCreating(false)
+                        setIsDeleteConfirmOpen(false)
+                        setSelectedId(item.serviceId)
+                      }}
                     >
                       <td className="px-3 py-2 font-medium text-slate-900">
                         {item.code}
@@ -2381,7 +2774,7 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
                   </Button>
                   <Button
                     disabled={actionMutation.isPending}
-                    onClick={() => actionMutation.mutate('delete')}
+                    onClick={confirmDeleteService}
                     size="sm"
                     variant="outline"
                   >
@@ -2390,6 +2783,38 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
                   </Button>
                 </div>
               </div>
+              {isDeleteConfirmOpen ? (
+                <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                  <div className="font-medium">
+                    确定删除数据服务「{detailQuery.data.code}」？
+                  </div>
+                  <div className="mt-1 text-rose-600">
+                    {detailQuery.data.status === 'ACTIVE'
+                      ? 'ACTIVE 状态需先停用，再执行删除。'
+                      : '此操作不可撤销，删除后列表与详情将立即刷新。'}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      disabled={
+                        actionMutation.isPending ||
+                        detailQuery.data.status === 'ACTIVE'
+                      }
+                      onClick={() => actionMutation.mutate('delete')}
+                      size="sm"
+                    >
+                      确认删除
+                    </Button>
+                    <Button
+                      disabled={actionMutation.isPending}
+                      onClick={() => setIsDeleteConfirmOpen(false)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 <div className="rounded-lg bg-slate-50 p-3 text-sm">
                   参数{' '}
@@ -2419,6 +2844,11 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
                     <Play className="h-4 w-4" />
                     调用预览
                   </Button>
+                  {previewMutation.error ? (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                      {getErrorText(previewMutation.error)}
+                    </div>
+                  ) : null}
                   {previewResult ? <JsonBlock value={previewResult} /> : null}
                 </div>
               </div>
@@ -2430,7 +2860,15 @@ function DataServicePanel({ active }: { active: boolean }): ReactElement {
           className="space-y-3 rounded-lg border border-slate-200 p-4"
           onSubmit={handleSave}
         >
-          <h3 className="font-semibold text-slate-950">创建 / 编辑数据服务</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-semibold text-slate-950">
+              创建 / 编辑数据服务
+            </h3>
+            <Button onClick={startCreate} size="sm" variant="outline">
+              <Plus className="h-4 w-4" />
+              新建
+            </Button>
+          </div>
           {formError ? (
             <p className="text-sm text-rose-600">{formError}</p>
           ) : null}
@@ -2588,7 +3026,7 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
     version: 'v1',
     name: '',
     dataServiceCode: '',
-    path: '/api/v1/open/',
+    path: OPEN_API_PATH_PREFIX,
     httpMethod: 'GET',
     authType: 'APP_KEY',
     compatibilityNotes: '',
@@ -2705,9 +3143,11 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
       )
     },
     onSuccess: (detail) => {
+      setFormError('')
       setSelected({ code: detail.code, version: detail.version })
       invalidate()
     },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const endpointActionMutation = useMutation({
     mutationFn: async (
@@ -2729,7 +3169,11 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
       }
       await dataServicesService.deleteOpenApiEndpoint(code, version)
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const credentialMutation = useMutation({
     mutationFn: (action: 'save' | 'revoke') => {
@@ -2753,7 +3197,11 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
         },
       )
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const policyMutation = useMutation({
     mutationFn: (action: 'save' | 'disable') => {
@@ -2780,7 +3228,11 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
         },
       )
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const auditReviewMutation = useMutation({
     mutationFn: (logId: string) =>
@@ -2790,7 +3242,11 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
         'portal-web reviewed',
         'manual review',
       ),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
 
   const loadDetailToForm = (detail?: OpenApiEndpointDetail) => {
@@ -2817,8 +3273,12 @@ function OpenApiPanel({ active }: { active: boolean }): ReactElement {
       setFormError('code、version、name 必填')
       return
     }
-    if (!form.path.startsWith('/')) {
-      setFormError('path 必须以 / 开头')
+    if (!form.dataServiceCode.trim()) {
+      setFormError('DataService Code 必填')
+      return
+    }
+    if (!form.path.trim().startsWith(OPEN_API_PATH_PREFIX)) {
+      setFormError(`Path 必须以 ${OPEN_API_PATH_PREFIX} 开头`)
       return
     }
     setFormError('')
@@ -3383,6 +3843,7 @@ function ReportPanel({ active }: { active: boolean }): ReactElement {
       if (kind === 'EXPORT') {
         const file = payload as ReportExportFile
         downloadReportFile(file)
+        setPreviewPayload(null)
         setExportPayload({
           filename: file.filename,
           size: file.blob.size,
@@ -3390,6 +3851,7 @@ function ReportPanel({ active }: { active: boolean }): ReactElement {
         })
       } else {
         setPreviewPayload(payload)
+        setExportPayload(null)
       }
     },
   })
@@ -3399,26 +3861,20 @@ function ReportPanel({ active }: { active: boolean }): ReactElement {
       return
     }
 
-    setForm({
-      code: detail.code,
-      name: detail.name,
-      reportType: detail.reportType,
-      sourceScope: detail.sourceScope,
-      refreshMode: detail.refreshMode,
-      visibilityMode: detail.visibilityMode,
-      status: detail.status,
-      sourceProviderKey: detail.caliber.sourceProviderKey,
-      subjectCode: detail.caliber.subjectCode,
-      dataServiceCode: detail.caliber.dataServiceCode ?? '',
-      metricCode: detail.metrics[0]?.metricCode ?? 'total',
-      metricName: detail.metrics[0]?.metricName ?? 'Total',
-      dimensionCode: detail.dimensions[0]?.dimensionCode ?? 'time',
-      dimensionName: detail.dimensions[0]?.dimensionName ?? 'Time',
-      filtersText: Object.entries(detail.caliber.baseFilters)
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n'),
-    })
+    setForm(reportDetailToForm(detail))
   }
+
+  useEffect(() => {
+    if (detailQuery.data) {
+      setForm(reportDetailToForm(detailQuery.data))
+      setPreviewQuery((prev) => ({
+        ...prev,
+        metricCode: prev.metricCode ?? detailQuery.data.metrics[0]?.metricCode,
+        dimensionCode:
+          prev.dimensionCode ?? detailQuery.data.dimensions[0]?.dimensionCode,
+      }))
+    }
+  }, [detailQuery.data])
 
   const handleSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -3622,13 +4078,22 @@ function ReportPanel({ active }: { active: boolean }): ReactElement {
                   导出入口
                 </Button>
               </div>
+              {previewMutation.error ? (
+                <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                  {getErrorText(previewMutation.error)}
+                </div>
+              ) : null}
               <div className="mt-3 grid gap-4 lg:grid-cols-2">
                 <div>
                   <h4 className="mb-2 font-semibold text-slate-950">
                     预览结果
                   </h4>
-                  {previewPayload ? <JsonBlock value={previewPayload} /> : null}
-                  {exportPayload ? <JsonBlock value={exportPayload} /> : null}
+                  {previewPayload ? (
+                    <ReportPreviewResult value={previewPayload} />
+                  ) : null}
+                  {exportPayload ? (
+                    <ReportExportResult value={exportPayload} />
+                  ) : null}
                 </div>
                 <ListCard
                   items={snapshotsQuery.data?.items ?? []}
@@ -3797,6 +4262,31 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
     targetCode: '',
     slaPolicyJson: '{}',
     alertPolicyJson: '{}',
+    healthRuleCode: 'hc-browser-failure-rate',
+    healthRuleName: 'Browser failure rate',
+    healthCheckType: 'FAILURE_RATE',
+    healthSeverity: 'ERROR',
+    healthRuleStatus: 'ENABLED',
+    healthMetricName: 'FAILURE_RATE',
+    healthComparisonOperator: 'GREATER_THAN',
+    healthThresholdValue: 0,
+    healthWindowMinutes: 5,
+    healthDedupMinutes: 10,
+    healthScheduleExpression: '0 */5 * * * *',
+    healthStrategyJson: '{}',
+    alertRuleCode: 'ar-browser-governance',
+    alertRuleName: 'Browser governance alert',
+    alertSourceRuleCode: 'hc-browser-failure-rate',
+    alertMetricName: '',
+    alertType: 'DATA_QUALITY',
+    alertLevel: 'ERROR',
+    alertRuleStatus: 'ENABLED',
+    alertComparisonOperator: 'GREATER_THAN',
+    alertThresholdValue: 0,
+    alertDedupMinutes: 10,
+    alertEscalationMinutes: 30,
+    alertNotificationPolicyJson: '{}',
+    alertStrategyJson: '{}',
     version: '1.0.0',
     changeSummary: '',
     approvalNote: '',
@@ -3837,6 +4327,24 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
     queryKey: ['data-services', 'governance', 'versions', query],
     queryFn: () => dataServicesService.listServiceVersions(query),
   })
+  const activeProfileCode = form.profileCode.trim()
+  const healthRulesQuery = useQuery({
+    enabled: active && !!activeProfileCode,
+    queryKey: [
+      'data-services',
+      'governance',
+      'health-rules',
+      activeProfileCode,
+    ],
+    queryFn: () =>
+      dataServicesService.listGovernanceHealthRules(activeProfileCode),
+  })
+  const alertRulesQuery = useQuery({
+    enabled: active && !!activeProfileCode,
+    queryKey: ['data-services', 'governance', 'alert-rules', activeProfileCode],
+    queryFn: () =>
+      dataServicesService.listGovernanceAlertRules(activeProfileCode),
+  })
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['data-services', 'governance'] })
@@ -3856,7 +4364,77 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
         status: 'ACTIVE',
       })
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
+  })
+  const healthRuleMutation = useMutation({
+    mutationFn: () => {
+      if (!form.profileCode.trim()) {
+        throw new Error('Profile Code 必填')
+      }
+      parseJsonObject(form.healthStrategyJson)
+
+      return dataServicesService.upsertGovernanceHealthRule(
+        form.profileCode.trim(),
+        {
+          tenantId: getCurrentTenantId(),
+          ruleCode: form.healthRuleCode.trim(),
+          ruleName: form.healthRuleName.trim(),
+          checkType: form.healthCheckType,
+          severity: form.healthSeverity,
+          status: form.healthRuleStatus,
+          metricName: form.healthMetricName.trim(),
+          comparisonOperator: form.healthComparisonOperator,
+          thresholdValue: Number(form.healthThresholdValue),
+          windowMinutes: Number(form.healthWindowMinutes),
+          dedupMinutes: Number(form.healthDedupMinutes),
+          scheduleExpression: form.healthScheduleExpression.trim() || undefined,
+          strategyJson: form.healthStrategyJson,
+        },
+      )
+    },
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
+  })
+  const alertRuleMutation = useMutation({
+    mutationFn: () => {
+      if (!form.profileCode.trim()) {
+        throw new Error('Profile Code 必填')
+      }
+      parseJsonObject(form.alertNotificationPolicyJson)
+      parseJsonObject(form.alertStrategyJson)
+
+      return dataServicesService.upsertGovernanceAlertRule(
+        form.profileCode.trim(),
+        {
+          tenantId: getCurrentTenantId(),
+          ruleCode: form.alertRuleCode.trim(),
+          ruleName: form.alertRuleName.trim(),
+          sourceRuleCode: form.alertSourceRuleCode.trim() || undefined,
+          metricName: form.alertMetricName.trim() || undefined,
+          alertType: form.alertType.trim(),
+          alertLevel: form.alertLevel,
+          status: form.alertRuleStatus,
+          comparisonOperator: form.alertComparisonOperator,
+          thresholdValue: Number(form.alertThresholdValue),
+          dedupMinutes: Number(form.alertDedupMinutes),
+          escalationMinutes: Number(form.alertEscalationMinutes),
+          notificationPolicyJson: form.alertNotificationPolicyJson,
+          strategyJson: form.alertStrategyJson,
+        },
+      )
+    },
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const runHealthMutation = useMutation({
     mutationFn: () =>
@@ -3864,7 +4442,11 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
         query.targetType,
         query.targetCode,
       ),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const alertMutation = useMutation({
     mutationFn: (action: 'acknowledge' | 'escalate' | 'close') =>
@@ -3872,7 +4454,11 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
         tenantId: getCurrentTenantId(),
         reason: `portal-web ${action}`,
       }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const interventionMutation = useMutation({
     mutationFn: () =>
@@ -3884,7 +4470,11 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
         actionType: form.interventionActionType,
         reason: form.interventionReason.trim() || undefined,
       }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
   const versionMutation = useMutation({
     mutationFn: (action: 'register' | 'publish' | 'deprecate') => {
@@ -3906,8 +4496,47 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
       }
       return dataServicesService.registerServiceVersion(payload)
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormError('')
+      invalidate()
+    },
+    onError: (error) => setFormError(getErrorText(error)),
   })
+
+  const selectedAlert = (alertsQuery.data?.items ?? []).find(
+    (item) => item.alertId === selectedAlertId,
+  )
+  const canAcknowledgeAlert = selectedAlert?.status === 'OPEN'
+  const canEscalateAlert =
+    selectedAlert?.status === 'OPEN' || selectedAlert?.status === 'ACKNOWLEDGED'
+  const canCloseAlert =
+    selectedAlert?.status === 'ACKNOWLEDGED' ||
+    selectedAlert?.status === 'ESCALATED'
+
+  useEffect(() => {
+    const profile = profilesQuery.data?.items[0]
+
+    if (!profile) {
+      return
+    }
+
+    setForm((prev) => {
+      if (prev.profileCode === profile.code && prev.targetCode) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        profileCode: profile.code,
+        scopeType: profile.scopeType,
+        targetCode: profile.targetCode,
+        slaPolicyJson: profile.slaPolicyJson ?? '{}',
+        alertPolicyJson: profile.alertPolicyJson ?? '{}',
+        interventionTargetType: profile.scopeType,
+        interventionTargetCode: profile.targetCode,
+      }
+    })
+  }, [profilesQuery.data?.items])
 
   const handleProfileSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -3986,7 +4615,9 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
               alertsQuery.error ||
               tracesQuery.error ||
               auditsQuery.error ||
-              versionsQuery.error
+              versionsQuery.error ||
+              healthRulesQuery.error ||
+              alertRulesQuery.error
             }
             isEmpty={
               !profilesQuery.data?.items.length &&
@@ -3996,7 +4627,9 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
             isLoading={
               profilesQuery.isLoading ||
               healthQuery.isLoading ||
-              alertsQuery.isLoading
+              alertsQuery.isLoading ||
+              healthRulesQuery.isLoading ||
+              alertRulesQuery.isLoading
             }
             onRetry={() => {
               profilesQuery.refetch()
@@ -4005,6 +4638,8 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
               tracesQuery.refetch()
               auditsQuery.refetch()
               versionsQuery.refetch()
+              healthRulesQuery.refetch()
+              alertRulesQuery.refetch()
             }}
           />
           <div className="grid gap-4 lg:grid-cols-2">
@@ -4036,19 +4671,49 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
               title="数据质量"
             />
           </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ListCard
+              items={healthRulesQuery.data?.items ?? []}
+              renderItem={(item: GovernanceHealthRule) => (
+                <div>
+                  <div className="font-medium">{item.ruleCode}</div>
+                  <div className="text-xs text-slate-500">
+                    {item.metricName} {item.comparisonOperator}{' '}
+                    {item.thresholdValue} <StatusBadge status={item.status} />
+                  </div>
+                </div>
+              )}
+              title="健康规则"
+            />
+            <ListCard
+              items={alertRulesQuery.data?.items ?? []}
+              renderItem={(item: GovernanceAlertRule) => (
+                <div>
+                  <div className="font-medium">{item.ruleCode}</div>
+                  <div className="text-xs text-slate-500">
+                    {item.sourceRuleCode ?? item.metricName} / {item.alertType}{' '}
+                    <StatusBadge status={item.status} />
+                  </div>
+                </div>
+              )}
+              title="告警规则"
+            />
+          </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-950">告警与血缘</h3>
             <div className="mt-3 grid gap-4 lg:grid-cols-2">
               <div className="space-y-2">
                 {(alertsQuery.data?.items ?? []).map(
                   (item: GovernanceAlertRecord) => (
-                    <div
+                    <button
+                      aria-pressed={selectedAlertId === item.alertId}
                       className={cn(
-                        'cursor-pointer rounded-lg border border-slate-100 p-3 text-sm',
+                        'w-full rounded-lg border border-slate-100 p-3 text-left text-sm transition hover:border-sky-200 hover:bg-sky-50/60 focus:outline-none focus:ring-2 focus:ring-sky-200',
                         selectedAlertId === item.alertId && 'bg-sky-50',
                       )}
                       key={item.alertId}
                       onClick={() => setSelectedAlertId(item.alertId)}
+                      type="button"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{item.summary}</span>
@@ -4058,30 +4723,33 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
                         {item.detail ?? item.alertKey}
                       </p>
                       <StatusBadge status={item.status} />
-                    </div>
+                    </button>
                   ),
                 )}
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    disabled={!selectedAlertId || alertMutation.isPending}
+                    disabled={!canAcknowledgeAlert || alertMutation.isPending}
                     onClick={() => alertMutation.mutate('acknowledge')}
                     size="sm"
+                    title="仅 OPEN 告警可确认"
                     variant="outline"
                   >
                     确认
                   </Button>
                   <Button
-                    disabled={!selectedAlertId || alertMutation.isPending}
+                    disabled={!canEscalateAlert || alertMutation.isPending}
                     onClick={() => alertMutation.mutate('escalate')}
                     size="sm"
+                    title="仅 OPEN 或 ACKNOWLEDGED 告警可升级"
                     variant="outline"
                   >
                     升级
                   </Button>
                   <Button
-                    disabled={!selectedAlertId || alertMutation.isPending}
+                    disabled={!canCloseAlert || alertMutation.isPending}
                     onClick={() => alertMutation.mutate('close')}
                     size="sm"
+                    title="仅 ACKNOWLEDGED 或 ESCALATED 告警可关闭"
                     variant="outline"
                   >
                     关闭
@@ -4188,6 +4856,257 @@ function GovernancePanel({ active }: { active: boolean }): ReactElement {
             <Save className="h-4 w-4" />
             保存治理配置
           </Button>
+          <div className="border-t border-slate-100 pt-3">
+            <h4 className="font-semibold text-slate-950">健康规则</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <TextField
+                label="Rule Code"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, healthRuleCode: value }))
+                }
+                value={form.healthRuleCode}
+              />
+              <TextField
+                label="Rule Name"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, healthRuleName: value }))
+                }
+                value={form.healthRuleName}
+              />
+              <SelectField
+                label="Check Type"
+                onChange={(value) =>
+                  value &&
+                  setForm((prev) => ({ ...prev, healthCheckType: value }))
+                }
+                options={HEALTH_CHECK_TYPES}
+                value={form.healthCheckType}
+              />
+              <SelectField
+                label="Severity"
+                onChange={(value) =>
+                  value &&
+                  setForm((prev) => ({ ...prev, healthSeverity: value }))
+                }
+                options={HEALTH_SEVERITIES}
+                value={form.healthSeverity}
+              />
+              <SelectField
+                label="Status"
+                onChange={(value) =>
+                  value &&
+                  setForm((prev) => ({ ...prev, healthRuleStatus: value }))
+                }
+                options={HEALTH_RULE_STATUSES}
+                value={form.healthRuleStatus}
+              />
+              <TextField
+                label="Metric Name"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, healthMetricName: value }))
+                }
+                value={form.healthMetricName}
+              />
+              <SelectField
+                label="Operator"
+                onChange={(value) =>
+                  value &&
+                  setForm((prev) => ({
+                    ...prev,
+                    healthComparisonOperator: value,
+                  }))
+                }
+                options={COMPARISON_OPERATORS}
+                value={form.healthComparisonOperator}
+              />
+              <TextField
+                label="Threshold"
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    healthThresholdValue: Number(value),
+                  }))
+                }
+                type="number"
+                value={form.healthThresholdValue}
+              />
+              <TextField
+                label="Window Minutes"
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    healthWindowMinutes: Number(value),
+                  }))
+                }
+                type="number"
+                value={form.healthWindowMinutes}
+              />
+              <TextField
+                label="Dedup Minutes"
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    healthDedupMinutes: Number(value),
+                  }))
+                }
+                type="number"
+                value={form.healthDedupMinutes}
+              />
+            </div>
+            <TextField
+              label="Schedule"
+              onChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  healthScheduleExpression: value,
+                }))
+              }
+              value={form.healthScheduleExpression}
+            />
+            <TextareaField
+              label="Strategy JSON"
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, healthStrategyJson: value }))
+              }
+              rows={2}
+              value={form.healthStrategyJson}
+            />
+            <Button
+              disabled={!form.profileCode || healthRuleMutation.isPending}
+              onClick={() => healthRuleMutation.mutate()}
+              variant="outline"
+            >
+              保存健康规则
+            </Button>
+          </div>
+          <div className="border-t border-slate-100 pt-3">
+            <h4 className="font-semibold text-slate-950">告警规则</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <TextField
+                label="Alert Rule Code"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, alertRuleCode: value }))
+                }
+                value={form.alertRuleCode}
+              />
+              <TextField
+                label="Alert Rule Name"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, alertRuleName: value }))
+                }
+                value={form.alertRuleName}
+              />
+              <TextField
+                label="Source Rule Code"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, alertSourceRuleCode: value }))
+                }
+                value={form.alertSourceRuleCode}
+              />
+              <TextField
+                label="Metric Name"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, alertMetricName: value }))
+                }
+                value={form.alertMetricName}
+              />
+              <TextField
+                label="Alert Type"
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, alertType: value }))
+                }
+                value={form.alertType}
+              />
+              <SelectField
+                label="Level"
+                onChange={(value) =>
+                  value && setForm((prev) => ({ ...prev, alertLevel: value }))
+                }
+                options={ALERT_LEVELS}
+                value={form.alertLevel}
+              />
+              <SelectField
+                label="Status"
+                onChange={(value) =>
+                  value &&
+                  setForm((prev) => ({ ...prev, alertRuleStatus: value }))
+                }
+                options={ALERT_RULE_STATUSES}
+                value={form.alertRuleStatus}
+              />
+              <SelectField
+                label="Operator"
+                onChange={(value) =>
+                  value &&
+                  setForm((prev) => ({
+                    ...prev,
+                    alertComparisonOperator: value,
+                  }))
+                }
+                options={COMPARISON_OPERATORS}
+                value={form.alertComparisonOperator}
+              />
+              <TextField
+                label="Threshold"
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    alertThresholdValue: Number(value),
+                  }))
+                }
+                type="number"
+                value={form.alertThresholdValue}
+              />
+              <TextField
+                label="Dedup Minutes"
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    alertDedupMinutes: Number(value),
+                  }))
+                }
+                type="number"
+                value={form.alertDedupMinutes}
+              />
+              <TextField
+                label="Escalation Minutes"
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    alertEscalationMinutes: Number(value),
+                  }))
+                }
+                type="number"
+                value={form.alertEscalationMinutes}
+              />
+            </div>
+            <TextareaField
+              label="Notification Policy JSON"
+              onChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  alertNotificationPolicyJson: value,
+                }))
+              }
+              rows={2}
+              value={form.alertNotificationPolicyJson}
+            />
+            <TextareaField
+              label="Alert Strategy JSON"
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, alertStrategyJson: value }))
+              }
+              rows={2}
+              value={form.alertStrategyJson}
+            />
+            <Button
+              disabled={!form.profileCode || alertRuleMutation.isPending}
+              onClick={() => alertRuleMutation.mutate()}
+              variant="outline"
+            >
+              保存告警规则
+            </Button>
+          </div>
           <div className="border-t border-slate-100 pt-3">
             <h4 className="font-semibold text-slate-950">版本</h4>
             <TextField

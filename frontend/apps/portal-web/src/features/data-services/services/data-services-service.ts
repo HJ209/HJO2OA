@@ -1,9 +1,10 @@
 import { get, post, put, del } from '@/services/request'
 import apiClient from '@/services/api-client'
 import { useAuthStore } from '@/stores/auth-store'
-import type { PageData } from '@/types/api'
+import type { ApiResponse, PageData } from '@/types/api'
 import type {
   AlertLevel,
+  AlertRuleStatus,
   AlertStatus,
   ApiCredentialGrant,
   ApiCredentialStatus,
@@ -12,6 +13,7 @@ import type {
   ApiRateLimitPolicy,
   ApiWindowUnit,
   CompensationAction,
+  ComparisonOperator,
   ConnectorDetail,
   ConnectorHealthOverview,
   ConnectorHealthSnapshot,
@@ -34,11 +36,16 @@ import type {
   GovernanceActionAuditRecord,
   GovernanceActionType,
   GovernanceAlertRecord,
+  GovernanceAlertRule,
+  GovernanceHealthRule,
   GovernanceHealthSnapshot,
   GovernanceProfile,
   GovernanceProfileStatus,
   GovernanceScopeType,
   GovernanceTraceRecord,
+  HealthCheckRuleStatus,
+  HealthCheckSeverity,
+  HealthCheckType,
   OpenApiEndpointDetail,
   OpenApiEndpointSummary,
   OpenApiHttpMethod,
@@ -824,16 +831,18 @@ export const dataServicesService = {
     code: string,
     query: ReportPreviewQuery = {},
   ): Promise<ReportExportFile> {
-    const response = await apiClient.get<Blob>(
+    const response = await apiClient.get<ApiResponse<Blob>>(
       `${REPORT_URL}/definitions/${code}/export`,
       {
         params: buildReportPreviewParams(query),
         responseType: 'blob',
       },
     )
+    const blob = response.data.data
+
     return {
       filename: resolveFilename(response.headers['content-disposition'], code),
-      blob: response.data,
+      blob,
     }
   },
   reportSnapshots(
@@ -868,6 +877,87 @@ export const dataServicesService = {
     return post(`${GOVERNANCE_URL}/profiles`, withGovernanceOperator(payload), {
       dedupeKey: `governance:profile:${payload.code}`,
     })
+  },
+  listGovernanceHealthRules(
+    profileCode: string,
+    query: { tenantId?: string; status?: HealthCheckRuleStatus } = {},
+  ): Promise<PageData<GovernanceHealthRule>> {
+    return get(
+      `${GOVERNANCE_URL}/profiles/${encodeURIComponent(profileCode)}/health-rules`,
+      {
+        params: buildParams({
+          ...query,
+          tenantId: query.tenantId ?? getCurrentTenantId(),
+        }),
+      },
+    )
+  },
+  upsertGovernanceHealthRule(
+    profileCode: string,
+    payload: {
+      tenantId: string
+      ruleCode: string
+      ruleName: string
+      checkType: HealthCheckType
+      severity: HealthCheckSeverity
+      status: HealthCheckRuleStatus
+      metricName: string
+      comparisonOperator: ComparisonOperator
+      thresholdValue: number
+      windowMinutes?: number
+      dedupMinutes?: number
+      scheduleExpression?: string
+      strategyJson?: string
+    },
+  ): Promise<GovernanceHealthRule> {
+    return post(
+      `${GOVERNANCE_URL}/profiles/${encodeURIComponent(profileCode)}/health-rules`,
+      withGovernanceOperator(payload),
+      {
+        dedupeKey: `governance:health-rule:${profileCode}:${payload.ruleCode}`,
+      },
+    )
+  },
+  listGovernanceAlertRules(
+    profileCode: string,
+    query: { tenantId?: string; status?: AlertRuleStatus } = {},
+  ): Promise<PageData<GovernanceAlertRule>> {
+    return get(
+      `${GOVERNANCE_URL}/profiles/${encodeURIComponent(profileCode)}/alert-rules`,
+      {
+        params: buildParams({
+          ...query,
+          tenantId: query.tenantId ?? getCurrentTenantId(),
+        }),
+      },
+    )
+  },
+  upsertGovernanceAlertRule(
+    profileCode: string,
+    payload: {
+      tenantId: string
+      ruleCode: string
+      ruleName: string
+      sourceRuleCode?: string
+      metricName?: string
+      alertType: string
+      alertLevel: AlertLevel
+      status: AlertRuleStatus
+      comparisonOperator: ComparisonOperator
+      thresholdValue: number
+      dedupMinutes?: number
+      escalationMinutes?: number
+      notificationPolicyJson?: string
+      strategyJson?: string
+    },
+  ): Promise<GovernanceAlertRule> {
+    return post(
+      `${GOVERNANCE_URL}/profiles/${encodeURIComponent(profileCode)}/alert-rules`,
+      withGovernanceOperator(payload),
+      {
+        dedupeKey: `governance:alert-rule:${profileCode}:${payload.ruleCode}`,
+      },
+    )
   },
   runGovernanceHealthChecks(
     targetType?: GovernanceScopeType,

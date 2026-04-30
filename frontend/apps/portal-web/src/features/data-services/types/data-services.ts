@@ -723,7 +723,8 @@ export interface ReportTrendPreview {
 export interface ReportRankingItem {
   rank: number
   dimensionValue: string
-  metricValue: number
+  value?: number
+  metricValue?: number
   label?: string | null
 }
 
@@ -751,6 +752,21 @@ export type GovernanceHealthStatus =
   | 'UNKNOWN'
 export type AlertLevel = 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL'
 export type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'ESCALATED' | 'CLOSED'
+export type HealthCheckRuleStatus = 'ENABLED' | 'DISABLED'
+export type HealthCheckSeverity = 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL'
+export type HealthCheckType =
+  | 'HEARTBEAT'
+  | 'FRESHNESS'
+  | 'FAILURE_RATE'
+  | 'VERSION_DRIFT'
+  | 'CUSTOM'
+export type ComparisonOperator =
+  | 'GREATER_THAN'
+  | 'GREATER_OR_EQUAL'
+  | 'LESS_THAN'
+  | 'LESS_OR_EQUAL'
+  | 'EQUAL'
+export type AlertRuleStatus = 'ENABLED' | 'DISABLED'
 export type TraceStatus = 'OPEN' | 'INVESTIGATING' | 'COMPENSATED' | 'RESOLVED'
 export type GovernanceActionType =
   | 'UPSERT_PROFILE'
@@ -783,6 +799,45 @@ export interface GovernanceProfile {
   alertPolicyJson?: string | null
   status: GovernanceProfileStatus
   tenantId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GovernanceHealthRule {
+  ruleId: string
+  governanceId: string
+  ruleCode: string
+  ruleName: string
+  checkType: HealthCheckType
+  severity: HealthCheckSeverity
+  status: HealthCheckRuleStatus
+  metricName: string
+  comparisonOperator: ComparisonOperator
+  thresholdValue: number
+  windowMinutes?: number | null
+  dedupMinutes?: number | null
+  scheduleExpression?: string | null
+  strategyJson?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GovernanceAlertRule {
+  ruleId: string
+  governanceId: string
+  ruleCode: string
+  ruleName: string
+  sourceRuleCode?: string | null
+  metricName?: string | null
+  alertType: string
+  alertLevel: AlertLevel
+  status: AlertRuleStatus
+  comparisonOperator: ComparisonOperator
+  thresholdValue: number
+  dedupMinutes?: number | null
+  escalationMinutes?: number | null
+  notificationPolicyJson?: string | null
+  strategyJson?: string | null
   createdAt: string
   updatedAt: string
 }
