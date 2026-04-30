@@ -4,6 +4,8 @@ import com.hjo2oa.portal.aggregation.api.domain.PortalAggregationSnapshotKey;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshotRepository;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
+import com.hjo2oa.portal.aggregation.api.domain.PortalContentCard;
+import com.hjo2oa.portal.aggregation.api.domain.PortalContentCardDataProvider;
 import com.hjo2oa.portal.aggregation.api.domain.PortalDashboardView;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCardDataProvider;
@@ -32,14 +34,34 @@ public class PortalDashboardAggregationApplicationService {
     private static final Logger log = LoggerFactory.getLogger(PortalDashboardAggregationApplicationService.class);
     private static final String TODO_CARD_DEGRADED = "Todo card is temporarily unavailable";
     private static final String MESSAGE_CARD_DEGRADED = "Message card is temporarily unavailable";
+    private static final String CONTENT_CARD_DEGRADED = "Content card is temporarily unavailable";
 
     private final PortalIdentityCardDataProvider identityCardDataProvider;
     private final PortalTodoCardDataProvider todoCardDataProvider;
     private final PortalMessageCardDataProvider messageCardDataProvider;
+    private final PortalContentCardDataProvider contentCardDataProvider;
     private final PortalCardSnapshotRepository snapshotRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
     @Autowired
+    public PortalDashboardAggregationApplicationService(
+            PortalIdentityCardDataProvider identityCardDataProvider,
+            PortalTodoCardDataProvider todoCardDataProvider,
+            PortalMessageCardDataProvider messageCardDataProvider,
+            PortalContentCardDataProvider contentCardDataProvider,
+            PortalCardSnapshotRepository snapshotRepository
+    ) {
+        this(
+                identityCardDataProvider,
+                todoCardDataProvider,
+                messageCardDataProvider,
+                contentCardDataProvider,
+                snapshotRepository,
+                event -> {
+                },
+                Clock.systemUTC()
+        );
+    }
     public PortalDashboardAggregationApplicationService(
             PortalIdentityCardDataProvider identityCardDataProvider,
             PortalTodoCardDataProvider todoCardDataProvider,
@@ -50,6 +72,7 @@ public class PortalDashboardAggregationApplicationService {
                 identityCardDataProvider,
                 todoCardDataProvider,
                 messageCardDataProvider,
+                PortalContentCard::empty,
                 snapshotRepository,
                 event -> {
                 },
@@ -67,6 +90,25 @@ public class PortalDashboardAggregationApplicationService {
                 identityCardDataProvider,
                 todoCardDataProvider,
                 messageCardDataProvider,
+                PortalContentCard::empty,
+                snapshotRepository,
+                domainEventPublisher,
+                Clock.systemUTC()
+        );
+    }
+    public PortalDashboardAggregationApplicationService(
+            PortalIdentityCardDataProvider identityCardDataProvider,
+            PortalTodoCardDataProvider todoCardDataProvider,
+            PortalMessageCardDataProvider messageCardDataProvider,
+            PortalContentCardDataProvider contentCardDataProvider,
+            PortalCardSnapshotRepository snapshotRepository,
+            DomainEventPublisher domainEventPublisher
+    ) {
+        this(
+                identityCardDataProvider,
+                todoCardDataProvider,
+                messageCardDataProvider,
+                contentCardDataProvider,
                 snapshotRepository,
                 domainEventPublisher,
                 Clock.systemUTC()
@@ -80,9 +122,29 @@ public class PortalDashboardAggregationApplicationService {
             DomainEventPublisher domainEventPublisher,
             Clock clock
     ) {
+        this(
+                identityCardDataProvider,
+                todoCardDataProvider,
+                messageCardDataProvider,
+                PortalContentCard::empty,
+                snapshotRepository,
+                domainEventPublisher,
+                clock
+        );
+    }
+    public PortalDashboardAggregationApplicationService(
+            PortalIdentityCardDataProvider identityCardDataProvider,
+            PortalTodoCardDataProvider todoCardDataProvider,
+            PortalMessageCardDataProvider messageCardDataProvider,
+            PortalContentCardDataProvider contentCardDataProvider,
+            PortalCardSnapshotRepository snapshotRepository,
+            DomainEventPublisher domainEventPublisher,
+            Clock clock
+    ) {
         this.identityCardDataProvider = Objects.requireNonNull(identityCardDataProvider, "identityCardDataProvider must not be null");
         this.todoCardDataProvider = Objects.requireNonNull(todoCardDataProvider, "todoCardDataProvider must not be null");
         this.messageCardDataProvider = Objects.requireNonNull(messageCardDataProvider, "messageCardDataProvider must not be null");
+        this.contentCardDataProvider = Objects.requireNonNull(contentCardDataProvider, "contentCardDataProvider must not be null");
         this.snapshotRepository = Objects.requireNonNull(snapshotRepository, "snapshotRepository must not be null");
         this.domainEventPublisher = Objects.requireNonNull(domainEventPublisher, "domainEventPublisher must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -114,7 +176,17 @@ public class PortalDashboardAggregationApplicationService {
                 MESSAGE_CARD_DEGRADED)
                 : null;
 
-        return new PortalDashboardView(resolvedSceneType, identitySnapshot, todoSnapshot, messageSnapshot);
+        PortalCardSnapshot<PortalContentCard> contentSnapshot = normalizedCards.contains(PortalCardType.CONTENT)
+                ? readPortalCard(
+                identityCard,
+                resolvedSceneType,
+                PortalCardType.CONTENT,
+                contentCardDataProvider::currentContentCard,
+                PortalContentCard::empty,
+                CONTENT_CARD_DEGRADED)
+                : null;
+
+        return new PortalDashboardView(resolvedSceneType, identitySnapshot, todoSnapshot, messageSnapshot, contentSnapshot);
     }
 
     public PortalCardSnapshot<?> refreshCard(PortalSceneType sceneType, PortalCardType cardType) {
@@ -137,6 +209,13 @@ public class PortalDashboardAggregationApplicationService {
                     messageCardDataProvider::currentMessageCard,
                     PortalMessageCard::empty,
                     MESSAGE_CARD_DEGRADED);
+            case CONTENT -> refreshPortalCard(
+                    identityCard,
+                    resolvedSceneType,
+                    PortalCardType.CONTENT,
+                    contentCardDataProvider::currentContentCard,
+                    PortalContentCard::empty,
+                    CONTENT_CARD_DEGRADED);
         };
     }
 

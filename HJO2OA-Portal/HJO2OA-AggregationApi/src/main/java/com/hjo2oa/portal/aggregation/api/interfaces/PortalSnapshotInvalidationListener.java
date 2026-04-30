@@ -18,6 +18,7 @@ import com.hjo2oa.portal.widget.config.domain.PortalWidgetDisabledEvent;
 import com.hjo2oa.portal.widget.config.domain.PortalWidgetUpdatedEvent;
 import com.hjo2oa.portal.widget.config.domain.WidgetCardType;
 import com.hjo2oa.portal.widget.config.domain.WidgetSceneType;
+import com.hjo2oa.shared.messaging.DomainEvent;
 import com.hjo2oa.todo.center.domain.TodoItemCreatedEvent;
 import com.hjo2oa.todo.center.domain.TodoItemOverdueEvent;
 import java.util.EnumSet;
@@ -191,6 +192,18 @@ public class PortalSnapshotInvalidationListener {
         invalidationApplicationService.markStale(
                 tenantSceneScope(event.tenantId(), mapWidgetSceneType(event.sceneType())),
                 EnumSet.of(mapWidgetCardType(event.cardType())),
+                event.eventType()
+        );
+    }
+
+    @EventListener
+    public void onContentDomainEvent(DomainEvent event) {
+        if (event.eventType() == null || !event.eventType().startsWith("content.")) {
+            return;
+        }
+        invalidationApplicationService.markStale(
+                PortalSnapshotScope.ofTenant(event.tenantId()),
+                EnumSet.of(PortalCardType.CONTENT),
                 event.eventType()
         );
     }

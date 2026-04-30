@@ -6,7 +6,8 @@ public record PortalDashboardView(
         PortalSceneType sceneType,
         PortalCardSnapshot<PortalIdentityCard> identity,
         PortalCardSnapshot<PortalTodoCard> todo,
-        PortalCardSnapshot<PortalMessageCard> message
+        PortalCardSnapshot<PortalMessageCard> message,
+        PortalCardSnapshot<PortalContentCard> content
 ) {
 
     public PortalDashboardView {

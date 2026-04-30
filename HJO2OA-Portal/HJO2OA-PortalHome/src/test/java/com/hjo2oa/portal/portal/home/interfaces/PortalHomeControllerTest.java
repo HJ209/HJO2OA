@@ -505,7 +505,8 @@ class PortalHomeControllerTest {
                                 ))
                         ),
                         FIXED_TIME
-                )
+                ),
+                null
         );
     }
 
@@ -564,7 +565,8 @@ class PortalHomeControllerTest {
                         PortalCardType.MESSAGE,
                         homeDashboard.message().data(),
                         FIXED_TIME
-                )
+                ),
+                null
         );
     }
 

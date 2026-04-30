@@ -149,7 +149,8 @@ public class PortalHomePageAssemblyApplicationService {
                     PortalSceneType.OFFICE_CENTER,
                     officeCenter.identity(),
                     officeCenter.todo(),
-                    officeCenter.message()
+                    officeCenter.message(),
+                    null
             );
         }
         return aggregationViewProvider.dashboard(sceneType, requestedCardTypes);
@@ -275,6 +276,9 @@ public class PortalHomePageAssemblyApplicationService {
         }
         if (dashboard.message() != null) {
             snapshots.put(PortalCardType.MESSAGE, dashboard.message());
+        }
+        if (dashboard.content() != null) {
+            snapshots.put(PortalCardType.CONTENT, dashboard.content());
         }
         return snapshots;
     }

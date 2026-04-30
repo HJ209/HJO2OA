@@ -13,6 +13,7 @@ import com.hjo2oa.todo.center.domain.TodoItem;
 import com.hjo2oa.todo.center.domain.TodoItemStatus;
 import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
+import com.hjo2oa.todo.center.infrastructure.InMemoryTodoProcessViewRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -180,6 +181,11 @@ class PortalTodoListAggregationApplicationServiceTest {
                 "assignment-1",
                 "position-1"
         );
-        return new TodoQueryApplicationService(repository, copiedTodoRepository, identityContextProvider);
+        return new TodoQueryApplicationService(
+                repository,
+                copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
+                identityContextProvider
+        );
     }
 }

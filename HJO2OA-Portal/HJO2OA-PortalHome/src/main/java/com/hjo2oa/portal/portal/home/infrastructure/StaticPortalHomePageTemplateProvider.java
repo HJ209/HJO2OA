@@ -51,7 +51,7 @@ public class StaticPortalHomePageTemplateProvider implements PortalHomePageTempl
                                         PortalCardType.IDENTITY,
                                         "Current Identity",
                                         "Primary identity context for the active session",
-                                        "/api/org-perm/identity-context/current"
+                                        "/api/v1/org/identity-context/current"
                                 ))
                         ),
                         new PortalHomeRegionTemplate(
@@ -88,7 +88,7 @@ public class StaticPortalHomePageTemplateProvider implements PortalHomePageTempl
                 List.of(
                         new PortalHomeNavigationItem("pending", "Pending", "/api/v1/todo/pending"),
                         new PortalHomeNavigationItem("messages", "Messages", "/api/v1/msg/messages"),
-                        new PortalHomeNavigationItem("identity", "Identity", "/api/org-perm/identity-context/current")
+                        new PortalHomeNavigationItem("identity", "Identity", "/api/v1/org/identity-context/current")
                 ),
                 List.of(
                         new PortalHomeRegionTemplate(
@@ -100,7 +100,7 @@ public class StaticPortalHomePageTemplateProvider implements PortalHomePageTempl
                                         PortalCardType.IDENTITY,
                                         "Active Assignment",
                                         "Current assignment context for office work",
-                                        "/api/org-perm/identity-context/current"
+                                        "/api/v1/org/identity-context/current"
                                 ))
                         ),
                         new PortalHomeRegionTemplate(
@@ -163,7 +163,7 @@ public class StaticPortalHomePageTemplateProvider implements PortalHomePageTempl
                                                 PortalCardType.IDENTITY,
                                                 "Identity",
                                                 "Current assignment context",
-                                                "/api/org-perm/identity-context/current"
+                                                "/api/v1/org/identity-context/current"
                                         )
                                 )
                         )

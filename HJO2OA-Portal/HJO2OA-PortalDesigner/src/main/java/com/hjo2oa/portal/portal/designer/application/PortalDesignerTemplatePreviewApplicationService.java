@@ -3,6 +3,7 @@ package com.hjo2oa.portal.portal.designer.application;
 import com.hjo2oa.portal.aggregation.api.domain.PortalAggregationSnapshotKey;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
+import com.hjo2oa.portal.aggregation.api.domain.PortalContentCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalDashboardView;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalMessageCard;
@@ -285,12 +286,21 @@ public class PortalDesignerTemplatePreviewApplicationService {
                 now
         )
                 : null;
+        PortalCardSnapshot<PortalContentCard> contentSnapshot = cardTypes.contains(PortalCardType.CONTENT)
+                ? PortalCardSnapshot.ready(
+                PortalAggregationSnapshotKey.of(identityCard, aggregationSceneType, PortalCardType.CONTENT),
+                PortalCardType.CONTENT,
+                PortalContentCard.empty(),
+                now
+        )
+                : null;
 
         return new PortalDashboardView(
                 aggregationSceneType,
                 identitySnapshot,
                 todoSnapshot,
-                messageSnapshot
+                messageSnapshot,
+                contentSnapshot
         );
     }
 

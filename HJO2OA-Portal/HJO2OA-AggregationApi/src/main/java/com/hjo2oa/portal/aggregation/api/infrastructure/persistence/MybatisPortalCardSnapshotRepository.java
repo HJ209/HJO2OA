@@ -9,6 +9,7 @@ import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshotRepository;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardState;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
+import com.hjo2oa.portal.aggregation.api.domain.PortalContentCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalMessageCard;
 import com.hjo2oa.portal.aggregation.api.domain.PortalSceneType;
@@ -129,6 +130,7 @@ public class MybatisPortalCardSnapshotRepository implements PortalCardSnapshotRe
             case IDENTITY -> PortalIdentityCard.class;
             case TODO -> PortalTodoCard.class;
             case MESSAGE -> PortalMessageCard.class;
+            case CONTENT -> PortalContentCard.class;
         };
     }
 

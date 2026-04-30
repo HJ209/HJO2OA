@@ -25,10 +25,10 @@ public record PortalIdentityCard(
         assignmentId = requireText(assignmentId, "assignmentId");
         positionId = requireText(positionId, "positionId");
         organizationId = requireText(organizationId, "organizationId");
-        departmentId = requireText(departmentId, "departmentId");
+        departmentId = normalize(departmentId);
         positionName = requireText(positionName, "positionName");
         organizationName = requireText(organizationName, "organizationName");
-        departmentName = requireText(departmentName, "departmentName");
+        departmentName = normalize(departmentName);
         assignmentType = requireText(assignmentType, "assignmentType");
         Objects.requireNonNull(effectiveAt, "effectiveAt must not be null");
     }
@@ -39,5 +39,13 @@ public record PortalIdentityCard(
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return value;
+    }
+
+    private static String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

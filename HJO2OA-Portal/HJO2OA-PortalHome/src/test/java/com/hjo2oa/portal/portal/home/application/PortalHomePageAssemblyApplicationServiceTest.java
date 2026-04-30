@@ -585,7 +585,8 @@ class PortalHomePageAssemblyApplicationServiceTest {
                                 ))
                         ),
                         FIXED_TIME
-                )
+                ),
+                null
         );
     }
 
@@ -601,7 +602,8 @@ class PortalHomePageAssemblyApplicationServiceTest {
                         PortalMessageCard.empty(),
                         "Message card is temporarily unavailable",
                         FIXED_TIME
-                )
+                ),
+                readyDashboard.content()
         );
     }
 
@@ -638,7 +640,8 @@ class PortalHomePageAssemblyApplicationServiceTest {
                         PortalCardType.MESSAGE,
                         homeDashboard.message().data(),
                         FIXED_TIME
-                )
+                ),
+                null
         );
     }
 

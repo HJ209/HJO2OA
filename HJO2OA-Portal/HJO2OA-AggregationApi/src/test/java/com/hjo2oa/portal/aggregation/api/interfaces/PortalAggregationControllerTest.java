@@ -34,6 +34,7 @@ import com.hjo2oa.todo.center.domain.TodoItem;
 import com.hjo2oa.todo.center.domain.TodoItemStatus;
 import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
+import com.hjo2oa.todo.center.infrastructure.InMemoryTodoProcessViewRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -335,6 +336,7 @@ class PortalAggregationControllerTest {
         return new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
     }
