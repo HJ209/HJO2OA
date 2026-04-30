@@ -13,7 +13,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
@@ -29,12 +28,9 @@ public class MybatisTenantProfileRepository implements TenantProfileRepository {
 
     @Override
     public Optional<TenantProfile> findByCode(UUID tenantId, String code) {
-        return tenantProfileMapper.selectList(Wrappers.<TenantProfileEntity>lambdaQuery()
-                        .eq(TenantProfileEntity::getTenantCode, code)
-                        .last("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"))
-                .stream()
-                .findFirst()
-                .map(this::toDomain);
+        TenantProfileEntity entity = tenantProfileMapper.selectOne(Wrappers.<TenantProfileEntity>lambdaQuery()
+                .eq(TenantProfileEntity::getTenantCode, code));
+        return Optional.ofNullable(entity).map(this::toDomain);
     }
 
     @Override
@@ -76,7 +72,7 @@ public class MybatisTenantProfileRepository implements TenantProfileRepository {
                 entity.getTenantCode(),
                 entity.getName(),
                 TenantStatus.valueOf(entity.getStatus()),
-                IsolationMode.valueOf(entity.getIsolationMode()),
+                toIsolationMode(entity.getIsolationMode()),
                 entity.getPackageCode(),
                 entity.getDefaultLocale(),
                 entity.getDefaultTimezone(),
@@ -111,6 +107,16 @@ public class MybatisTenantProfileRepository implements TenantProfileRepository {
             return null;
         }
         return UUID.fromString(value);
+    }
+
+    private IsolationMode toIsolationMode(String value) {
+        if ("SHARED_SCHEMA".equalsIgnoreCase(value)) {
+            return IsolationMode.SHARED_DB;
+        }
+        if ("DEDICATED_SCHEMA".equalsIgnoreCase(value)) {
+            return IsolationMode.DEDICATED_DB;
+        }
+        return IsolationMode.valueOf(value);
     }
 
     private String toValue(UUID value) {

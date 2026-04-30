@@ -9,7 +9,6 @@ import com.hjo2oa.infra.tenant.infrastructure.persistence.TenantQuotaMapper;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
@@ -25,13 +24,10 @@ public class MybatisTenantQuotaRepository implements TenantQuotaRepository {
 
     @Override
     public Optional<TenantQuota> findByTenantProfileIdAndQuotaType(UUID tenantProfileId, QuotaType quotaType) {
-        return tenantQuotaMapper.selectList(Wrappers.<TenantQuotaEntity>lambdaQuery()
-                        .eq(TenantQuotaEntity::getTenantProfileId, tenantProfileId.toString())
-                        .eq(TenantQuotaEntity::getQuotaType, quotaType.name())
-                        .last("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"))
-                .stream()
-                .findFirst()
-                .map(this::toDomain);
+        TenantQuotaEntity entity = tenantQuotaMapper.selectOne(Wrappers.<TenantQuotaEntity>lambdaQuery()
+                .eq(TenantQuotaEntity::getTenantProfileId, tenantProfileId.toString())
+                .eq(TenantQuotaEntity::getQuotaType, quotaType.name()));
+        return Optional.ofNullable(entity).map(this::toDomain);
     }
 
     @Override
