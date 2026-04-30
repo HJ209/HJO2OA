@@ -82,6 +82,17 @@ public class RedisCachePolicyRepository implements CachePolicyRepository {
         return invalidationRecord;
     }
 
+    @Override
+    public List<CacheInvalidationRecord> findInvalidationRecords(UUID cachePolicyId, int limit) {
+        return invalidationIds().stream()
+                .map(id -> redisCacheOperations.get(invalidationKey(id), CacheInvalidationRecord.class))
+                .flatMap(Optional::stream)
+                .filter(record -> cachePolicyId == null || record.cachePolicyId().equals(cachePolicyId))
+                .sorted(Comparator.comparing(CacheInvalidationRecord::invalidatedAt).reversed())
+                .limit(Math.max(limit, 0))
+                .toList();
+    }
+
     private List<UUID> policyIds() {
         return ids(POLICY_INDEX_KEY);
     }

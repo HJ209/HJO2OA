@@ -62,6 +62,47 @@ public final class SecurityPolicyDtos {
     ) {
     }
 
+    public record MaskingPreviewRequest(
+            @NotBlank @Size(max = 64) String dataType,
+            String value,
+            @Size(max = 64) String policyCode
+    ) {
+    }
+
+    public record CryptoRequest(
+            @NotBlank @Size(max = 128) String keyRef,
+            @NotBlank @Size(max = 16) String algorithm,
+            @NotBlank String value
+    ) {
+    }
+
+    public record CryptoResponse(
+            String keyRef,
+            String algorithm,
+            String value
+    ) {
+    }
+
+    public record KeyRotationResponse(
+            String keyRef,
+            int keyVersion
+    ) {
+    }
+
+    public record PasswordValidationRequest(
+            @NotBlank String password,
+            @Size(max = 128) String username,
+            @Size(max = 64) String policyCode,
+            List<String> passwordHistory
+    ) {
+    }
+
+    public record PasswordValidationResponse(
+            boolean accepted,
+            List<String> violations
+    ) {
+    }
+
     public record SecurityPolicyResponse(
             UUID id,
             String policyCode,

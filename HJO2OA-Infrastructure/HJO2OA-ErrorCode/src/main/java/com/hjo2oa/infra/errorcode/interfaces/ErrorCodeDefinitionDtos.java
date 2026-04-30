@@ -31,6 +31,15 @@ public final class ErrorCodeDefinitionDtos {
     public record UpdateHttpStatusRequest(@Min(100) @Max(599) int httpStatus) {
     }
 
+    public record UpdateDefinitionRequest(
+            @Size(max = 64) String category,
+            @NotNull ErrorSeverity severity,
+            @Min(100) @Max(599) int httpStatus,
+            @NotBlank @Size(max = 256) String messageKey,
+            Boolean retryable
+    ) {
+    }
+
     public record DetailResponse(
             UUID id,
             String code,
@@ -39,6 +48,7 @@ public final class ErrorCodeDefinitionDtos {
             ErrorSeverity severity,
             int httpStatus,
             String messageKey,
+            String message,
             boolean retryable,
             boolean deprecated,
             Instant createdAt,

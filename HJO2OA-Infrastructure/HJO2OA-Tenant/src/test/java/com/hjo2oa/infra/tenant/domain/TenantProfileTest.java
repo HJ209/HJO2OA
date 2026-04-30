@@ -22,6 +22,8 @@ class TenantProfileTest {
                 "basic",
                 "zh-CN",
                 "Asia/Shanghai",
+                null,
+                null,
                 CREATED_AT
         );
 
@@ -41,6 +43,8 @@ class TenantProfileTest {
                 "tenant-beta",
                 "Tenant Beta",
                 IsolationMode.DEDICATED_DB,
+                null,
+                null,
                 null,
                 null,
                 null,

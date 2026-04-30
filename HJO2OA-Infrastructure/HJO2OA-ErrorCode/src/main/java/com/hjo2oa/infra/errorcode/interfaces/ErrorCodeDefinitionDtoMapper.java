@@ -19,7 +19,28 @@ public class ErrorCodeDefinitionDtoMapper {
         );
     }
 
+    public ErrorCodeDefinitionCommands.UpdateDefinitionCommand toUpdateDefinitionCommand(
+            java.util.UUID codeId,
+            ErrorCodeDefinitionDtos.UpdateDefinitionRequest request
+    ) {
+        return new ErrorCodeDefinitionCommands.UpdateDefinitionCommand(
+                codeId,
+                request.severity(),
+                request.httpStatus(),
+                request.messageKey(),
+                request.category(),
+                Boolean.TRUE.equals(request.retryable())
+        );
+    }
+
     public ErrorCodeDefinitionDtos.DetailResponse toDetailResponse(ErrorCodeDefinitionView view) {
+        return toDetailResponse(view, view.messageKey());
+    }
+
+    public ErrorCodeDefinitionDtos.DetailResponse toDetailResponse(
+            ErrorCodeDefinitionView view,
+            String localizedMessage
+    ) {
         return new ErrorCodeDefinitionDtos.DetailResponse(
                 view.id(),
                 view.code(),
@@ -28,6 +49,7 @@ public class ErrorCodeDefinitionDtoMapper {
                 view.severity(),
                 view.httpStatus(),
                 view.messageKey(),
+                localizedMessage,
                 view.retryable(),
                 view.deprecated(),
                 view.createdAt(),

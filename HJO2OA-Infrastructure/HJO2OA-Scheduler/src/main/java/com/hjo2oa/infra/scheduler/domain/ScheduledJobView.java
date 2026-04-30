@@ -6,6 +6,7 @@ import java.util.UUID;
 public record ScheduledJobView(
         UUID id,
         String jobCode,
+        String handlerName,
         String name,
         TriggerType triggerType,
         String cronExpr,

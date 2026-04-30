@@ -11,7 +11,9 @@ public record DictionaryItem(
         UUID parentItemId,
         int sortOrder,
         boolean enabled,
-        String multiLangValue
+        String multiLangValue,
+        boolean defaultItem,
+        String extensionJson
 ) {
 
     public DictionaryItem {
@@ -23,18 +25,45 @@ public record DictionaryItem(
             throw new IllegalArgumentException("sortOrder must not be negative");
         }
         multiLangValue = normalizeNullableText(multiLangValue);
+        extensionJson = normalizeNullableText(extensionJson);
+    }
+
+    public DictionaryItem(
+            UUID id,
+            UUID dictionaryTypeId,
+            String itemCode,
+            String displayName,
+            UUID parentItemId,
+            int sortOrder,
+            boolean enabled,
+            String multiLangValue
+    ) {
+        this(id, dictionaryTypeId, itemCode, displayName, parentItemId, sortOrder, enabled, multiLangValue, false, null);
     }
 
     public DictionaryItem update(String newDisplayName, Integer newSortOrder) {
+        return update(newDisplayName, parentItemId, newSortOrder, null, null, null);
+    }
+
+    public DictionaryItem update(
+            String newDisplayName,
+            UUID newParentItemId,
+            Integer newSortOrder,
+            Boolean newDefaultItem,
+            String newMultiLangValue,
+            String newExtensionJson
+    ) {
         return new DictionaryItem(
                 id,
                 dictionaryTypeId,
                 itemCode,
                 newDisplayName == null ? displayName : newDisplayName,
-                parentItemId,
+                newParentItemId,
                 newSortOrder == null ? sortOrder : newSortOrder,
                 enabled,
-                multiLangValue
+                newMultiLangValue == null ? multiLangValue : newMultiLangValue,
+                newDefaultItem == null ? defaultItem : newDefaultItem,
+                newExtensionJson == null ? extensionJson : newExtensionJson
         );
     }
 
@@ -50,7 +79,9 @@ public record DictionaryItem(
                 parentItemId,
                 sortOrder,
                 true,
-                multiLangValue
+                multiLangValue,
+                defaultItem,
+                extensionJson
         );
     }
 
@@ -66,7 +97,27 @@ public record DictionaryItem(
                 parentItemId,
                 sortOrder,
                 false,
-                multiLangValue
+                multiLangValue,
+                defaultItem,
+                extensionJson
+        );
+    }
+
+    public DictionaryItem asNonDefault() {
+        if (!defaultItem) {
+            return this;
+        }
+        return new DictionaryItem(
+                id,
+                dictionaryTypeId,
+                itemCode,
+                displayName,
+                parentItemId,
+                sortOrder,
+                enabled,
+                multiLangValue,
+                false,
+                extensionJson
         );
     }
 
@@ -79,7 +130,9 @@ public record DictionaryItem(
                 parentItemId,
                 sortOrder,
                 enabled,
-                multiLangValue
+                multiLangValue,
+                defaultItem,
+                extensionJson
         );
     }
 

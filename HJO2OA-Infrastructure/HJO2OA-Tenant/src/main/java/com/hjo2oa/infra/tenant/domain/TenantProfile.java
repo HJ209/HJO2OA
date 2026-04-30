@@ -13,6 +13,8 @@ public record TenantProfile(
         String packageCode,
         String defaultLocale,
         String defaultTimezone,
+        UUID adminAccountId,
+        UUID adminPersonId,
         boolean initialized,
         Instant createdAt,
         Instant updatedAt
@@ -39,6 +41,8 @@ public record TenantProfile(
             String packageCode,
             String defaultLocale,
             String defaultTimezone,
+            UUID adminAccountId,
+            UUID adminPersonId,
             Instant now
     ) {
         Objects.requireNonNull(now, "now must not be null");
@@ -51,6 +55,8 @@ public record TenantProfile(
                 packageCode,
                 defaultLocale,
                 defaultTimezone,
+                adminAccountId,
+                adminPersonId,
                 false,
                 now,
                 now
@@ -83,7 +89,36 @@ public record TenantProfile(
                 packageCode,
                 defaultLocale,
                 defaultTimezone,
+                adminAccountId,
+                adminPersonId,
                 true,
+                createdAt,
+                now
+        );
+    }
+
+    public TenantProfile updateProfile(
+            String newName,
+            String newPackageCode,
+            String newDefaultLocale,
+            String newDefaultTimezone,
+            UUID newAdminAccountId,
+            UUID newAdminPersonId,
+            Instant now
+    ) {
+        Objects.requireNonNull(now, "now must not be null");
+        return new TenantProfile(
+                id,
+                tenantCode,
+                newName == null ? name : newName,
+                status,
+                isolationMode,
+                newPackageCode,
+                newDefaultLocale,
+                newDefaultTimezone,
+                newAdminAccountId,
+                newAdminPersonId,
+                initialized,
                 createdAt,
                 now
         );
@@ -99,6 +134,8 @@ public record TenantProfile(
                 packageCode,
                 defaultLocale,
                 defaultTimezone,
+                adminAccountId,
+                adminPersonId,
                 initialized,
                 createdAt,
                 updatedAt
@@ -120,6 +157,8 @@ public record TenantProfile(
                 packageCode,
                 defaultLocale,
                 defaultTimezone,
+                adminAccountId,
+                adminPersonId,
                 initialized,
                 createdAt,
                 now

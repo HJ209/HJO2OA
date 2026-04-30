@@ -126,6 +126,75 @@ class ConfigEntryApplicationServiceTest {
     }
 
     @Test
+    void shouldResolveUserWhitelistRuleBeforeDefaultValue() {
+        ConfigEntryApplicationService applicationService = applicationService(new RecordingDomainEventPublisher());
+        ConfigEntryView created = applicationService.createEntry(
+                "content.ai.summary.enabled",
+                "Content AI Summary Enabled",
+                ConfigType.FEATURE_FLAG,
+                "false",
+                true,
+                true,
+                null
+        );
+        UUID userId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        applicationService.addFeatureRule(
+                created.id(),
+                FeatureRuleType.USER,
+                "{\"userId\":\"55555555-5555-5555-5555-555555555555\",\"enabled\":true}",
+                0
+        );
+
+        assertThat(applicationService.resolveValue("content.ai.summary.enabled", null, null, null, userId)
+                        .resolvedValue())
+                .isEqualTo("true");
+        assertThat(applicationService.resolveValue("content.ai.summary.enabled", null, null, null, null)
+                        .resolvedValue())
+                .isEqualTo("false");
+    }
+
+    @Test
+    void shouldResolvePercentageRuleDeterministicallyAndInvalidateCacheAfterOverrideChange() {
+        ConfigEntryApplicationService applicationService = applicationService(new RecordingDomainEventPublisher());
+        ConfigEntryView created = applicationService.createEntry(
+                "portal.new-shell.enabled",
+                "Portal New Shell Enabled",
+                ConfigType.FEATURE_FLAG,
+                "false",
+                true,
+                true,
+                null
+        );
+        UUID userId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        applicationService.addFeatureRule(
+                created.id(),
+                FeatureRuleType.PERCENTAGE,
+                "{\"percentage\":100,\"enabled\":true,\"salt\":\"stable\"}",
+                0
+        );
+        assertThat(applicationService.resolveValue("portal.new-shell.enabled", null, null, null, userId)
+                        .resolvedValue())
+                .isEqualTo("true");
+
+        UUID tenantId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+        ConfigEntryView numeric = applicationService.createEntry(
+                "attachment.max-mb",
+                "Attachment Max MB",
+                ConfigType.NUMBER,
+                "100",
+                true,
+                true,
+                null
+        );
+        assertThat(applicationService.resolveValue("attachment.max-mb", tenantId, null, null, null).resolvedValue())
+                .isEqualTo("100");
+        applicationService.addOverride(numeric.id(), OverrideScopeType.TENANT, tenantId, "200");
+
+        assertThat(applicationService.resolveValue("attachment.max-mb", tenantId, null, null, null).resolvedValue())
+                .isEqualTo("200");
+    }
+
+    @Test
     void shouldRejectRuntimeDefaultMutationForNonMutableActiveConfig() {
         ConfigEntryApplicationService applicationService = applicationService(new RecordingDomainEventPublisher());
         ConfigEntryView created = applicationService.createEntry(

@@ -138,11 +138,58 @@ class ErrorCodeDefinitionApplicationServiceTest {
                 .hasMessageContaining("已存在");
     }
 
+    @Test
+    void shouldInvalidateErrorCodeCachesAfterRegistryChanges() {
+        CountingInvalidator invalidator = new CountingInvalidator();
+        ErrorCodeDefinitionApplicationService applicationService = new ErrorCodeDefinitionApplicationService(
+                new InMemoryErrorCodeDefinitionRepository(),
+                event -> {
+                },
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC),
+                List.of(invalidator)
+        );
+
+        var created = applicationService.defineCode(
+                "INFRA_CACHE_1",
+                "infra",
+                ErrorSeverity.WARN,
+                400,
+                "infra.error.cache",
+                "cache",
+                false
+        );
+        applicationService.updateDefinition(new ErrorCodeDefinitionCommands.UpdateDefinitionCommand(
+                created.id(),
+                ErrorSeverity.ERROR,
+                409,
+                "infra.error.cache.changed",
+                "cache",
+                true
+        ));
+
+        assertThat(invalidator.count).isEqualTo(2);
+        assertThat(applicationService.queryByCode("INFRA_CACHE_1"))
+                .isPresent()
+                .get()
+                .extracting(view -> view.severity(), view -> view.httpStatus(), view -> view.messageKey(), view -> view.retryable())
+                .containsExactly(ErrorSeverity.ERROR, 409, "infra.error.cache.changed", true);
+    }
+
     private ErrorCodeDefinitionApplicationService applicationService(List<DomainEvent> events) {
         return new ErrorCodeDefinitionApplicationService(
                 new InMemoryErrorCodeDefinitionRepository(),
                 events::add,
                 Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
         );
+    }
+
+    private static final class CountingInvalidator implements ErrorCodeCacheInvalidator {
+
+        private int count;
+
+        @Override
+        public void invalidateErrorCodeCaches() {
+            count++;
+        }
     }
 }

@@ -46,6 +46,15 @@ class TenantProfileApplicationServiceTest {
         assertThat(createdTenant.id()).isNotNull();
         assertThat(createdTenant.tenantCode()).isEqualTo("tenant-one");
         assertThat(createdTenant.status()).isEqualTo(TenantStatus.DRAFT);
+        assertThat(applicationService.listQuotas(createdTenant.id()))
+                .extracting(TenantQuotaView::quotaType)
+                .containsExactly(
+                        QuotaType.API_CALL,
+                        QuotaType.ATTACHMENT_STORAGE,
+                        QuotaType.DATA_SIZE,
+                        QuotaType.JOB_COUNT,
+                        QuotaType.USER_COUNT
+                );
         assertThat(publishedEvents).singleElement().isInstanceOf(TenantCreatedEvent.class);
         assertThat(((TenantCreatedEvent) publishedEvents.get(0)).tenantCode()).isEqualTo("tenant-one");
     }
@@ -132,6 +141,46 @@ class TenantProfileApplicationServiceTest {
         assertThat(applicationService.listActive())
                 .extracting(TenantProfileView::tenantCode)
                 .containsExactly("tenant-four");
+    }
+
+    @Test
+    void shouldUpdateProfileAndConsumeQuotaForActiveTenant() {
+        InMemoryTenantProfileRepository profileRepository = new InMemoryTenantProfileRepository();
+        InMemoryTenantQuotaRepository quotaRepository = new InMemoryTenantQuotaRepository();
+        List<DomainEvent> publishedEvents = new ArrayList<>();
+        TenantProfileApplicationService applicationService = applicationService(
+                profileRepository,
+                quotaRepository,
+                publishedEvents
+        );
+        TenantProfileView createdTenant = applicationService.createTenant(
+                "tenant-six",
+                "Tenant Six",
+                IsolationMode.SHARED_DB,
+                "basic"
+        );
+
+        TenantProfileView updatedTenant = applicationService.updateTenant(
+                new TenantProfileCommands.UpdateTenantCommand(
+                        createdTenant.id(),
+                        "Tenant Six Updated",
+                        "enterprise",
+                        "en-US",
+                        "UTC",
+                        null,
+                        null
+                )
+        );
+        applicationService.activateTenant(createdTenant.id());
+        TenantQuotaView quotaView = applicationService.consumeQuota(
+                new TenantProfileCommands.ConsumeQuotaCommand(createdTenant.id(), QuotaType.API_CALL, 10)
+        );
+
+        assertThat(updatedTenant.name()).isEqualTo("Tenant Six Updated");
+        assertThat(updatedTenant.packageCode()).isEqualTo("enterprise");
+        assertThat(updatedTenant.defaultLocale()).isEqualTo("en-US");
+        assertThat(updatedTenant.defaultTimezone()).isEqualTo("UTC");
+        assertThat(quotaView.usedValue()).isEqualTo(10);
     }
 
     private TenantProfileApplicationService applicationService(

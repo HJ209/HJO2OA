@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/infra/configs")
+@RequestMapping("/api/v1/infra")
 public class ConfigEntryController {
 
     private final ConfigEntryApplicationService applicationService;
@@ -43,7 +43,7 @@ public class ConfigEntryController {
         this.responseMetaFactory = responseMetaFactory;
     }
 
-    @PostMapping
+    @PostMapping({"/configs", "/config-entries", "/feature-flags"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> create(
             @Valid @RequestBody ConfigEntryDtos.CreateRequest body,
             HttpServletRequest request
@@ -54,7 +54,7 @@ public class ConfigEntryController {
         );
     }
 
-    @PutMapping("/{entryId}/disable")
+    @PutMapping({"/configs/{entryId}/disable", "/config-entries/{entryId}/disable"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> disable(
             @PathVariable UUID entryId,
             HttpServletRequest request
@@ -65,7 +65,7 @@ public class ConfigEntryController {
         );
     }
 
-    @PutMapping("/{entryId}/default")
+    @PutMapping({"/configs/{entryId}/default", "/config-entries/{entryId}"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> updateDefault(
             @PathVariable UUID entryId,
             @Valid @RequestBody ConfigEntryDtos.UpdateDefaultRequest body,
@@ -77,7 +77,7 @@ public class ConfigEntryController {
         );
     }
 
-    @PostMapping("/{entryId}/overrides")
+    @PostMapping({"/configs/{entryId}/overrides", "/config-entries/{entryId}/overrides"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> addOverride(
             @PathVariable UUID entryId,
             @Valid @RequestBody ConfigEntryDtos.AddOverrideRequest body,
@@ -89,7 +89,7 @@ public class ConfigEntryController {
         );
     }
 
-    @DeleteMapping("/{entryId}/overrides/{overrideId}")
+    @DeleteMapping({"/configs/{entryId}/overrides/{overrideId}", "/config-entries/{entryId}/overrides/{overrideId}"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> removeOverride(
             @PathVariable UUID entryId,
             @PathVariable UUID overrideId,
@@ -101,7 +101,18 @@ public class ConfigEntryController {
         );
     }
 
-    @PostMapping("/{entryId}/feature-rules")
+    @PostMapping("/config-overrides/{overrideId}/disable")
+    public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> disableOverride(
+            @PathVariable UUID overrideId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.disableOverride(overrideId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping({"/configs/{entryId}/feature-rules", "/feature-flags/{entryId}/rules"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> addFeatureRule(
             @PathVariable UUID entryId,
             @Valid @RequestBody ConfigEntryDtos.AddFeatureRuleRequest body,
@@ -113,7 +124,25 @@ public class ConfigEntryController {
         );
     }
 
-    @GetMapping("/key/{key}")
+    @PutMapping("/feature-rules/{ruleId}")
+    public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> updateFeatureRule(
+            @PathVariable UUID ruleId,
+            @Valid @RequestBody ConfigEntryDtos.UpdateFeatureRuleRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.updateFeatureRule(
+                        ruleId,
+                        body.ruleType(),
+                        body.ruleValue(),
+                        body.sortOrder(),
+                        body.active()
+                )),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping({"/configs/key/{key}", "/config-entries/key/{key}"})
     public ApiResponse<ConfigEntryDtos.ConfigEntryResponse> queryByKey(
             @PathVariable String key,
             HttpServletRequest request
@@ -126,7 +155,7 @@ public class ConfigEntryController {
         return ApiResponse.success(dtoMapper.toResponse(entryView), responseMetaFactory.create(request));
     }
 
-    @PostMapping("/resolve")
+    @PostMapping({"/configs/resolve", "/config-resolution/preview"})
     public ApiResponse<ConfigEntryDtos.ResolvedConfigValueResponse> resolve(
             @Valid @RequestBody ConfigEntryDtos.ResolveValueRequest body,
             HttpServletRequest request
@@ -137,7 +166,24 @@ public class ConfigEntryController {
         );
     }
 
-    @GetMapping
+    @GetMapping("/config-resolution")
+    public ApiResponse<ConfigEntryDtos.ResolvedConfigValueResponse> resolveByQuery(
+            @RequestParam String key,
+            @RequestParam(required = false) UUID tenantId,
+            @RequestParam(required = false, name = "organizationId") UUID organizationId,
+            @RequestParam(required = false, name = "orgId") UUID orgId,
+            @RequestParam(required = false) UUID roleId,
+            @RequestParam(required = false) UUID userId,
+            HttpServletRequest request
+    ) {
+        UUID effectiveOrgId = organizationId == null ? orgId : organizationId;
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.resolveValue(key, tenantId, effectiveOrgId, roleId, userId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping({"/configs", "/config-entries"})
     public ApiResponse<List<ConfigEntryDtos.ConfigEntryResponse>> list(
             @RequestParam(required = false) String configKey,
             @RequestParam(required = false) String keyword,
@@ -154,6 +200,21 @@ public class ConfigEntryController {
                         status,
                         tenantAware,
                         mutableAtRuntime
+                )).stream()
+                .map(dtoMapper::toResponse)
+                .toList();
+        return ApiResponse.success(data, responseMetaFactory.create(request));
+    }
+
+    @GetMapping("/feature-flags")
+    public ApiResponse<List<ConfigEntryDtos.ConfigEntryResponse>> listFeatureFlags(HttpServletRequest request) {
+        List<ConfigEntryDtos.ConfigEntryResponse> data = applicationService.list(new ConfigEntryCommands.ListQuery(
+                        null,
+                        null,
+                        ConfigType.FEATURE_FLAG,
+                        null,
+                        null,
+                        null
                 )).stream()
                 .map(dtoMapper::toResponse)
                 .toList();

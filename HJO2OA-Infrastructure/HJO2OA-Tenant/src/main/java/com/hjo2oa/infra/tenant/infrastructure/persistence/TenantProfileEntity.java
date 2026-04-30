@@ -33,6 +33,12 @@ public class TenantProfileEntity {
     @TableField("default_timezone")
     private String defaultTimezone;
 
+    @TableField("admin_account_id")
+    private String adminAccountId;
+
+    @TableField("admin_person_id")
+    private String adminPersonId;
+
     @TableField("initialized")
     private Boolean initialized;
 
@@ -104,6 +110,22 @@ public class TenantProfileEntity {
 
     public void setDefaultTimezone(String defaultTimezone) {
         this.defaultTimezone = defaultTimezone;
+    }
+
+    public String getAdminAccountId() {
+        return adminAccountId;
+    }
+
+    public void setAdminAccountId(String adminAccountId) {
+        this.adminAccountId = adminAccountId;
+    }
+
+    public String getAdminPersonId() {
+        return adminPersonId;
+    }
+
+    public void setAdminPersonId(String adminPersonId) {
+        this.adminPersonId = adminPersonId;
     }
 
     public Boolean getInitialized() {

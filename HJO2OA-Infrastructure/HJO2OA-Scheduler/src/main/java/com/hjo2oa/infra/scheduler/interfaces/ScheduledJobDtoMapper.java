@@ -11,6 +11,7 @@ public class ScheduledJobDtoMapper {
     public ScheduledJobCommands.RegisterJobCommand toRegisterCommand(ScheduledJobDtos.RegisterJobRequest request) {
         return new ScheduledJobCommands.RegisterJobCommand(
                 request.jobCode(),
+                request.handlerName(),
                 request.name(),
                 request.triggerType(),
                 request.cronExpr(),
@@ -26,6 +27,7 @@ public class ScheduledJobDtoMapper {
         return new ScheduledJobDtos.ScheduledJobResponse(
                 view.id(),
                 view.jobCode(),
+                view.handlerName(),
                 view.name(),
                 view.triggerType(),
                 view.cronExpr(),
@@ -44,13 +46,21 @@ public class ScheduledJobDtoMapper {
         return new ScheduledJobDtos.JobExecutionRecordResponse(
                 view.id(),
                 view.scheduledJobId(),
+                view.parentExecutionId(),
                 view.triggerSource(),
                 view.executionStatus(),
                 view.startedAt(),
                 view.finishedAt(),
+                view.durationMs(),
+                view.attemptNo(),
+                view.maxAttempts(),
                 view.errorCode(),
                 view.errorMessage(),
-                view.executionLog()
+                view.errorStack(),
+                view.executionLog(),
+                view.triggerContext(),
+                view.idempotencyKey(),
+                view.nextRetryAt()
         );
     }
 }

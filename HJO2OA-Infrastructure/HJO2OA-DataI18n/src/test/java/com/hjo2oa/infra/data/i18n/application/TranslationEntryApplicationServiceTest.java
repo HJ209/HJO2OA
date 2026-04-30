@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 class TranslationEntryApplicationServiceTest {
 
     private static final UUID TENANT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID OTHER_TENANT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final Instant FIXED_TIME = Instant.parse("2026-04-24T06:00:00Z");
 
     @Test
@@ -147,6 +148,51 @@ class TranslationEntryApplicationServiceTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).errorCode())
                         .isEqualTo(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION.code()));
+    }
+
+    @Test
+    void shouldIsolateSameBusinessKeyByTenantAndInvalidateResolveCache() {
+        TranslationEntryApplicationService applicationService = applicationService();
+        var tenantTranslation = applicationService.createTranslation(
+                "article",
+                "A-tenant",
+                "title",
+                "en-US",
+                "Tenant A title",
+                TENANT_ID
+        );
+        applicationService.createTranslation(
+                "article",
+                "A-tenant",
+                "title",
+                "en-US",
+                "Tenant B title",
+                OTHER_TENANT_ID
+        );
+
+        assertThat(resolveTitle(applicationService, TENANT_ID)).isEqualTo("Tenant A title");
+        assertThat(resolveTitle(applicationService, OTHER_TENANT_ID)).isEqualTo("Tenant B title");
+
+        applicationService.updateTranslation(tenantTranslation.id(), "Tenant A title updated");
+
+        assertThat(resolveTitle(applicationService, TENANT_ID)).isEqualTo("Tenant A title updated");
+        assertThat(resolveTitle(applicationService, OTHER_TENANT_ID)).isEqualTo("Tenant B title");
+        assertThat(applicationService.listTranslations(TENANT_ID, "article", "en-US"))
+                .singleElement()
+                .extracting(view -> view.tenantId(), view -> view.translatedValue())
+                .containsExactly(TENANT_ID, "Tenant A title updated");
+    }
+
+    private String resolveTitle(TranslationEntryApplicationService applicationService, UUID tenantId) {
+        return applicationService.resolveTranslation(new TranslationEntryCommands.ResolveCommand(
+                "article",
+                "A-tenant",
+                "title",
+                "en-US",
+                tenantId,
+                null,
+                "Original"
+        )).resolvedValue();
     }
 
     private TranslationEntryApplicationService applicationService() {

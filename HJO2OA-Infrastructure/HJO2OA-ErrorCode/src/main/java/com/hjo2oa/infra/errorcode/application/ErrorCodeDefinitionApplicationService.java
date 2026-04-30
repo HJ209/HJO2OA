@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -24,21 +25,42 @@ public class ErrorCodeDefinitionApplicationService {
     private final ErrorCodeDefinitionRepository repository;
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
+    private final List<ErrorCodeCacheInvalidator> cacheInvalidators;
+
     @Autowired
+    public ErrorCodeDefinitionApplicationService(
+            ErrorCodeDefinitionRepository repository,
+            DomainEventPublisher domainEventPublisher,
+            ObjectProvider<ErrorCodeCacheInvalidator> cacheInvalidators
+    ) {
+        this(repository, domainEventPublisher, Clock.systemUTC(), cacheInvalidators.orderedStream().toList());
+    }
+
     public ErrorCodeDefinitionApplicationService(
             ErrorCodeDefinitionRepository repository,
             DomainEventPublisher domainEventPublisher
     ) {
-        this(repository, domainEventPublisher, Clock.systemUTC());
+        this(repository, domainEventPublisher, Clock.systemUTC(), List.of());
     }
+
     public ErrorCodeDefinitionApplicationService(
             ErrorCodeDefinitionRepository repository,
             DomainEventPublisher domainEventPublisher,
             Clock clock
     ) {
+        this(repository, domainEventPublisher, clock, List.of());
+    }
+
+    public ErrorCodeDefinitionApplicationService(
+            ErrorCodeDefinitionRepository repository,
+            DomainEventPublisher domainEventPublisher,
+            Clock clock,
+            List<ErrorCodeCacheInvalidator> cacheInvalidators
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.domainEventPublisher = Objects.requireNonNull(domainEventPublisher, "domainEventPublisher must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
+        this.cacheInvalidators = List.copyOf(cacheInvalidators);
     }
 
     public ErrorCodeDefinitionView defineCode(ErrorCodeDefinitionCommands.DefineCommand command) {
@@ -59,6 +81,7 @@ public class ErrorCodeDefinitionApplicationService {
         );
         ErrorCodeDefinition saved = repository.save(definition);
         domainEventPublisher.publish(ErrorCodeUpdatedEvent.from(saved, "CREATED", now));
+        invalidateCaches();
         return saved.toView();
     }
 
@@ -96,6 +119,7 @@ public class ErrorCodeDefinitionApplicationService {
         }
         ErrorCodeDefinition saved = repository.save(updated);
         domainEventPublisher.publish(ErrorCodeUpdatedEvent.from(saved, "DEPRECATED", now));
+        invalidateCaches();
         return saved.toView();
     }
 
@@ -114,6 +138,7 @@ public class ErrorCodeDefinitionApplicationService {
         }
         ErrorCodeDefinition saved = repository.save(updated);
         domainEventPublisher.publish(ErrorCodeUpdatedEvent.from(saved, "SEVERITY_UPDATED", now));
+        invalidateCaches();
         return saved.toView();
     }
 
@@ -132,6 +157,26 @@ public class ErrorCodeDefinitionApplicationService {
         }
         ErrorCodeDefinition saved = repository.save(updated);
         domainEventPublisher.publish(ErrorCodeUpdatedEvent.from(saved, "HTTP_STATUS_UPDATED", now));
+        invalidateCaches();
+        return saved.toView();
+    }
+
+    public ErrorCodeDefinitionView updateDefinition(ErrorCodeDefinitionCommands.UpdateDefinitionCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        ErrorCodeDefinition definition = loadRequired(command.codeId());
+        ensureMutable(definition);
+        Instant now = now();
+        ErrorCodeDefinition updated = definition.updateMetadata(
+                command.category(),
+                command.severity(),
+                command.httpStatus(),
+                command.messageKey(),
+                command.retryable(),
+                now
+        );
+        ErrorCodeDefinition saved = repository.save(updated);
+        domainEventPublisher.publish(ErrorCodeUpdatedEvent.from(saved, "UPDATED", now));
+        invalidateCaches();
         return saved.toView();
     }
 
@@ -168,5 +213,9 @@ public class ErrorCodeDefinitionApplicationService {
 
     private Instant now() {
         return clock.instant();
+    }
+
+    private void invalidateCaches() {
+        cacheInvalidators.forEach(ErrorCodeCacheInvalidator::invalidateErrorCodeCaches);
     }
 }

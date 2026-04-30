@@ -38,4 +38,10 @@ public class DictionaryItemEntity {
 
     @TableField("multi_lang_value")
     private String multiLangValue;
+
+    @TableField("default_item")
+    private Boolean defaultItem;
+
+    @TableField("extension_json")
+    private String extensionJson;
 }

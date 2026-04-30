@@ -13,7 +13,22 @@ public final class TenantProfileCommands {
             String code,
             String name,
             IsolationMode isolationMode,
-            String packageCode
+            String packageCode,
+            String defaultLocale,
+            String defaultTimezone,
+            UUID adminAccountId,
+            UUID adminPersonId
+    ) {
+    }
+
+    public record UpdateTenantCommand(
+            UUID tenantId,
+            String name,
+            String packageCode,
+            String defaultLocale,
+            String defaultTimezone,
+            UUID adminAccountId,
+            UUID adminPersonId
     ) {
     }
 
@@ -28,6 +43,13 @@ public final class TenantProfileCommands {
     public record CheckQuotaCommand(
             UUID tenantId,
             QuotaType quotaType
+    ) {
+    }
+
+    public record ConsumeQuotaCommand(
+            UUID tenantId,
+            QuotaType quotaType,
+            long delta
     ) {
     }
 }

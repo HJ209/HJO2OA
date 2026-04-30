@@ -15,6 +15,8 @@ public class DictionaryTypeDtoMapper {
                 view.category(),
                 view.hierarchical(),
                 view.cacheable(),
+                view.sortOrder(),
+                view.systemManaged(),
                 view.status(),
                 view.tenantId(),
                 view.createdAt(),
@@ -32,7 +34,9 @@ public class DictionaryTypeDtoMapper {
                 view.parentItemId(),
                 view.sortOrder(),
                 view.enabled(),
-                view.multiLangValue()
+                view.multiLangValue(),
+                view.defaultItem(),
+                view.extensionJson()
         );
     }
 }

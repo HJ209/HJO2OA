@@ -105,6 +105,9 @@ class AuditRecordApplicationServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 FIXED_TIME.minusSeconds(1),
                 FIXED_TIME.plusSeconds(1)
         ));

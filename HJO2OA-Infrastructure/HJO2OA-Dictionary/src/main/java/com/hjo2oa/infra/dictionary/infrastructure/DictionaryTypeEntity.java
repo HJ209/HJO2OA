@@ -34,6 +34,12 @@ public class DictionaryTypeEntity {
     @TableField("cacheable")
     private Boolean cacheable;
 
+    @TableField("sort_order")
+    private Integer sortOrder;
+
+    @TableField("system_managed")
+    private Boolean systemManaged;
+
     @TableField("status")
     private String status;
 

@@ -29,17 +29,23 @@ public class InMemoryTranslationEntryRepository implements TranslationEntryRepos
             String entityType,
             String entityId,
             String fieldName,
-            String locale
+            String locale,
+            UUID tenantId
     ) {
-        UUID id = idsByBusinessKey.get(BusinessKey.of(entityType, entityId, fieldName, locale));
+        UUID id = idsByBusinessKey.get(BusinessKey.of(entityType, entityId, fieldName, locale, tenantId));
         return id == null ? Optional.empty() : Optional.ofNullable(entriesById.get(id));
     }
 
     @Override
-    public synchronized List<TranslationEntry> findTranslationsByEntity(String entityType, String entityId) {
+    public synchronized List<TranslationEntry> findTranslationsByEntity(
+            String entityType,
+            String entityId,
+            UUID tenantId
+    ) {
         return entriesById.values().stream()
                 .filter(entry -> entry.entityType().equals(normalizeText(entityType)))
                 .filter(entry -> entry.entityId().equals(normalizeText(entityId)))
+                .filter(entry -> tenantId == null || entry.tenantId().equals(tenantId))
                 .sorted(Comparator.comparing(TranslationEntry::fieldName)
                         .thenComparing(TranslationEntry::locale))
                 .toList();
@@ -49,14 +55,27 @@ public class InMemoryTranslationEntryRepository implements TranslationEntryRepos
     public synchronized List<TranslationEntry> findTranslationsByLocale(
             String entityType,
             String entityId,
-            String locale
+            String locale,
+            UUID tenantId
     ) {
         return entriesById.values().stream()
                 .filter(entry -> entry.entityType().equals(normalizeText(entityType)))
                 .filter(entry -> entry.entityId().equals(normalizeText(entityId)))
                 .filter(entry -> entry.locale().equals(BusinessKey.normalizeLocale(locale)))
+                .filter(entry -> tenantId == null || entry.tenantId().equals(tenantId))
                 .sorted(Comparator.comparing(TranslationEntry::fieldName)
                         .thenComparing(TranslationEntry::updatedAt, Comparator.reverseOrder()))
+                .toList();
+    }
+
+    @Override
+    public synchronized List<TranslationEntry> findAll(UUID tenantId) {
+        return entriesById.values().stream()
+                .filter(entry -> tenantId == null || entry.tenantId().equals(tenantId))
+                .sorted(Comparator.comparing(TranslationEntry::entityType)
+                        .thenComparing(TranslationEntry::entityId)
+                        .thenComparing(TranslationEntry::fieldName)
+                        .thenComparing(TranslationEntry::locale))
                 .toList();
     }
 
@@ -105,24 +124,27 @@ public class InMemoryTranslationEntryRepository implements TranslationEntryRepos
             String entityType,
             String entityId,
             String fieldName,
-            String locale
+            String locale,
+            UUID tenantId
     ) {
 
         private static BusinessKey of(TranslationEntry entry) {
-            return of(entry.entityType(), entry.entityId(), entry.fieldName(), entry.locale());
+            return of(entry.entityType(), entry.entityId(), entry.fieldName(), entry.locale(), entry.tenantId());
         }
 
         private static BusinessKey of(
                 String entityType,
                 String entityId,
                 String fieldName,
-                String locale
+                String locale,
+                UUID tenantId
         ) {
             return new BusinessKey(
                     entityType == null ? null : entityType.trim(),
                     entityId == null ? null : entityId.trim(),
                     fieldName == null ? null : fieldName.trim(),
-                    normalizeLocale(locale)
+                    normalizeLocale(locale),
+                    tenantId
             );
         }
 

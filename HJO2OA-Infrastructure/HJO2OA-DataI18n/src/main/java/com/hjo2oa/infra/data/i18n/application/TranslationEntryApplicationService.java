@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -28,6 +30,8 @@ public class TranslationEntryApplicationService {
 
     private final TranslationEntryRepository repository;
     private final Clock clock;
+    private final ConcurrentMap<ResolveCacheKey, TranslationResolutionView> resolveCache = new ConcurrentHashMap<>();
+
     @Autowired
     public TranslationEntryApplicationService(TranslationEntryRepository repository) {
         this(repository, Clock.systemUTC());
@@ -63,7 +67,7 @@ public class TranslationEntryApplicationService {
         String fieldName = requireText(command.fieldName(), "fieldName");
         String locale = normalizeLocale(command.locale());
         Objects.requireNonNull(command.tenantId(), "tenantId must not be null");
-        repository.findTranslation(entityType, entityId, fieldName, locale).ifPresent(existing -> {
+        repository.findTranslation(entityType, entityId, fieldName, locale, command.tenantId()).ifPresent(existing -> {
             throw new BizException(
                     SharedErrorDescriptors.CONFLICT,
                     "translation entry already exists for key: "
@@ -81,7 +85,7 @@ public class TranslationEntryApplicationService {
                     command.updatedBy(),
                     now()
             );
-            return repository.save(entry).toView();
+            return saveAndInvalidate(entry).toView();
         } catch (IllegalArgumentException ex) {
             throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, ex.getMessage(), ex);
         }
@@ -95,7 +99,7 @@ public class TranslationEntryApplicationService {
         Objects.requireNonNull(command, "command must not be null");
         TranslationEntry existing = loadEntry(command.entryId());
         try {
-            return repository.save(existing.translate(command.value(), command.updatedBy(), now())).toView();
+            return saveAndInvalidate(existing.translate(command.value(), command.updatedBy(), now())).toView();
         } catch (IllegalArgumentException ex) {
             throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, ex.getMessage(), ex);
         }
@@ -109,7 +113,7 @@ public class TranslationEntryApplicationService {
         Objects.requireNonNull(command, "command must not be null");
         TranslationEntry existing = loadEntry(command.entryId());
         try {
-            return repository.save(existing.review(command.updatedBy(), now())).toView();
+            return saveAndInvalidate(existing.review(command.updatedBy(), now())).toView();
         } catch (IllegalArgumentException ex) {
             throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, ex.getMessage(), ex);
         }
@@ -140,13 +144,34 @@ public class TranslationEntryApplicationService {
         String fieldName = requireText(command.fieldName(), "fieldName");
         String requestedLocale = normalizeLocale(command.locale());
         Objects.requireNonNull(command.tenantId(), "tenantId must not be null");
+        ResolveCacheKey cacheKey = new ResolveCacheKey(
+                entityType,
+                entityId,
+                fieldName,
+                requestedLocale,
+                command.tenantId(),
+                normalizeLocaleNullable(command.fallbackLocale()),
+                normalizeNullableText(command.originalValue())
+        );
+        return resolveCache.computeIfAbsent(cacheKey, key -> resolveTranslationUncached(
+                entityType,
+                entityId,
+                fieldName,
+                requestedLocale,
+                command
+        ));
+    }
 
+    private TranslationResolutionView resolveTranslationUncached(
+            String entityType,
+            String entityId,
+            String fieldName,
+            String requestedLocale,
+            TranslationEntryCommands.ResolveCommand command
+    ) {
         Map<String, TranslationEntry> entriesByLocale = new LinkedHashMap<>();
-        for (TranslationEntry entry : repository.findTranslationsByEntity(entityType, entityId)) {
+        for (TranslationEntry entry : repository.findTranslationsByEntity(entityType, entityId, command.tenantId())) {
             if (!entry.fieldName().equals(fieldName)) {
-                continue;
-            }
-            if (!entry.tenantId().equals(command.tenantId())) {
                 continue;
             }
             if (!entry.hasTranslatedValue()) {
@@ -222,15 +247,32 @@ public class TranslationEntryApplicationService {
         } catch (IllegalArgumentException ex) {
             throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, ex.getMessage(), ex);
         }
-        return repository.batchSave(aggregates).stream().map(TranslationEntry::toView).toList();
+        List<TranslationEntry> saved = repository.batchSave(aggregates);
+        invalidateCaches();
+        return saved.stream().map(TranslationEntry::toView).toList();
     }
 
     public List<TranslationEntryView> queryByEntity(String entityType, String entityId) {
+        return queryByEntity(entityType, entityId, null);
+    }
+
+    public List<TranslationEntryView> queryByEntity(String entityType, String entityId, UUID tenantId) {
         return repository.findTranslationsByEntity(
                         requireText(entityType, "entityType"),
-                        requireText(entityId, "entityId")
+                        requireText(entityId, "entityId"),
+                        tenantId
                 )
                 .stream()
+                .map(TranslationEntry::toView)
+                .toList();
+    }
+
+    public List<TranslationEntryView> listTranslations(UUID tenantId, String entityType, String locale) {
+        String normalizedEntityType = normalizeNullableText(entityType);
+        String normalizedLocale = normalizeLocaleNullable(locale);
+        return repository.findAll(tenantId).stream()
+                .filter(entry -> normalizedEntityType == null || entry.entityType().equals(normalizedEntityType))
+                .filter(entry -> normalizedLocale == null || entry.locale().equals(normalizedLocale))
                 .map(TranslationEntry::toView)
                 .toList();
     }
@@ -252,7 +294,7 @@ public class TranslationEntryApplicationService {
             return existing.translate(command.value(), command.updatedBy(), updatedAt);
         }
 
-        return repository.findTranslation(entityType, entityId, fieldName, locale)
+        return repository.findTranslation(entityType, entityId, fieldName, locale, command.tenantId())
                 .map(existing -> {
                     if (!existing.tenantId().equals(command.tenantId())) {
                         throw new BizException(
@@ -275,6 +317,16 @@ public class TranslationEntryApplicationService {
                 ));
     }
 
+    private TranslationEntry saveAndInvalidate(TranslationEntry entry) {
+        TranslationEntry saved = repository.save(entry);
+        invalidateCaches();
+        return saved;
+    }
+
+    public void invalidateCaches() {
+        resolveCache.clear();
+    }
+
     private void validateBatch(List<TranslationEntryCommands.BatchSaveItemCommand> entries) {
         Set<String> uniqueKeys = new LinkedHashSet<>();
         for (int index = 0; index < entries.size(); index++) {
@@ -287,7 +339,7 @@ public class TranslationEntryApplicationService {
                     requireText(command.entityId(), "entityId"),
                     requireText(command.fieldName(), "fieldName"),
                     normalizeLocale(command.locale())
-            );
+            ) + "|" + Objects.requireNonNull(command.tenantId(), "tenantId must not be null");
             if (!uniqueKeys.add(key)) {
                 throw new BizException(
                         SharedErrorDescriptors.BUSINESS_RULE_VIOLATION,
@@ -385,5 +437,23 @@ public class TranslationEntryApplicationService {
                     : segments[index]);
         }
         return builder.toString();
+    }
+
+    private String normalizeLocaleNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return normalizeLocale(value);
+    }
+
+    private record ResolveCacheKey(
+            String entityType,
+            String entityId,
+            String fieldName,
+            String locale,
+            UUID tenantId,
+            String fallbackLocale,
+            String originalValue
+    ) {
     }
 }

@@ -18,6 +18,7 @@ public class ScheduledJobEntity {
     @TableId(type = IdType.INPUT)
     private String id;
     private String jobCode;
+    private String handlerName;
     private String name;
     private TriggerType triggerType;
     private String cronExpr;

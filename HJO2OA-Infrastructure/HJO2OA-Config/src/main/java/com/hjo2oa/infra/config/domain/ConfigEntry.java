@@ -188,6 +188,35 @@ public record ConfigEntry(
         );
     }
 
+    public ConfigEntry deactivateOverride(UUID overrideId, Instant now) {
+        Objects.requireNonNull(overrideId, "overrideId must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+        if (overrides.stream().noneMatch(configOverride -> configOverride.id().equals(overrideId)
+                && configOverride.active())) {
+            return this;
+        }
+        List<ConfigOverride> newOverrides = overrides.stream()
+                .map(configOverride -> configOverride.id().equals(overrideId)
+                        ? configOverride.deactivate()
+                        : configOverride)
+                .toList();
+        return new ConfigEntry(
+                id,
+                configKey,
+                name,
+                configType,
+                defaultValue,
+                validationRule,
+                mutableAtRuntime,
+                status,
+                tenantAware,
+                createdAt,
+                now,
+                newOverrides,
+                featureRules
+        );
+    }
+
     public ConfigEntry addFeatureRule(
             FeatureRuleType ruleType,
             String ruleValue,
@@ -224,6 +253,57 @@ public record ConfigEntry(
                 now,
                 overrides,
                 appendFeatureRule(newFeatureRules, featureRule)
+        );
+    }
+
+    public ConfigEntry updateFeatureRule(
+            UUID ruleId,
+            FeatureRuleType ruleType,
+            String ruleValue,
+            Integer sortOrder,
+            Boolean active,
+            Instant now
+    ) {
+        Objects.requireNonNull(ruleId, "ruleId must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+        if (configType != ConfigType.FEATURE_FLAG) {
+            throw new IllegalArgumentException("feature rules are only supported for feature flag configs");
+        }
+        FeatureRule existingRule = featureRules.stream()
+                .filter(rule -> rule.id().equals(ruleId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("feature rule not found"));
+        FeatureRuleType nextRuleType = ruleType == null ? existingRule.ruleType() : ruleType;
+        int nextSortOrder = sortOrder == null ? existingRule.sortOrder() : sortOrder;
+        if (featureRules.stream().anyMatch(rule -> !rule.id().equals(ruleId) && rule.sortOrder() == nextSortOrder)) {
+            throw new IllegalArgumentException("feature rule sort order already exists");
+        }
+        String nextRuleValue = ruleValue == null ? existingRule.ruleValue() : ruleValue;
+        FeatureRule updatedRule = new FeatureRule(
+                existingRule.id(),
+                id,
+                nextRuleType,
+                requireFeatureRuleValue(nextRuleType, nextRuleValue),
+                nextSortOrder,
+                active == null ? existingRule.active() : active
+        );
+        List<FeatureRule> newFeatureRules = featureRules.stream()
+                .map(rule -> rule.id().equals(ruleId) ? updatedRule : rule)
+                .toList();
+        return new ConfigEntry(
+                id,
+                configKey,
+                name,
+                configType,
+                defaultValue,
+                validationRule,
+                mutableAtRuntime,
+                status,
+                tenantAware,
+                createdAt,
+                now,
+                overrides,
+                newFeatureRules
         );
     }
 
@@ -459,13 +539,20 @@ public record ConfigEntry(
         if (!root.isObject()) {
             throw new IllegalArgumentException("scoped feature rule must be a scalar scope id or json object");
         }
-        String scopeId = firstNonBlank(
-                readText(root, "scopeId"),
-                readText(root, "tenantId"),
-                readText(root, "orgId"),
-                readText(root, "roleId"),
-                readText(root, "id")
-        );
+        List<String> idFields = switch (ruleType) {
+            case TENANT -> List.of("scopeId", "tenantId", "id");
+            case ORG -> List.of("scopeId", "orgId", "organizationId", "id");
+            case ROLE -> List.of("scopeId", "roleId", "id");
+            case USER -> List.of("scopeId", "userId", "personId", "id");
+            default -> List.of("scopeId", "id");
+        };
+        String scopeId = null;
+        for (String idField : idFields) {
+            scopeId = readText(root, idField);
+            if (scopeId != null) {
+                break;
+            }
+        }
         if (scopeId == null) {
             throw new IllegalArgumentException("scoped feature rule json requires scope id");
         }

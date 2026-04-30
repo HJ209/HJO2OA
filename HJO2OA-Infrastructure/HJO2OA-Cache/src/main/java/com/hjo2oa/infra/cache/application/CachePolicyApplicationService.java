@@ -7,6 +7,8 @@ import com.hjo2oa.infra.cache.domain.CacheInvalidationView;
 import com.hjo2oa.infra.cache.domain.CachePolicy;
 import com.hjo2oa.infra.cache.domain.CachePolicyRepository;
 import com.hjo2oa.infra.cache.domain.CachePolicyView;
+import com.hjo2oa.infra.cache.domain.CacheRuntimeKeyView;
+import com.hjo2oa.infra.cache.domain.CacheRuntimeMetricsView;
 import com.hjo2oa.infra.cache.domain.EvictionPolicy;
 import com.hjo2oa.infra.cache.domain.InvalidationMode;
 import com.hjo2oa.infra.cache.domain.InvalidationReasonType;
@@ -29,17 +31,37 @@ public class CachePolicyApplicationService {
 
     private final CachePolicyRepository cachePolicyRepository;
     private final DomainEventPublisher domainEventPublisher;
+    private final CacheRuntimeService cacheRuntimeService;
     private final Clock clock;
+
     @Autowired
+    public CachePolicyApplicationService(
+            CachePolicyRepository cachePolicyRepository,
+            DomainEventPublisher domainEventPublisher,
+            CacheRuntimeService cacheRuntimeService
+    ) {
+        this(cachePolicyRepository, domainEventPublisher, cacheRuntimeService, Clock.systemUTC());
+    }
+
     public CachePolicyApplicationService(
             CachePolicyRepository cachePolicyRepository,
             DomainEventPublisher domainEventPublisher
     ) {
-        this(cachePolicyRepository, domainEventPublisher, Clock.systemUTC());
+        this(cachePolicyRepository, domainEventPublisher, new NoopCacheRuntimeService(), Clock.systemUTC());
     }
+
     public CachePolicyApplicationService(
             CachePolicyRepository cachePolicyRepository,
             DomainEventPublisher domainEventPublisher,
+            Clock clock
+    ) {
+        this(cachePolicyRepository, domainEventPublisher, new NoopCacheRuntimeService(), clock);
+    }
+
+    public CachePolicyApplicationService(
+            CachePolicyRepository cachePolicyRepository,
+            DomainEventPublisher domainEventPublisher,
+            CacheRuntimeService cacheRuntimeService,
             Clock clock
     ) {
         this.cachePolicyRepository = Objects.requireNonNull(
@@ -50,6 +72,7 @@ public class CachePolicyApplicationService {
                 domainEventPublisher,
                 "domainEventPublisher must not be null"
         );
+        this.cacheRuntimeService = Objects.requireNonNull(cacheRuntimeService, "cacheRuntimeService must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -124,6 +147,7 @@ public class CachePolicyApplicationService {
                 now()
         );
         cachePolicyRepository.save(updatedPolicy);
+        cacheRuntimeService.evictNamespace(updatedPolicy.namespace());
         return updatedPolicy.toView();
     }
 
@@ -135,6 +159,7 @@ public class CachePolicyApplicationService {
 
         CachePolicy deactivatedPolicy = currentPolicy.deactivate(now());
         cachePolicyRepository.save(deactivatedPolicy);
+        cacheRuntimeService.evictNamespace(deactivatedPolicy.namespace());
         return deactivatedPolicy.toView();
     }
 
@@ -152,7 +177,7 @@ public class CachePolicyApplicationService {
         CachePolicy cachePolicy = loadPolicyByNamespace(namespace);
         ensurePolicyActive(cachePolicy);
         ensureInvalidationAllowed(cachePolicy, reasonType);
-        return recordInvalidation(cachePolicy, key, reasonType, reasonRef);
+        return recordInvalidation(cachePolicy, key, reasonType, reasonRef, true);
     }
 
     public CacheInvalidationView invalidateByEvent(String namespace, String eventRef) {
@@ -161,14 +186,39 @@ public class CachePolicyApplicationService {
         if (cachePolicy.invalidationMode() != InvalidationMode.EVENT_DRIVEN) {
             throw new BizException(
                     CacheErrorDescriptors.INVALIDATION_MODE_MISMATCH,
-                    "缓存策略未启用事件驱动失效"
+                    "Cache policy is not event driven"
             );
         }
         return recordInvalidation(
                 cachePolicy,
                 EVENT_INVALIDATE_ALL_KEY,
                 InvalidationReasonType.EVENT,
-                normalizeText(eventRef, "eventRef")
+                normalizeText(eventRef, "eventRef"),
+                true
+        );
+    }
+
+    public CacheInvalidationView clearNamespace(String namespace, String reasonRef) {
+        CachePolicy cachePolicy = loadPolicyByNamespace(namespace);
+        ensurePolicyActive(cachePolicy);
+        return recordInvalidation(
+                cachePolicy,
+                EVENT_INVALIDATE_ALL_KEY,
+                InvalidationReasonType.MANUAL,
+                reasonRef,
+                true
+        );
+    }
+
+    public CacheInvalidationView refreshPolicy(UUID policyId, String reasonRef) {
+        CachePolicy cachePolicy = loadPolicy(policyId);
+        ensurePolicyActive(cachePolicy);
+        return recordInvalidation(
+                cachePolicy,
+                EVENT_INVALIDATE_ALL_KEY,
+                InvalidationReasonType.MANUAL,
+                reasonRef,
+                true
         );
     }
 
@@ -184,22 +234,51 @@ public class CachePolicyApplicationService {
                 .toList();
     }
 
+    public List<CacheRuntimeKeyView> queryKeys(String namespace, UUID tenantId, String keyword) {
+        return cacheRuntimeService.findKeys(namespace, tenantId, keyword);
+    }
+
+    public List<CacheRuntimeMetricsView> metrics() {
+        return cacheRuntimeService.metrics();
+    }
+
+    public CacheRuntimeMetricsView metrics(String namespace) {
+        return cacheRuntimeService.metrics(namespace);
+    }
+
+    public List<CacheInvalidationView> listInvalidations(String namespace, int limit) {
+        UUID policyId = namespace == null || namespace.isBlank()
+                ? null
+                : loadPolicyByNamespace(namespace).id();
+        return cachePolicyRepository.findInvalidationRecords(policyId, Math.min(Math.max(limit, 1), 200)).stream()
+                .map(record -> {
+                    CachePolicy policy = cachePolicyRepository.findById(record.cachePolicyId()).orElse(null);
+                    return record.toView(policy == null ? "unknown" : policy.namespace());
+                })
+                .toList();
+    }
+
     private CacheInvalidationView recordInvalidation(
             CachePolicy cachePolicy,
             String key,
             InvalidationReasonType reasonType,
-            String reasonRef
+            String reasonRef,
+            boolean evictRuntime
     ) {
         Instant occurredAt = now();
+        String normalizedKey = normalizeText(key, "key");
         CacheInvalidationRecord invalidationRecord = CacheInvalidationRecord.create(
                 cachePolicy.id(),
-                normalizeText(key, "key"),
+                normalizedKey,
                 Objects.requireNonNull(reasonType, "reasonType must not be null"),
                 reasonRef,
                 occurredAt
         );
         CacheInvalidationRecord savedRecord = cachePolicyRepository.saveInvalidationRecord(invalidationRecord);
         CacheInvalidationView invalidationView = savedRecord.toView(cachePolicy.namespace());
+        if (evictRuntime) {
+            evictRuntime(cachePolicy.namespace(), normalizedKey);
+        }
         domainEventPublisher.publish(CacheInvalidatedEvent.of(
                 invalidationView.namespace(),
                 invalidationView.invalidateKey(),
@@ -207,6 +286,14 @@ public class CachePolicyApplicationService {
                 invalidationView.invalidatedAt()
         ));
         return invalidationView;
+    }
+
+    private void evictRuntime(String namespace, String key) {
+        if (EVENT_INVALIDATE_ALL_KEY.equals(key)) {
+            cacheRuntimeService.evictNamespace(namespace);
+            return;
+        }
+        cacheRuntimeService.evictKey(namespace, null, key);
     }
 
     private CachePolicy loadPolicy(UUID policyId) {
@@ -251,7 +338,7 @@ public class CachePolicyApplicationService {
                 if (cachePolicy.invalidationMode() != InvalidationMode.EVENT_DRIVEN) {
                     throw new BizException(
                             CacheErrorDescriptors.INVALIDATION_MODE_MISMATCH,
-                            "缓存策略未启用事件驱动失效"
+                            "Cache policy is not event driven"
                     );
                 }
             }
@@ -259,7 +346,7 @@ public class CachePolicyApplicationService {
                 if (cachePolicy.invalidationMode() != InvalidationMode.TIME_BASED) {
                     throw new BizException(
                             CacheErrorDescriptors.INVALIDATION_MODE_MISMATCH,
-                            "缓存策略未启用基于时间的失效"
+                            "Cache policy is not time based"
                     );
                 }
             }

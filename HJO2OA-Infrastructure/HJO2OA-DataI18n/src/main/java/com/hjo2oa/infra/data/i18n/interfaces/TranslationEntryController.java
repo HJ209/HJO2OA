@@ -15,11 +15,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/infra/translations")
+@RequestMapping({"/api/v1/infra/translations", "/api/v1/infra/data-i18n/translations"})
 public class TranslationEntryController {
 
     private final TranslationEntryApplicationService applicationService;
@@ -98,14 +99,28 @@ public class TranslationEntryController {
         );
     }
 
+    @GetMapping
+    public ApiResponse<List<TranslationEntryDtos.EntryResponse>> list(
+            @RequestParam UUID tenantId,
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) String locale,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toEntryResponses(applicationService.listTranslations(tenantId, entityType, locale)),
+                responseMetaFactory.create(request)
+        );
+    }
+
     @GetMapping("/entity/{entityType}/{entityId}")
     public ApiResponse<List<TranslationEntryDtos.EntryResponse>> queryByEntity(
             @PathVariable String entityType,
             @PathVariable String entityId,
+            @RequestParam(required = false) UUID tenantId,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                dtoMapper.toEntryResponses(applicationService.queryByEntity(entityType, entityId)),
+                dtoMapper.toEntryResponses(applicationService.queryByEntity(entityType, entityId, tenantId)),
                 responseMetaFactory.create(request)
         );
     }

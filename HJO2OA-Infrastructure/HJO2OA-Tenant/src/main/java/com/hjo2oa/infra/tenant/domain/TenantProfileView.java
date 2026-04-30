@@ -12,6 +12,8 @@ public record TenantProfileView(
         String packageCode,
         String defaultLocale,
         String defaultTimezone,
+        UUID adminAccountId,
+        UUID adminPersonId,
         boolean initialized,
         Instant createdAt,
         Instant updatedAt

@@ -23,9 +23,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +38,7 @@ public class ConfigEntryApplicationService {
     private final DomainEventPublisher domainEventPublisher;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final Map<ResolutionCacheKey, ResolvedConfigValueView> resolutionCache = new ConcurrentHashMap<>();
     @Autowired
     public ConfigEntryApplicationService(
             ConfigEntryRepository repository,
@@ -81,6 +84,7 @@ public class ConfigEntryApplicationService {
                 now()
         );
         repository.save(entry);
+        invalidateCache(entry.configKey());
         return entry.toView();
     }
 
@@ -102,6 +106,7 @@ public class ConfigEntryApplicationService {
         ConfigEntry updated = entry.disable(now());
         repository.save(updated);
         if (updated != entry) {
+            invalidateCache(updated.configKey());
             domainEventPublisher.publish(ConfigUpdatedEvent.forDefaultUpdate(updated, "DISABLED", now()));
         }
         return updated.toView();
@@ -118,6 +123,7 @@ public class ConfigEntryApplicationService {
         ConfigEntry updated = entry.updateDefault(defaultValue, now());
         repository.save(updated);
         if (updated != entry) {
+            invalidateCache(updated.configKey());
             domainEventPublisher.publish(ConfigUpdatedEvent.forDefaultUpdate(updated, "DEFAULT_UPDATED", now()));
         }
         return updated.toView();
@@ -147,6 +153,7 @@ public class ConfigEntryApplicationService {
         }
         ConfigEntry updated = entry.addOverride(scopeType, scopeId, overrideValue, now());
         repository.save(updated);
+        invalidateCache(updated.configKey());
         domainEventPublisher.publish(ConfigUpdatedEvent.forScopedUpdate(
                 updated,
                 "OVERRIDE_ADDED",
@@ -173,9 +180,37 @@ public class ConfigEntryApplicationService {
                 ));
         ConfigEntry updated = entry.removeOverride(overrideId, now());
         repository.save(updated);
+        invalidateCache(updated.configKey());
         domainEventPublisher.publish(ConfigUpdatedEvent.forScopedUpdate(
                 updated,
                 "OVERRIDE_REMOVED",
+                override.scopeType(),
+                override.scopeId(),
+                now()
+        ));
+        return updated.toView();
+    }
+
+    public ConfigEntryView disableOverride(UUID overrideId) {
+        Objects.requireNonNull(overrideId, "overrideId must not be null");
+        ConfigEntry entry = repository.findAll().stream()
+                .filter(candidate -> candidate.overrides().stream()
+                        .anyMatch(configOverride -> configOverride.id().equals(overrideId)))
+                .findFirst()
+                .orElseThrow(() -> new BizException(
+                        SharedErrorDescriptors.RESOURCE_NOT_FOUND,
+                        "Config override not found"
+                ));
+        ConfigOverride override = entry.overrides().stream()
+                .filter(candidate -> candidate.id().equals(overrideId))
+                .findFirst()
+                .orElseThrow();
+        ConfigEntry updated = entry.deactivateOverride(overrideId, now());
+        repository.save(updated);
+        invalidateCache(updated.configKey());
+        domainEventPublisher.publish(ConfigUpdatedEvent.forScopedUpdate(
+                updated,
+                "OVERRIDE_DISABLED",
                 override.scopeType(),
                 override.scopeId(),
                 now()
@@ -206,6 +241,7 @@ public class ConfigEntryApplicationService {
                 .findFirst()
                 .orElseThrow();
         repository.save(updated);
+        invalidateCache(updated.configKey());
         domainEventPublisher.publish(FeatureFlagChangedEvent.from(
                 updated,
                 featureRule,
@@ -220,6 +256,46 @@ public class ConfigEntryApplicationService {
         return addFeatureRule(command.entryId(), command.ruleType(), command.ruleValue(), command.sortOrder());
     }
 
+    public ConfigEntryView updateFeatureRule(
+            UUID ruleId,
+            FeatureRuleType ruleType,
+            String ruleValue,
+            Integer sortOrder,
+            Boolean active
+    ) {
+        Objects.requireNonNull(ruleId, "ruleId must not be null");
+        ConfigEntry entry = repository.findAll().stream()
+                .filter(candidate -> candidate.featureRules().stream().anyMatch(rule -> rule.id().equals(ruleId)))
+                .findFirst()
+                .orElseThrow(() -> new BizException(
+                        SharedErrorDescriptors.RESOURCE_NOT_FOUND,
+                        "Feature rule not found"
+                ));
+        FeatureRule existingRule = entry.featureRules().stream()
+                .filter(rule -> rule.id().equals(ruleId))
+                .findFirst()
+                .orElseThrow();
+        ConfigEntry updated;
+        try {
+            updated = entry.updateFeatureRule(ruleId, ruleType, ruleValue, sortOrder, active, now());
+        } catch (IllegalArgumentException ex) {
+            throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, ex.getMessage(), ex);
+        }
+        FeatureRule updatedRule = updated.featureRules().stream()
+                .filter(rule -> rule.id().equals(ruleId))
+                .findFirst()
+                .orElseThrow();
+        repository.save(updated);
+        invalidateCache(updated.configKey());
+        domainEventPublisher.publish(FeatureFlagChangedEvent.from(
+                updated,
+                updatedRule,
+                existingRule.active() && !updatedRule.active() ? "RULE_DISABLED" : "RULE_UPDATED",
+                now()
+        ));
+        return updated.toView();
+    }
+
     public ResolvedConfigValueView resolveValue(
             String key,
             UUID tenantId,
@@ -227,7 +303,13 @@ public class ConfigEntryApplicationService {
             UUID roleId,
             UUID userId
     ) {
-        ConfigEntry entry = repository.findByKey(normalizeRequiredKey(key))
+        String normalizedKey = normalizeRequiredKey(key);
+        ResolutionCacheKey cacheKey = new ResolutionCacheKey(normalizedKey, tenantId, orgId, roleId, userId);
+        ResolvedConfigValueView cachedValue = resolutionCache.get(cacheKey);
+        if (cachedValue != null) {
+            return cachedValue;
+        }
+        ConfigEntry entry = repository.findByKey(normalizedKey)
                 .orElseThrow(() -> new BizException(
                         SharedErrorDescriptors.RESOURCE_NOT_FOUND,
                         "Config entry not found"
@@ -264,7 +346,7 @@ public class ConfigEntryApplicationService {
             }
         }
 
-        return new ResolvedConfigValueView(
+        ResolvedConfigValueView resolvedValueView = new ResolvedConfigValueView(
                 entry.id(),
                 entry.configKey(),
                 entry.configType(),
@@ -279,6 +361,8 @@ public class ConfigEntryApplicationService {
                 userId,
                 trace
         );
+        resolutionCache.put(cacheKey, resolvedValueView);
+        return resolvedValueView;
     }
 
     public ResolvedConfigValueView resolveValue(ConfigEntryCommands.ResolveValueQuery query) {
@@ -395,6 +479,7 @@ public class ConfigEntryApplicationService {
             case TENANT -> matchScopedRule(featureRule.ruleValue(), tenantId, List.of("scopeId", "tenantId", "id"));
             case ORG -> matchScopedRule(featureRule.ruleValue(), orgId, List.of("scopeId", "orgId", "id"));
             case ROLE -> matchScopedRule(featureRule.ruleValue(), roleId, List.of("scopeId", "roleId", "id"));
+            case USER -> matchScopedRule(featureRule.ruleValue(), userId, List.of("scopeId", "userId", "personId", "id"));
             case PERCENTAGE -> matchPercentageRule(featureRule.ruleValue(), configKey, tenantId, orgId, roleId, userId);
         };
     }
@@ -542,6 +627,14 @@ public class ConfigEntryApplicationService {
         return clock.instant();
     }
 
+    private void invalidateCache(String configKey) {
+        if (configKey == null || configKey.isBlank()) {
+            resolutionCache.clear();
+            return;
+        }
+        resolutionCache.keySet().removeIf(key -> key.configKey().equals(configKey));
+    }
+
     private record OverrideMatch(
             UUID overrideId,
             OverrideScopeType scopeType,
@@ -554,6 +647,15 @@ public class ConfigEntryApplicationService {
             UUID ruleId,
             FeatureRuleType ruleType,
             String resolvedValue
+    ) {
+    }
+
+    private record ResolutionCacheKey(
+            String configKey,
+            UUID tenantId,
+            UUID orgId,
+            UUID roleId,
+            UUID userId
     ) {
     }
 }

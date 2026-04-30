@@ -100,6 +100,23 @@ public record LocaleBundle(
         );
     }
 
+    public LocaleBundle updateMetadata(String moduleCode, String fallbackLocale, Instant now) {
+        String normalizedModuleCode = requireText(moduleCode, "moduleCode");
+        String normalizedFallbackLocale = normalizeLocaleNullable(fallbackLocale);
+        return new LocaleBundle(
+                id,
+                bundleCode,
+                normalizedModuleCode,
+                locale,
+                normalizedFallbackLocale,
+                status,
+                tenantId,
+                createdAt,
+                now,
+                entries
+        );
+    }
+
     public LocaleBundle addEntry(String resourceKey, String resourceValue, Instant now) {
         String normalizedKey = requireText(resourceKey, "resourceKey");
         Objects.requireNonNull(resourceValue, "resourceValue must not be null");

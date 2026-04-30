@@ -21,6 +21,7 @@ public final class DictionaryTypeDtos {
             @Size(max = 64) String category,
             @NotNull Boolean hierarchical,
             @NotNull Boolean cacheable,
+            @PositiveOrZero Integer sortOrder,
             UUID tenantId
     ) {
 
@@ -31,8 +32,22 @@ public final class DictionaryTypeDtos {
                     category,
                     hierarchical,
                     cacheable,
+                    sortOrder,
                     tenantId
             );
+        }
+    }
+
+    public record UpdateTypeRequest(
+            @Size(max = 128) String name,
+            @Size(max = 64) String category,
+            Boolean hierarchical,
+            Boolean cacheable,
+            @PositiveOrZero Integer sortOrder
+    ) {
+
+        public DictionaryTypeCommands.UpdateTypeCommand toCommand() {
+            return new DictionaryTypeCommands.UpdateTypeCommand(name, category, hierarchical, cacheable, sortOrder);
         }
     }
 
@@ -40,21 +55,54 @@ public final class DictionaryTypeDtos {
             @NotBlank @Size(max = 64) String itemCode,
             @NotBlank @Size(max = 128) String displayName,
             UUID parentItemId,
-            @PositiveOrZero Integer sortOrder
+            @PositiveOrZero Integer sortOrder,
+            Boolean defaultItem,
+            String multiLangValue,
+            String extensionJson
     ) {
 
         public DictionaryTypeCommands.AddItemCommand toCommand() {
-            return new DictionaryTypeCommands.AddItemCommand(itemCode, displayName, parentItemId, sortOrder);
+            return new DictionaryTypeCommands.AddItemCommand(
+                    itemCode,
+                    displayName,
+                    parentItemId,
+                    sortOrder,
+                    defaultItem,
+                    multiLangValue,
+                    extensionJson
+            );
         }
     }
 
     public record UpdateItemRequest(
             @Size(max = 128) String displayName,
-            @PositiveOrZero Integer sortOrder
+            UUID parentItemId,
+            @PositiveOrZero Integer sortOrder,
+            Boolean defaultItem,
+            String multiLangValue,
+            String extensionJson
     ) {
 
         public DictionaryTypeCommands.UpdateItemCommand toCommand() {
-            return new DictionaryTypeCommands.UpdateItemCommand(displayName, sortOrder);
+            return new DictionaryTypeCommands.UpdateItemCommand(
+                    displayName,
+                    parentItemId,
+                    sortOrder,
+                    defaultItem,
+                    multiLangValue,
+                    extensionJson
+            );
+        }
+    }
+
+    public record ReorderItemRequest(
+            @NotNull UUID itemId,
+            @PositiveOrZero Integer sortOrder,
+            UUID parentItemId
+    ) {
+
+        public DictionaryTypeCommands.ReorderItemCommand toCommand() {
+            return new DictionaryTypeCommands.ReorderItemCommand(itemId, sortOrder, parentItemId);
         }
     }
 
@@ -66,7 +114,9 @@ public final class DictionaryTypeDtos {
             UUID parentItemId,
             int sortOrder,
             boolean enabled,
-            String multiLangValue
+            String multiLangValue,
+            boolean defaultItem,
+            String extensionJson
     ) {
     }
 
@@ -77,6 +127,8 @@ public final class DictionaryTypeDtos {
             String category,
             boolean hierarchical,
             boolean cacheable,
+            int sortOrder,
+            boolean systemManaged,
             DictionaryStatus status,
             UUID tenantId,
             Instant createdAt,
@@ -97,6 +149,10 @@ public final class DictionaryTypeDtos {
             String name,
             String className,
             String category,
+            boolean imported,
+            List<String> newItemCodes,
+            List<String> changedItemCodes,
+            List<String> disabledItemCodes,
             List<SystemEnumItemResponse> items
     ) {
     }
@@ -105,7 +161,42 @@ public final class DictionaryTypeDtos {
             int discoveredTypes,
             int createdTypes,
             int createdItems,
+            int updatedItems,
+            int disabledItems,
             List<String> importedCodes
+    ) {
+    }
+
+    public record RuntimeItemResponse(
+            UUID id,
+            String code,
+            String label,
+            String value,
+            UUID parentId,
+            int sortOrder,
+            boolean enabled,
+            boolean defaultItem,
+            String extensionJson,
+            List<RuntimeItemResponse> children
+    ) {
+    }
+
+    public record RuntimeDictionaryResponse(
+            UUID id,
+            String code,
+            String name,
+            String category,
+            boolean hierarchical,
+            UUID tenantId,
+            String language,
+            List<RuntimeItemResponse> items
+    ) {
+    }
+
+    public record BatchRuntimeRequest(
+            @NotNull List<@NotBlank String> codes,
+            Boolean enabledOnly,
+            Boolean tree
     ) {
     }
 }

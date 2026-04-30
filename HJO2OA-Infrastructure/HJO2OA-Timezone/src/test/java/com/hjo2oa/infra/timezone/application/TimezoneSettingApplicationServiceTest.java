@@ -74,6 +74,28 @@ class TimezoneSettingApplicationServiceTest {
     }
 
     @Test
+    void shouldInvalidateResolutionCacheWhenTenantTimezoneChanges() {
+        TimezoneSettingApplicationService applicationService = new TimezoneSettingApplicationService(
+                new InMemoryTimezoneSettingRepository(fixedClock()),
+                fixedClock()
+        );
+        UUID tenantId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+        applicationService.setSystemDefault("UTC");
+        applicationService.setTenantTimezone(tenantId, "Asia/Shanghai");
+
+        assertThat(applicationService.resolveEffectiveTimezone(tenantId, null).timezoneId()).isEqualTo("Asia/Shanghai");
+
+        applicationService.setTenantTimezone(tenantId, "Europe/Berlin");
+
+        assertThat(applicationService.resolveEffectiveTimezone(tenantId, null).timezoneId()).isEqualTo("Europe/Berlin");
+        assertThat(applicationService.listSettings(tenantId, TimezoneScopeType.TENANT))
+                .singleElement()
+                .extracting(TimezoneSettingView::timezoneId)
+                .isEqualTo("Europe/Berlin");
+    }
+
+    @Test
     void shouldConvertBetweenLocalDateTimeAndUtc() {
         TimezoneSettingApplicationService applicationService = new TimezoneSettingApplicationService(
                 new InMemoryTimezoneSettingRepository(fixedClock()),

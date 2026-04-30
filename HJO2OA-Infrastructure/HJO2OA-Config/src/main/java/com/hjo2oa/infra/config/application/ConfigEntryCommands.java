@@ -44,6 +44,15 @@ public final class ConfigEntryCommands {
     ) {
     }
 
+    public record UpdateFeatureRuleCommand(
+            UUID ruleId,
+            FeatureRuleType ruleType,
+            String ruleValue,
+            Integer sortOrder,
+            Boolean active
+    ) {
+    }
+
     public record ResolveValueQuery(
             String key,
             UUID tenantId,

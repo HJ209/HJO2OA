@@ -68,6 +68,20 @@ public class MybatisCachePolicyRepository implements CachePolicyRepository {
         return invalidationRecord;
     }
 
+    @Override
+    public List<CacheInvalidationRecord> findInvalidationRecords(UUID cachePolicyId, int limit) {
+        LambdaQueryWrapper<CacheInvalidationRecordEntity> query =
+                new LambdaQueryWrapper<CacheInvalidationRecordEntity>()
+                        .orderByDesc(CacheInvalidationRecordEntity::getInvalidatedAt);
+        if (cachePolicyId != null) {
+            query.eq(CacheInvalidationRecordEntity::getCachePolicyId, cachePolicyId);
+        }
+        query.last("OFFSET 0 ROWS FETCH NEXT " + Math.max(limit, 0) + " ROWS ONLY");
+        return cacheInvalidationRecordMapper.selectList(query).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
     private CachePolicy toDomain(CachePolicyEntity entity) {
         return new CachePolicy(
                 entity.getId(),
@@ -109,5 +123,16 @@ public class MybatisCachePolicyRepository implements CachePolicyRepository {
         entity.setReasonRef(invalidationRecord.reasonRef());
         entity.setInvalidatedAt(invalidationRecord.invalidatedAt());
         return entity;
+    }
+
+    private CacheInvalidationRecord toDomain(CacheInvalidationRecordEntity entity) {
+        return new CacheInvalidationRecord(
+                entity.getId(),
+                entity.getCachePolicyId(),
+                entity.getInvalidateKey(),
+                InvalidationReasonType.valueOf(entity.getReasonType()),
+                entity.getReasonRef(),
+                entity.getInvalidatedAt()
+        );
     }
 }

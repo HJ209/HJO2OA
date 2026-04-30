@@ -3,6 +3,7 @@ package com.hjo2oa.infra.dictionary.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hjo2oa.infra.cache.infrastructure.DefaultCacheRuntimeService;
 import com.hjo2oa.infra.dictionary.domain.DictionaryStatus;
 import com.hjo2oa.infra.dictionary.domain.DictionaryTypeUpdatedEvent;
 import com.hjo2oa.infra.dictionary.domain.DictionaryTypeView;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -218,7 +220,6 @@ class DictionaryTypeApplicationServiceTest {
                 TENANT_ID
         );
         applicationService.disableType(disabledGlobalType.id());
-        applicationService.disableType(tenantType.id());
 
         assertThat(applicationService.queryByCode(null, "country"))
                 .get()
@@ -233,6 +234,152 @@ class DictionaryTypeApplicationServiceTest {
         assertThat(applicationService.listTypes(TENANT_ID))
                 .extracting(DictionaryTypeView::code)
                 .containsExactly("priority");
+    }
+
+    @Test
+    void shouldCacheRuntimeQueriesAndInvalidateAfterDictionaryChange() {
+        InMemoryDictionaryTypeRepository repository = new InMemoryDictionaryTypeRepository();
+        List<DomainEvent> publishedEvents = new ArrayList<>();
+        DefaultCacheRuntimeService cacheRuntimeService = new DefaultCacheRuntimeService(
+                Optional.empty(),
+                false,
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+        DictionaryTypeApplicationService applicationService = new DictionaryTypeApplicationService(
+                repository,
+                publishedEvents::add,
+                new DictionaryCacheService(cacheRuntimeService),
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+        DictionaryRuntimeService runtimeService = new DictionaryRuntimeService(
+                applicationService,
+                cacheRuntimeService,
+                300
+        );
+        DictionaryTypeView dictionaryType = applicationService.createType(
+                "priority",
+                "Priority",
+                "task",
+                true,
+                true,
+                TENANT_ID
+        );
+        DictionaryTypeView withItem = applicationService.addItem(
+                dictionaryType.id(),
+                TENANT_ID,
+                new DictionaryTypeCommands.AddItemCommand(
+                        "P1",
+                        "High",
+                        null,
+                        10,
+                        true,
+                        "HIGH",
+                        "{\"color\":\"red\"}"
+                )
+        );
+        UUID itemId = withItem.items().get(0).id();
+
+        DictionaryRuntimeService.RuntimeDictionaryView firstRuntime = runtimeService.query(
+                TENANT_ID,
+                "priority",
+                true,
+                true,
+                "en-US"
+        );
+        DictionaryRuntimeService.RuntimeDictionaryView cachedRuntime = runtimeService.query(
+                TENANT_ID,
+                "priority",
+                true,
+                true,
+                "en-US"
+        );
+
+        assertThat(firstRuntime.items()).singleElement().satisfies(item -> {
+            assertThat(item.code()).isEqualTo("P1");
+            assertThat(item.value()).isEqualTo("HIGH");
+            assertThat(item.defaultItem()).isTrue();
+            assertThat(item.extensionJson()).isEqualTo("{\"color\":\"red\"}");
+        });
+        assertThat(cachedRuntime).isEqualTo(firstRuntime);
+        assertThat(cacheRuntimeService.metrics(DictionaryCacheService.NAMESPACE).localHitCount()).isEqualTo(1);
+        assertThat(cacheRuntimeService.findKeys(DictionaryCacheService.NAMESPACE, TENANT_ID, "priority"))
+                .hasSize(1);
+
+        applicationService.updateItem(
+                dictionaryType.id(),
+                itemId,
+                TENANT_ID,
+                new DictionaryTypeCommands.UpdateItemCommand(
+                        "Critical",
+                        null,
+                        10,
+                        true,
+                        "CRITICAL",
+                        "{\"color\":\"red\"}"
+                )
+        );
+
+        assertThat(cacheRuntimeService.findKeys(DictionaryCacheService.NAMESPACE, TENANT_ID, "priority"))
+                .isEmpty();
+        DictionaryRuntimeService.RuntimeDictionaryView refreshedRuntime = runtimeService.query(
+                TENANT_ID,
+                "priority",
+                true,
+                true,
+                "en-US"
+        );
+        assertThat(refreshedRuntime.items()).singleElement().satisfies(item -> {
+            assertThat(item.label()).isEqualTo("Critical");
+            assertThat(item.value()).isEqualTo("CRITICAL");
+        });
+        assertThat(cacheRuntimeService.metrics(DictionaryCacheService.NAMESPACE).invalidationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldProtectSystemManagedDictionariesFromNormalWrites() {
+        DictionaryTypeApplicationService applicationService = applicationService(
+                new InMemoryDictionaryTypeRepository(),
+                new ArrayList<>()
+        );
+        DictionaryTypeView systemType = applicationService.createSystemType(
+                "system.enum.person_status.abc123",
+                "PersonStatus",
+                "system-enum",
+                0,
+                null
+        );
+
+        assertThat(systemType.systemManaged()).isTrue();
+        assertThatThrownBy(() -> applicationService.disableType(systemType.id()))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("System dictionary is read-only");
+        assertThatThrownBy(() -> applicationService.addItem(
+                systemType.id(),
+                new DictionaryTypeCommands.AddItemCommand(
+                        "ACTIVE",
+                        "Active",
+                        null,
+                        0,
+                        false,
+                        null,
+                        null
+                )
+        ))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("System dictionary is read-only");
+
+        DictionaryTypeView withSystemItem = applicationService.upsertSystemItem(
+                systemType.id(),
+                "ACTIVE",
+                "Active",
+                0,
+                true
+        );
+
+        assertThat(withSystemItem.items()).singleElement().satisfies(item -> {
+            assertThat(item.itemCode()).isEqualTo("ACTIVE");
+            assertThat(item.extensionJson()).isEqualTo("{\"systemEnum\":true}");
+        });
     }
 
     private DictionaryTypeApplicationService applicationService(

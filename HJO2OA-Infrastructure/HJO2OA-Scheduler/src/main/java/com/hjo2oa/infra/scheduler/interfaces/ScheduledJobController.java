@@ -2,6 +2,9 @@ package com.hjo2oa.infra.scheduler.interfaces;
 
 import com.hjo2oa.infra.scheduler.application.ScheduledJobApplicationService;
 import com.hjo2oa.infra.scheduler.application.ScheduledJobCommands;
+import com.hjo2oa.infra.scheduler.application.SchedulerOperationContext;
+import com.hjo2oa.shared.kernel.BizException;
+import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
 import com.hjo2oa.shared.web.ApiResponse;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.UseSharedWebContract;
@@ -50,6 +53,7 @@ public class ScheduledJobController {
         return ApiResponse.success(
                 dtoMapper.toResponse(applicationService.registerJob(
                         command.jobCode(),
+                        command.handlerName(),
                         command.name(),
                         command.triggerType(),
                         command.cronExpr(),
@@ -59,6 +63,17 @@ public class ScheduledJobController {
                         command.retryPolicy(),
                         command.tenantId()
                 )),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PutMapping("/{jobId}/enable")
+    public ApiResponse<ScheduledJobDtos.ScheduledJobResponse> enableJob(
+            @PathVariable @NotNull UUID jobId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.enableJob(jobId)),
                 responseMetaFactory.create(request)
         );
     }
@@ -97,12 +112,23 @@ public class ScheduledJobController {
     }
 
     @PostMapping("/trigger/{jobCode}")
-    public ApiResponse<ScheduledJobDtos.JobExecutionRecordResponse> triggerJob(
+    public ApiResponse<ScheduledJobDtos.JobExecutionRecordResponse> triggerJobByCode(
             @PathVariable String jobCode,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                dtoMapper.toResponse(applicationService.triggerJob(jobCode)),
+                dtoMapper.toResponse(applicationService.triggerJob(jobCode, toOperationContext(request))),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/{jobId}/trigger")
+    public ApiResponse<ScheduledJobDtos.JobExecutionRecordResponse> triggerJob(
+            @PathVariable @NotNull UUID jobId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.triggerJob(jobId, toOperationContext(request))),
                 responseMetaFactory.create(request)
         );
     }
@@ -129,5 +155,30 @@ public class ScheduledJobController {
                 applicationService.queryExecutions(jobId, from, to).stream().map(dtoMapper::toResponse).toList(),
                 responseMetaFactory.create(request)
         );
+    }
+
+    private SchedulerOperationContext toOperationContext(HttpServletRequest request) {
+        return new SchedulerOperationContext(
+                parseUuidHeader(request, "X-Tenant-Id"),
+                parseUuidHeader(request, "X-Operator-Account-Id"),
+                parseUuidHeader(request, "X-Operator-Person-Id"),
+                request.getHeader(ResponseMetaFactory.REQUEST_ID_HEADER),
+                request.getHeader("X-Idempotency-Key"),
+                request.getHeader("Accept-Language"),
+                request.getHeader("X-Timezone"),
+                "http:" + request.getMethod() + " " + request.getRequestURI()
+        );
+    }
+
+    private UUID parseUuidHeader(HttpServletRequest request, String headerName) {
+        String value = request.getHeader(headerName);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            throw new BizException(SharedErrorDescriptors.BAD_REQUEST, headerName + " must be a UUID", ex);
+        }
     }
 }

@@ -51,6 +51,15 @@ public class InMemoryCachePolicyRepository implements CachePolicyRepository {
         return invalidationRecord;
     }
 
+    @Override
+    public List<CacheInvalidationRecord> findInvalidationRecords(UUID cachePolicyId, int limit) {
+        return invalidationRecordsById.values().stream()
+                .filter(record -> cachePolicyId == null || record.cachePolicyId().equals(cachePolicyId))
+                .sorted(Comparator.comparing(CacheInvalidationRecord::invalidatedAt).reversed())
+                .limit(Math.max(limit, 0))
+                .toList();
+    }
+
     public List<CacheInvalidationRecord> invalidationRecords() {
         List<CacheInvalidationRecord> records = new ArrayList<>(invalidationRecordsById.values());
         records.sort(Comparator.comparing(CacheInvalidationRecord::invalidatedAt).reversed());

@@ -78,6 +78,15 @@ public class InfraAuditRecordRepository implements AuditRecordRepository {
         if (query.actionType() != null) {
             wrapper.eq(AuditRecordEntity::getActionType, query.actionType());
         }
+        if (query.operatorAccountId() != null) {
+            wrapper.eq(AuditRecordEntity::getOperatorAccountId, query.operatorAccountId());
+        }
+        if (query.operatorPersonId() != null) {
+            wrapper.eq(AuditRecordEntity::getOperatorPersonId, query.operatorPersonId());
+        }
+        if (query.traceId() != null) {
+            wrapper.eq(AuditRecordEntity::getTraceId, query.traceId());
+        }
         if (query.from() != null) {
             wrapper.ge(AuditRecordEntity::getOccurredAt, toLocalDateTime(query.from()));
         }

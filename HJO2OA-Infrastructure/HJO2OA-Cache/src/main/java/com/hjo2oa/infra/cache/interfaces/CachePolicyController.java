@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -71,6 +72,18 @@ public class CachePolicyController {
         );
     }
 
+    @PostMapping("/{policyId}/refresh")
+    public ApiResponse<CachePolicyDtos.InvalidationResponse> refreshPolicy(
+            @PathVariable UUID policyId,
+            @RequestParam(required = false) String reasonRef,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toInvalidationResponse(applicationService.refreshPolicy(policyId, reasonRef)),
+                responseMetaFactory.create(request)
+        );
+    }
+
     @PostMapping("/invalidate")
     public ApiResponse<CachePolicyDtos.InvalidationResponse> invalidate(
             @Valid @RequestBody CachePolicyDtos.InvalidateRequest body,
@@ -101,6 +114,69 @@ public class CachePolicyController {
     public ApiResponse<List<CachePolicyDtos.PolicyResponse>> list(HttpServletRequest request) {
         return ApiResponse.success(
                 dtoMapper.toPolicyResponses(applicationService.list()),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/keys")
+    public ApiResponse<List<CachePolicyDtos.RuntimeKeyResponse>> queryKeys(
+            @RequestParam(required = false) String namespace,
+            @RequestParam(required = false) UUID tenantId,
+            @RequestParam(required = false) String keyword,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.queryKeys(namespace, tenantId, keyword).stream()
+                        .map(dtoMapper::toRuntimeKeyResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/metrics")
+    public ApiResponse<List<CachePolicyDtos.RuntimeMetricsResponse>> metrics(HttpServletRequest request) {
+        return ApiResponse.success(
+                applicationService.metrics().stream()
+                        .map(dtoMapper::toRuntimeMetricsResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/metrics/{namespace}")
+    public ApiResponse<CachePolicyDtos.RuntimeMetricsResponse> metricsByNamespace(
+            @PathVariable String namespace,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toRuntimeMetricsResponse(applicationService.metrics(namespace)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/namespaces/{namespace}/clear")
+    public ApiResponse<CachePolicyDtos.InvalidationResponse> clearNamespace(
+            @PathVariable String namespace,
+            @RequestBody(required = false) CachePolicyDtos.ClearNamespaceRequest body,
+            HttpServletRequest request
+    ) {
+        String reasonRef = body == null ? null : body.reasonRef();
+        return ApiResponse.success(
+                dtoMapper.toInvalidationResponse(applicationService.clearNamespace(namespace, reasonRef)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/invalidations")
+    public ApiResponse<List<CachePolicyDtos.InvalidationResponse>> listInvalidations(
+            @RequestParam(required = false) String namespace,
+            @RequestParam(defaultValue = "50") int limit,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.listInvalidations(namespace, limit).stream()
+                        .map(dtoMapper::toInvalidationResponse)
+                        .toList(),
                 responseMetaFactory.create(request)
         );
     }

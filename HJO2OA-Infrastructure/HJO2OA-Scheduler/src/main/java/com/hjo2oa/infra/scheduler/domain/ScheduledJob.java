@@ -9,6 +9,7 @@ import org.springframework.scheduling.support.CronExpression;
 public record ScheduledJob(
         UUID id,
         String jobCode,
+        String handlerName,
         String name,
         TriggerType triggerType,
         String cronExpr,
@@ -25,6 +26,7 @@ public record ScheduledJob(
     public ScheduledJob {
         Objects.requireNonNull(id, "id must not be null");
         jobCode = requireText(jobCode, "jobCode");
+        handlerName = requireText(handlerName == null ? jobCode : handlerName, "handlerName");
         name = requireText(name, "name");
         Objects.requireNonNull(triggerType, "triggerType must not be null");
         cronExpr = normalizeNullableText(cronExpr);
@@ -53,6 +55,7 @@ public record ScheduledJob(
 
     public static ScheduledJob create(
             String jobCode,
+            String handlerName,
             String name,
             TriggerType triggerType,
             String cronExpr,
@@ -66,6 +69,7 @@ public record ScheduledJob(
         return new ScheduledJob(
                 UUID.randomUUID(),
                 jobCode,
+                handlerName,
                 name,
                 triggerType,
                 cronExpr,
@@ -90,6 +94,7 @@ public record ScheduledJob(
         return new ScheduledJob(
                 id,
                 jobCode,
+                handlerName,
                 name,
                 triggerType,
                 cronExpr,
@@ -117,6 +122,29 @@ public record ScheduledJob(
         return new ScheduledJob(
                 id,
                 jobCode,
+                handlerName,
+                name,
+                triggerType,
+                cronExpr,
+                timezoneId,
+                concurrencyPolicy,
+                timeoutSeconds,
+                retryPolicy,
+                JobStatus.ACTIVE,
+                tenantId,
+                createdAt,
+                now
+        );
+    }
+
+    public ScheduledJob enable(Instant now) {
+        if (status != JobStatus.DISABLED) {
+            return this;
+        }
+        return new ScheduledJob(
+                id,
+                jobCode,
+                handlerName,
                 name,
                 triggerType,
                 cronExpr,
@@ -138,6 +166,7 @@ public record ScheduledJob(
         return new ScheduledJob(
                 id,
                 jobCode,
+                handlerName,
                 name,
                 triggerType,
                 cronExpr,
@@ -156,6 +185,7 @@ public record ScheduledJob(
         return new ScheduledJobView(
                 id,
                 jobCode,
+                handlerName,
                 name,
                 triggerType,
                 cronExpr,

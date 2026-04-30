@@ -22,6 +22,9 @@ public record TenantQuota(
         if (usedValue < 0) {
             throw new IllegalArgumentException("usedValue must not be negative");
         }
+        if (usedValue > limitValue) {
+            throw new IllegalArgumentException("usedValue must not be greater than limitValue");
+        }
         if (warningThreshold != null && warningThreshold < 0) {
             throw new IllegalArgumentException("warningThreshold must not be negative");
         }
@@ -33,6 +36,9 @@ public record TenantQuota(
     public TenantQuota incrementUsage(long delta) {
         if (delta <= 0) {
             throw new IllegalArgumentException("delta must be greater than 0");
+        }
+        if (usedValue + delta > limitValue) {
+            throw new IllegalArgumentException("quota usage exceeds limitValue");
         }
         return new TenantQuota(
                 id,

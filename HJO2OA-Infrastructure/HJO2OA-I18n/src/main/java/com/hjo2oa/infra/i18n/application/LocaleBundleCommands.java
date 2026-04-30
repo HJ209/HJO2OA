@@ -17,6 +17,12 @@ public final class LocaleBundleCommands {
     ) {
     }
 
+    public record UpdateBundleCommand(
+            String moduleCode,
+            String fallbackLocale
+    ) {
+    }
+
     public record BundleEntryCommand(
             UUID bundleId,
             String resourceKey,

@@ -97,6 +97,27 @@ public final class AttachmentAssetDtos {
     ) {
     }
 
+    public record AttachmentPreviewResponse(
+            UUID assetId,
+            PreviewStatus previewStatus,
+            boolean previewAvailable,
+            String contentType,
+            String downloadUrl
+    ) {
+    }
+
+    public record AttachmentAccessAuditResponse(
+            UUID id,
+            UUID attachmentId,
+            Integer versionNo,
+            String action,
+            UUID tenantId,
+            UUID operatorId,
+            String clientIp,
+            Instant occurredAt
+    ) {
+    }
+
     public record AttachmentAssetResponse(
             UUID id,
             String storageKey,

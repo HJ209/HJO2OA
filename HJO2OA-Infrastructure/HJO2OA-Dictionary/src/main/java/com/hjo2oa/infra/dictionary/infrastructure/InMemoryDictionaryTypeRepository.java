@@ -36,7 +36,9 @@ public class InMemoryDictionaryTypeRepository implements DictionaryTypeRepositor
     public List<DictionaryType> findByTenant(UUID tenantId) {
         return dictionaryTypes.values().stream()
                 .filter(dictionaryType -> tenantEquals(dictionaryType.tenantId(), tenantId))
-                .sorted(Comparator.comparing(DictionaryType::code).thenComparing(DictionaryType::id))
+                .sorted(Comparator.comparingInt(DictionaryType::sortOrder)
+                        .thenComparing(DictionaryType::code)
+                        .thenComparing(DictionaryType::id))
                 .toList();
     }
 
@@ -50,7 +52,9 @@ public class InMemoryDictionaryTypeRepository implements DictionaryTypeRepositor
     public List<DictionaryType> findAllActive() {
         return dictionaryTypes.values().stream()
                 .filter(dictionaryType -> dictionaryType.status() == DictionaryStatus.ACTIVE)
-                .sorted(Comparator.comparing(DictionaryType::code).thenComparing(DictionaryType::id))
+                .sorted(Comparator.comparingInt(DictionaryType::sortOrder)
+                        .thenComparing(DictionaryType::code)
+                        .thenComparing(DictionaryType::id))
                 .toList();
     }
 

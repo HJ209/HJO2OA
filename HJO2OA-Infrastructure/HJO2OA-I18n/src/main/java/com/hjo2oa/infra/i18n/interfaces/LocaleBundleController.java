@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -46,6 +47,33 @@ public class LocaleBundleController {
     ) {
         return ApiResponse.success(
                 dtoMapper.toBundleResponse(applicationService.createBundle(body.toCommand())),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping
+    public ApiResponse<List<LocaleBundleDtos.BundleResponse>> list(
+            @RequestParam(required = false) String moduleCode,
+            @RequestParam(required = false) String locale,
+            @RequestParam(required = false) UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.listBundles(moduleCode, locale, tenantId).stream()
+                        .map(dtoMapper::toBundleResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PutMapping("/{bundleId}")
+    public ApiResponse<LocaleBundleDtos.BundleResponse> update(
+            @PathVariable UUID bundleId,
+            @Valid @RequestBody LocaleBundleDtos.UpdateBundleRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toBundleResponse(applicationService.updateBundle(bundleId, body.toCommand())),
                 responseMetaFactory.create(request)
         );
     }
@@ -120,6 +148,20 @@ public class LocaleBundleController {
         }
         return ApiResponse.success(
                 bundles.stream().map(dtoMapper::toBundleResponse).toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/locale/{locale}")
+    public ApiResponse<List<LocaleBundleDtos.BundleResponse>> queryByLocale(
+            @PathVariable String locale,
+            @RequestParam(required = false) UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.queryByLocale(locale, tenantId).stream()
+                        .map(dtoMapper::toBundleResponse)
+                        .toList(),
                 responseMetaFactory.create(request)
         );
     }

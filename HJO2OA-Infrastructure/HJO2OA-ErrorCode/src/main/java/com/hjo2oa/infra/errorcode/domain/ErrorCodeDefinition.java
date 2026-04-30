@@ -139,6 +139,32 @@ public record ErrorCodeDefinition(
         );
     }
 
+    public ErrorCodeDefinition updateMetadata(
+            String newCategory,
+            ErrorSeverity newSeverity,
+            int newHttpStatus,
+            String newMessageKey,
+            boolean newRetryable,
+            Instant now
+    ) {
+        Objects.requireNonNull(now, "now must not be null");
+        Objects.requireNonNull(newSeverity, "severity must not be null");
+        validateHttpStatus(newHttpStatus);
+        return new ErrorCodeDefinition(
+                id,
+                code,
+                moduleCode,
+                newCategory,
+                newSeverity,
+                newHttpStatus,
+                newMessageKey,
+                newRetryable,
+                deprecated,
+                createdAt,
+                now
+        );
+    }
+
     public ErrorCodeDefinition markRetryable(Instant now) {
         Objects.requireNonNull(now, "now must not be null");
         if (retryable) {

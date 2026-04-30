@@ -37,6 +37,11 @@ public class InMemoryTenantProfileRepository implements TenantProfileRepository 
     }
 
     @Override
+    public List<TenantProfile> findAll() {
+        return List.copyOf(profilesById.values());
+    }
+
+    @Override
     public List<TenantProfile> findAllActive() {
         return profilesById.values().stream()
                 .filter(profile -> profile.status() == TenantStatus.ACTIVE)

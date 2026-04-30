@@ -11,6 +11,8 @@ public record DictionaryTypeView(
         String category,
         boolean hierarchical,
         boolean cacheable,
+        int sortOrder,
+        boolean systemManaged,
         DictionaryStatus status,
         UUID tenantId,
         Instant createdAt,

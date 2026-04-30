@@ -31,6 +31,13 @@ public class InMemoryLocaleBundleRepository implements LocaleBundleRepository {
     }
 
     @Override
+    public List<LocaleBundle> findAll() {
+        return bundlesById.values().stream()
+                .sorted(BUNDLE_ORDER)
+                .toList();
+    }
+
+    @Override
     public List<LocaleBundle> findByCode(String bundleCode) {
         return bundlesById.values().stream()
                 .filter(bundle -> bundle.bundleCode().equals(bundleCode))
@@ -43,6 +50,15 @@ public class InMemoryLocaleBundleRepository implements LocaleBundleRepository {
         return bundlesById.values().stream()
                 .filter(bundle -> bundle.moduleCode().equals(moduleCode))
                 .filter(bundle -> bundle.locale().equals(locale))
+                .sorted(BUNDLE_ORDER)
+                .toList();
+    }
+
+    @Override
+    public List<LocaleBundle> findByLocale(String locale, UUID tenantId) {
+        return bundlesById.values().stream()
+                .filter(bundle -> bundle.locale().equals(locale))
+                .filter(bundle -> tenantMatches(bundle.tenantId(), tenantId))
                 .sorted(BUNDLE_ORDER)
                 .toList();
     }

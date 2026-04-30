@@ -35,23 +35,26 @@ public class MybatisTranslationEntryRepository implements TranslationEntryReposi
             String entityType,
             String entityId,
             String fieldName,
-            String locale
+            String locale,
+            UUID tenantId
     ) {
         LambdaQueryWrapper<TranslationEntryEntity> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(TranslationEntryEntity::getEntityType, normalizeText(entityType))
                 .eq(TranslationEntryEntity::getEntityId, normalizeText(entityId))
                 .eq(TranslationEntryEntity::getFieldName, normalizeText(fieldName))
-                .eq(TranslationEntryEntity::getLocale, normalizeLocale(locale));
+                .eq(TranslationEntryEntity::getLocale, normalizeLocale(locale))
+                .eq(TranslationEntryEntity::getTenantId, tenantId);
         return Optional.ofNullable(mapper.selectOne(wrapper)).map(this::toDomain);
     }
 
     @Override
-    public List<TranslationEntry> findTranslationsByEntity(String entityType, String entityId) {
+    public List<TranslationEntry> findTranslationsByEntity(String entityType, String entityId, UUID tenantId) {
         LambdaQueryWrapper<TranslationEntryEntity> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(TranslationEntryEntity::getEntityType, normalizeText(entityType))
                 .eq(TranslationEntryEntity::getEntityId, normalizeText(entityId))
                 .orderByAsc(TranslationEntryEntity::getFieldName)
                 .orderByAsc(TranslationEntryEntity::getLocale);
+        applyTenantScope(wrapper, tenantId);
         return mapper.selectList(wrapper).stream().map(this::toDomain).toList();
     }
 
@@ -59,7 +62,8 @@ public class MybatisTranslationEntryRepository implements TranslationEntryReposi
     public List<TranslationEntry> findTranslationsByLocale(
             String entityType,
             String entityId,
-            String locale
+            String locale,
+            UUID tenantId
     ) {
         LambdaQueryWrapper<TranslationEntryEntity> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(TranslationEntryEntity::getEntityType, normalizeText(entityType))
@@ -67,6 +71,18 @@ public class MybatisTranslationEntryRepository implements TranslationEntryReposi
                 .eq(TranslationEntryEntity::getLocale, normalizeLocale(locale))
                 .orderByAsc(TranslationEntryEntity::getFieldName)
                 .orderByDesc(TranslationEntryEntity::getUpdatedAt);
+        applyTenantScope(wrapper, tenantId);
+        return mapper.selectList(wrapper).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<TranslationEntry> findAll(UUID tenantId) {
+        LambdaQueryWrapper<TranslationEntryEntity> wrapper = Wrappers.lambdaQuery();
+        applyTenantScope(wrapper, tenantId);
+        wrapper.orderByAsc(TranslationEntryEntity::getEntityType)
+                .orderByAsc(TranslationEntryEntity::getEntityId)
+                .orderByAsc(TranslationEntryEntity::getFieldName)
+                .orderByAsc(TranslationEntryEntity::getLocale);
         return mapper.selectList(wrapper).stream().map(this::toDomain).toList();
     }
 
@@ -141,5 +157,11 @@ public class MybatisTranslationEntryRepository implements TranslationEntryReposi
                     : segments[index]);
         }
         return builder.toString();
+    }
+
+    private void applyTenantScope(LambdaQueryWrapper<TranslationEntryEntity> wrapper, UUID tenantId) {
+        if (tenantId != null) {
+            wrapper.eq(TranslationEntryEntity::getTenantId, tenantId);
+        }
     }
 }

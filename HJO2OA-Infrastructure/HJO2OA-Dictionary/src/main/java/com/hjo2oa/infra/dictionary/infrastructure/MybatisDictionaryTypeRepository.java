@@ -59,7 +59,8 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
     public List<DictionaryType> findByTenant(UUID tenantId) {
         LambdaQueryWrapper<DictionaryTypeEntity> wrapper = Wrappers.lambdaQuery();
         applyTenantScope(wrapper, tenantId);
-        wrapper.orderByAsc(DictionaryTypeEntity::getCode)
+        wrapper.orderByAsc(DictionaryTypeEntity::getSortOrder)
+                .orderByAsc(DictionaryTypeEntity::getCode)
                 .orderByAsc(DictionaryTypeEntity::getUpdatedAt);
         return dictionaryTypeMapper.selectList(wrapper).stream()
                 .map(entity -> loadAggregate(entity.getId()))
@@ -83,6 +84,7 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
     public List<DictionaryType> findAllActive() {
         LambdaQueryWrapper<DictionaryTypeEntity> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(DictionaryTypeEntity::getStatus, DictionaryStatus.ACTIVE.name())
+                .orderByAsc(DictionaryTypeEntity::getSortOrder)
                 .orderByAsc(DictionaryTypeEntity::getCode)
                 .orderByAsc(DictionaryTypeEntity::getUpdatedAt);
         return dictionaryTypeMapper.selectList(wrapper).stream()
@@ -140,6 +142,8 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
                 typeEntity.getCategory(),
                 Boolean.TRUE.equals(typeEntity.getHierarchical()),
                 Boolean.TRUE.equals(typeEntity.getCacheable()),
+                typeEntity.getSortOrder() == null ? 0 : typeEntity.getSortOrder(),
+                Boolean.TRUE.equals(typeEntity.getSystemManaged()),
                 DictionaryStatus.valueOf(typeEntity.getStatus()),
                 typeEntity.getTenantId(),
                 typeEntity.getCreatedAt(),
@@ -161,7 +165,9 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
                 entity.getParentItemId(),
                 entity.getSortOrder() == null ? 0 : entity.getSortOrder(),
                 Boolean.TRUE.equals(entity.getEnabled()),
-                entity.getMultiLangValue()
+                entity.getMultiLangValue(),
+                Boolean.TRUE.equals(entity.getDefaultItem()),
+                entity.getExtensionJson()
         );
     }
 
@@ -173,6 +179,8 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
         entity.setCategory(type.category());
         entity.setHierarchical(type.hierarchical());
         entity.setCacheable(type.cacheable());
+        entity.setSortOrder(type.sortOrder());
+        entity.setSystemManaged(type.systemManaged());
         entity.setStatus(type.status().name());
         entity.setTenantId(type.tenantId());
         entity.setCreatedAt(type.createdAt());
@@ -190,6 +198,8 @@ public class MybatisDictionaryTypeRepository implements DictionaryTypeRepository
         entity.setSortOrder(item.sortOrder());
         entity.setEnabled(item.enabled());
         entity.setMultiLangValue(item.multiLangValue());
+        entity.setDefaultItem(item.defaultItem());
+        entity.setExtensionJson(item.extensionJson());
         return entity;
     }
 

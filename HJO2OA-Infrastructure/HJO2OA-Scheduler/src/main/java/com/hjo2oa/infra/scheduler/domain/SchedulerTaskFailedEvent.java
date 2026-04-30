@@ -11,7 +11,10 @@ public record SchedulerTaskFailedEvent(
         String tenantId,
         String jobCode,
         UUID executionId,
-        String errorCode
+        String errorCode,
+        String errorMessage,
+        Integer attemptNo,
+        Integer maxAttempts
 ) implements DomainEvent {
 
     public static final String EVENT_TYPE = "infra.scheduler.task-failed";
@@ -25,6 +28,9 @@ public record SchedulerTaskFailedEvent(
         jobCode = requireText(jobCode, "jobCode");
         Objects.requireNonNull(executionId, "executionId must not be null");
         errorCode = requireText(errorCode, "errorCode");
+        errorMessage = normalizeNullableText(errorMessage);
+        Objects.requireNonNull(attemptNo, "attemptNo must not be null");
+        Objects.requireNonNull(maxAttempts, "maxAttempts must not be null");
     }
 
     public static SchedulerTaskFailedEvent from(
@@ -38,7 +44,10 @@ public record SchedulerTaskFailedEvent(
                 scheduledJob.tenantId() == null ? null : scheduledJob.tenantId().toString(),
                 scheduledJob.jobCode(),
                 executionRecord.id(),
-                executionRecord.errorCode()
+                executionRecord.errorCode(),
+                executionRecord.errorMessage(),
+                executionRecord.attemptNo(),
+                executionRecord.maxAttempts()
         );
     }
 
@@ -54,5 +63,13 @@ public record SchedulerTaskFailedEvent(
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return normalized;
+    }
+
+    private static String normalizeNullableText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

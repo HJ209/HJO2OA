@@ -12,8 +12,12 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,10 +26,13 @@ public class TimezoneSettingApplicationService {
 
     private final TimezoneSettingRepository repository;
     private final Clock clock;
+    private final ConcurrentMap<TimezoneCacheKey, ResolvedTimezoneView> resolveCache = new ConcurrentHashMap<>();
+
     @Autowired
     public TimezoneSettingApplicationService(TimezoneSettingRepository repository) {
         this(repository, Clock.systemUTC());
     }
+
     public TimezoneSettingApplicationService(TimezoneSettingRepository repository, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -45,7 +52,7 @@ public class TimezoneSettingApplicationService {
                         null,
                         now
                 ));
-        return repository.save(timezoneSetting).toView();
+        return saveAndInvalidate(timezoneSetting).toView();
     }
 
     public TimezoneSettingView setTenantTimezone(UUID tenantId, String timezoneId) {
@@ -63,7 +70,7 @@ public class TimezoneSettingApplicationService {
                         tenantId,
                         now
                 ));
-        return repository.save(timezoneSetting).toView();
+        return saveAndInvalidate(timezoneSetting).toView();
     }
 
     public TimezoneSettingView setPersonTimezone(UUID personId, String timezoneId) {
@@ -88,16 +95,31 @@ public class TimezoneSettingApplicationService {
                         null,
                         now
                 ));
-        return repository.save(timezoneSetting).toView();
+        return saveAndInvalidate(timezoneSetting).toView();
     }
 
     public ResolvedTimezoneView resolveEffectiveTimezone(UUID tenantId, UUID personId) {
+        TimezoneCacheKey cacheKey = new TimezoneCacheKey(tenantId, personId);
+        return resolveCache.computeIfAbsent(cacheKey, key -> resolveEffectiveTimezoneUncached(tenantId, personId));
+    }
+
+    private ResolvedTimezoneView resolveEffectiveTimezoneUncached(UUID tenantId, UUID personId) {
         if (personId != null) {
             return repository.findEffectiveForPerson(personId)
                     .map(setting -> ResolvedTimezoneView.from(setting, tenantId, personId))
                     .orElseGet(() -> resolveTenantOrSystem(tenantId, personId));
         }
         return resolveTenantOrSystem(tenantId, null);
+    }
+
+    public List<TimezoneSettingView> listSettings(UUID tenantId, TimezoneScopeType scopeType) {
+        return repository.findAll().stream()
+                .filter(setting -> tenantId == null || tenantMatches(setting, tenantId))
+                .filter(setting -> scopeType == null || setting.scopeType() == scopeType)
+                .sorted(Comparator.comparing(TimezoneSetting::scopeType)
+                        .thenComparing(setting -> setting.scopeId() == null ? "" : setting.scopeId().toString()))
+                .map(TimezoneSetting::toView)
+                .toList();
     }
 
     public Instant convertToUtc(LocalDateTime localDateTime, String timezoneId) {
@@ -129,6 +151,22 @@ public class TimezoneSettingApplicationService {
         return clock.instant();
     }
 
+    private TimezoneSetting saveAndInvalidate(TimezoneSetting setting) {
+        TimezoneSetting saved = repository.save(setting);
+        invalidateCaches();
+        return saved;
+    }
+
+    public void invalidateCaches() {
+        resolveCache.clear();
+    }
+
+    private boolean tenantMatches(TimezoneSetting setting, UUID tenantId) {
+        return setting.tenantId() == null
+                || setting.tenantId().equals(tenantId)
+                || Objects.equals(setting.scopeId(), tenantId);
+    }
+
     private String normalizeTimezoneId(String timezoneId) {
         return parseZoneId(timezoneId).getId();
     }
@@ -150,5 +188,8 @@ public class TimezoneSettingApplicationService {
                     "Invalid timezone ID"
             );
         }
+    }
+
+    private record TimezoneCacheKey(UUID tenantId, UUID personId) {
     }
 }

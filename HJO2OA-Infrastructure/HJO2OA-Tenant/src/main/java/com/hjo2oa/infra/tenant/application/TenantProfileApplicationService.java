@@ -61,7 +61,16 @@ public class TenantProfileApplicationService {
             IsolationMode isolationMode,
             String packageCode
     ) {
-        return createTenant(new TenantProfileCommands.CreateTenantCommand(code, name, isolationMode, packageCode));
+        return createTenant(new TenantProfileCommands.CreateTenantCommand(
+                code,
+                name,
+                isolationMode,
+                packageCode,
+                null,
+                null,
+                null,
+                null
+        ));
     }
 
     public TenantProfileView createTenant(TenantProfileCommands.CreateTenantCommand command) {
@@ -77,12 +86,32 @@ public class TenantProfileApplicationService {
                 command.name(),
                 command.isolationMode(),
                 command.packageCode(),
-                null,
-                null,
+                defaultLocale(command.defaultLocale()),
+                defaultTimezone(command.defaultTimezone()),
+                command.adminAccountId(),
+                command.adminPersonId(),
                 now
         );
         TenantProfile savedProfile = tenantProfileRepository.save(profile);
+        createDefaultQuotas(savedProfile);
         domainEventPublisher.publish(TenantCreatedEvent.from(savedProfile, now));
+        return savedProfile.toView();
+    }
+
+    public TenantProfileView updateTenant(TenantProfileCommands.UpdateTenantCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        TenantProfile profile = requireTenant(command.tenantId());
+        TenantProfile updatedProfile = profile.updateProfile(
+                command.name() == null ? profile.name() : command.name(),
+                command.packageCode() == null ? profile.packageCode() : command.packageCode(),
+                command.defaultLocale() == null ? profile.defaultLocale() : defaultLocale(command.defaultLocale()),
+                command.defaultTimezone() == null ? profile.defaultTimezone() : defaultTimezone(command.defaultTimezone()),
+                command.adminAccountId() == null ? profile.adminAccountId() : command.adminAccountId(),
+                command.adminPersonId() == null ? profile.adminPersonId() : command.adminPersonId(),
+                now()
+        );
+        TenantProfile savedProfile = tenantProfileRepository.save(updatedProfile);
+        applyPackageQuotaMinimums(savedProfile);
         return savedProfile.toView();
     }
 
@@ -156,8 +185,8 @@ public class TenantProfileApplicationService {
 
     public TenantQuotaView checkQuota(TenantProfileCommands.CheckQuotaCommand command) {
         Objects.requireNonNull(command, "command must not be null");
-        requireTenant(command.tenantId());
-        TenantQuota quota = tenantQuotaRepository.findByTenantProfileIdAndQuotaType(command.tenantId(), command.quotaType())
+        TenantProfile profile = requireTenant(command.tenantId());
+        TenantQuota quota = tenantQuotaRepository.findByTenantProfileIdAndQuotaType(profile.id(), command.quotaType())
                 .orElseThrow(() -> new BizException(
                         SharedErrorDescriptors.RESOURCE_NOT_FOUND,
                         "Tenant quota not found"
@@ -166,6 +195,30 @@ public class TenantProfileApplicationService {
             domainEventPublisher.publish(TenantQuotaWarningEvent.from(quota, now()));
         }
         return quota.toView();
+    }
+
+    public TenantQuotaView consumeQuota(TenantProfileCommands.ConsumeQuotaCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        TenantProfile profile = requireTenant(command.tenantId());
+        if (profile.status() != TenantStatus.ACTIVE) {
+            throw new BizException(SharedErrorDescriptors.CONFLICT, "Tenant is not active");
+        }
+        TenantQuota quota = tenantQuotaRepository.findByTenantProfileIdAndQuotaType(profile.id(), command.quotaType())
+                .orElseThrow(() -> new BizException(
+                        SharedErrorDescriptors.RESOURCE_NOT_FOUND,
+                        "Tenant quota not found"
+                ));
+        TenantQuota updatedQuota;
+        try {
+            updatedQuota = quota.incrementUsage(command.delta());
+        } catch (IllegalArgumentException ex) {
+            throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, ex.getMessage(), ex);
+        }
+        TenantQuota savedQuota = tenantQuotaRepository.save(updatedQuota);
+        if (savedQuota.isWarning()) {
+            domainEventPublisher.publish(TenantQuotaWarningEvent.from(savedQuota, now()));
+        }
+        return savedQuota.toView();
     }
 
     public Optional<TenantProfileView> current(UUID tenantId) {
@@ -180,10 +233,17 @@ public class TenantProfileApplicationService {
                 .toList();
     }
 
+    public List<TenantProfileView> listAll() {
+        return tenantProfileRepository.findAll().stream()
+                .sorted(Comparator.comparing(TenantProfile::createdAt).thenComparing(TenantProfile::tenantCode))
+                .map(TenantProfile::toView)
+                .toList();
+    }
+
     public List<TenantQuotaView> listQuotas(UUID tenantId) {
         requireTenant(tenantId);
         return tenantQuotaRepository.findAllByTenantProfileId(tenantId).stream()
-                .sorted(Comparator.comparing(TenantQuota::quotaType))
+                .sorted(Comparator.comparing(quota -> quota.quotaType().name()))
                 .map(TenantQuota::toView)
                 .toList();
     }
@@ -211,6 +271,74 @@ public class TenantProfileApplicationService {
         }
     }
 
+    private void createDefaultQuotas(TenantProfile profile) {
+        for (DefaultQuota defaultQuota : defaultQuotas(profile.packageCode())) {
+            if (tenantQuotaRepository.findByTenantProfileIdAndQuotaType(profile.id(), defaultQuota.quotaType()).isPresent()) {
+                continue;
+            }
+            tenantQuotaRepository.save(validateQuota(
+                    UUID.randomUUID(),
+                    profile.id(),
+                    defaultQuota.quotaType(),
+                    defaultQuota.limitValue(),
+                    0,
+                    defaultQuota.warningThreshold()
+            ));
+        }
+    }
+
+    private void applyPackageQuotaMinimums(TenantProfile profile) {
+        for (DefaultQuota defaultQuota : defaultQuotas(profile.packageCode())) {
+            TenantQuota currentQuota = tenantQuotaRepository
+                    .findByTenantProfileIdAndQuotaType(profile.id(), defaultQuota.quotaType())
+                    .orElse(null);
+            if (currentQuota == null) {
+                tenantQuotaRepository.save(validateQuota(
+                        UUID.randomUUID(),
+                        profile.id(),
+                        defaultQuota.quotaType(),
+                        defaultQuota.limitValue(),
+                        0,
+                        defaultQuota.warningThreshold()
+                ));
+                continue;
+            }
+            if (currentQuota.limitValue() >= defaultQuota.limitValue()) {
+                continue;
+            }
+            tenantQuotaRepository.save(validateQuota(
+                    currentQuota.id(),
+                    profile.id(),
+                    currentQuota.quotaType(),
+                    defaultQuota.limitValue(),
+                    currentQuota.usedValue(),
+                    defaultQuota.warningThreshold()
+            ));
+        }
+    }
+
+    private List<DefaultQuota> defaultQuotas(String packageCode) {
+        String normalizedPackage = packageCode == null ? "" : packageCode.trim().toLowerCase();
+        boolean enterprise = "enterprise".equals(normalizedPackage);
+        return List.of(
+                new DefaultQuota(QuotaType.USER_COUNT, enterprise ? 5000 : 200, enterprise ? 4000L : 160L),
+                new DefaultQuota(QuotaType.ATTACHMENT_STORAGE, enterprise ? 1_099_511_627_776L : 107_374_182_400L,
+                        enterprise ? 879_609_302_220L : 85_899_345_920L),
+                new DefaultQuota(QuotaType.API_CALL, enterprise ? 10_000_000 : 500_000, enterprise ? 8_000_000L : 400_000L),
+                new DefaultQuota(QuotaType.DATA_SIZE, enterprise ? 549_755_813_888L : 53_687_091_200L,
+                        enterprise ? 439_804_651_110L : 42_949_672_960L),
+                new DefaultQuota(QuotaType.JOB_COUNT, enterprise ? 1000 : 100, enterprise ? 800L : 80L)
+        );
+    }
+
+    private String defaultLocale(String locale) {
+        return locale == null || locale.isBlank() ? "zh-CN" : locale.trim();
+    }
+
+    private String defaultTimezone(String timezone) {
+        return timezone == null || timezone.isBlank() ? "Asia/Shanghai" : timezone.trim();
+    }
+
     private void ensureNotArchived(TenantProfile profile, String message) {
         if (profile.status() == TenantStatus.ARCHIVED) {
             throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, message);
@@ -219,5 +347,12 @@ public class TenantProfileApplicationService {
 
     private Instant now() {
         return clock.instant();
+    }
+
+    private record DefaultQuota(
+            QuotaType quotaType,
+            long limitValue,
+            Long warningThreshold
+    ) {
     }
 }

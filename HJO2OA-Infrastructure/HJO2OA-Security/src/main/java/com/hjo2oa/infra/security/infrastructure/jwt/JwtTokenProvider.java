@@ -41,6 +41,32 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(String personId, String username, List<String> roles, String tenantId) {
+        return generateToken(
+                personId,
+                username,
+                roles,
+                tenantId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0L
+        );
+    }
+
+    public String generateToken(
+            String personId,
+            String username,
+            List<String> roles,
+            String tenantId,
+            String accountId,
+            String currentAssignmentId,
+            String currentPositionId,
+            String currentOrganizationId,
+            String currentDepartmentId,
+            long permissionSnapshotVersion
+    ) {
         Instant now = clock.instant();
         Instant expiresAt = now.plusMillis(expirationMillis);
         Map<String, Object> header = new LinkedHashMap<>();
@@ -52,6 +78,12 @@ public class JwtTokenProvider {
         payload.put("username", requireText(username, "username"));
         payload.put("roles", List.copyOf(roles == null ? List.of() : roles));
         payload.put("tenantId", requireText(tenantId, "tenantId"));
+        putIfPresent(payload, "accountId", accountId);
+        putIfPresent(payload, "asgId", currentAssignmentId);
+        putIfPresent(payload, "posId", currentPositionId);
+        putIfPresent(payload, "orgId", currentOrganizationId);
+        putIfPresent(payload, "deptId", currentDepartmentId);
+        payload.put("pVer", Math.max(permissionSnapshotVersion, 0L));
         payload.put("iat", now.getEpochSecond());
         payload.put("exp", expiresAt.getEpochSecond());
 
@@ -70,7 +102,18 @@ public class JwtTokenProvider {
 
     public String refreshToken(String token) {
         JwtClaims claims = extractClaims(token);
-        return generateToken(claims.personId(), claims.username(), claims.roles(), claims.tenantId());
+        return generateToken(
+                claims.personId(),
+                claims.username(),
+                claims.roles(),
+                claims.tenantId(),
+                claims.accountId(),
+                claims.currentAssignmentId(),
+                claims.currentPositionId(),
+                claims.currentOrganizationId(),
+                claims.currentDepartmentId(),
+                claims.permissionSnapshotVersion()
+        );
     }
 
     public JwtClaims extractClaims(String token) {
@@ -86,6 +129,12 @@ public class JwtTokenProvider {
                 readString(payload, "username"),
                 readStringList(payload.get("roles")),
                 readString(payload, "tenantId"),
+                readOptionalString(payload, "accountId"),
+                readOptionalString(payload, "asgId"),
+                readOptionalString(payload, "posId"),
+                readOptionalString(payload, "orgId"),
+                readOptionalString(payload, "deptId"),
+                readOptionalLong(payload, "pVer"),
                 Instant.ofEpochSecond(readLong(payload, "iat")),
                 expiresAt
         );
@@ -158,6 +207,16 @@ public class JwtTokenProvider {
         throw new IllegalArgumentException("JWT claim is missing or invalid: " + key);
     }
 
+    private static String readOptionalString(Map<String, Object> payload, String key) {
+        Object value = payload.get(key);
+        return value instanceof String text && !text.isBlank() ? text : null;
+    }
+
+    private static long readOptionalLong(Map<String, Object> payload, String key) {
+        Object value = payload.get(key);
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
     private static long readLong(Map<String, Object> payload, String key) {
         Object value = payload.get(key);
         if (value instanceof Number number) {
@@ -183,5 +242,11 @@ public class JwtTokenProvider {
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return normalized;
+    }
+
+    private static void putIfPresent(Map<String, Object> payload, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            payload.put(key, value);
+        }
     }
 }

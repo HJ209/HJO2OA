@@ -18,6 +18,8 @@ public class TenantProfileDtoMapper {
                 view.packageCode(),
                 view.defaultLocale(),
                 view.defaultTimezone(),
+                view.adminAccountId(),
+                view.adminPersonId(),
                 view.initialized(),
                 view.createdAt(),
                 view.updatedAt()
@@ -37,6 +39,8 @@ public class TenantProfileDtoMapper {
                 view.packageCode(),
                 view.defaultLocale(),
                 view.defaultTimezone(),
+                view.adminAccountId(),
+                view.adminPersonId(),
                 view.initialized(),
                 view.createdAt(),
                 view.updatedAt(),

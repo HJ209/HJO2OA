@@ -18,6 +18,7 @@ public final class ScheduledJobDtos {
 
     public record RegisterJobRequest(
             @NotBlank String jobCode,
+            String handlerName,
             @NotBlank String name,
             @NotNull TriggerType triggerType,
             String cronExpr,
@@ -32,6 +33,7 @@ public final class ScheduledJobDtos {
     public record ScheduledJobResponse(
             UUID id,
             String jobCode,
+            String handlerName,
             String name,
             TriggerType triggerType,
             String cronExpr,
@@ -49,13 +51,21 @@ public final class ScheduledJobDtos {
     public record JobExecutionRecordResponse(
             UUID id,
             UUID scheduledJobId,
+            UUID parentExecutionId,
             TriggerSource triggerSource,
             ExecutionStatus executionStatus,
             Instant startedAt,
             Instant finishedAt,
+            Long durationMs,
+            Integer attemptNo,
+            Integer maxAttempts,
             String errorCode,
             String errorMessage,
-            String executionLog
+            String errorStack,
+            String executionLog,
+            String triggerContext,
+            String idempotencyKey,
+            Instant nextRetryAt
     ) {
     }
 }

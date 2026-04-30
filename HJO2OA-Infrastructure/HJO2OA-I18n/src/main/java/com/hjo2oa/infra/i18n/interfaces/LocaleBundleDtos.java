@@ -43,6 +43,16 @@ public final class LocaleBundleDtos {
         }
     }
 
+    public record UpdateBundleRequest(
+            @NotBlank @Size(max = 64) String moduleCode,
+            @Size(max = 16) String fallbackLocale
+    ) {
+
+        public LocaleBundleCommands.UpdateBundleCommand toCommand() {
+            return new LocaleBundleCommands.UpdateBundleCommand(moduleCode, fallbackLocale);
+        }
+    }
+
     public record UpdateEntryRequest(
             @NotNull @Size(max = 4000) String resourceValue
     ) {

@@ -36,7 +36,7 @@ public class MybatisScheduledJobRepository implements ScheduledJobRepository {
 
     @Override
     public List<ScheduledJob> findAll() {
-        return scheduledJobMapper.selectList(new LambdaQueryWrapper<>()).stream()
+        return scheduledJobMapper.selectAllForRuntime().stream()
                 .map(this::toDomain)
                 .toList();
     }
@@ -65,6 +65,7 @@ public class MybatisScheduledJobRepository implements ScheduledJobRepository {
         return new ScheduledJob(
                 UUID.fromString(entity.getId()),
                 entity.getJobCode(),
+                entity.getHandlerName(),
                 entity.getName(),
                 entity.getTriggerType(),
                 entity.getCronExpr(),
@@ -83,6 +84,7 @@ public class MybatisScheduledJobRepository implements ScheduledJobRepository {
         ScheduledJobEntity entity = new ScheduledJobEntity();
         entity.setId(scheduledJob.id().toString());
         entity.setJobCode(scheduledJob.jobCode());
+        entity.setHandlerName(scheduledJob.handlerName());
         entity.setName(scheduledJob.name());
         entity.setTriggerType(scheduledJob.triggerType());
         entity.setCronExpr(scheduledJob.cronExpr());

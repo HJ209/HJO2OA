@@ -11,7 +11,11 @@ public interface JobExecutionRecordRepository {
 
     List<JobExecutionRecord> findRunningByScheduledJobId(UUID scheduledJobId);
 
+    Optional<JobExecutionRecord> findByJobIdAndIdempotencyKey(UUID scheduledJobId, String idempotencyKey);
+
     List<JobExecutionRecord> findByCriteria(UUID jobId, Instant from, Instant to);
+
+    List<JobExecutionRecord> findByCriteria(UUID jobId, ExecutionStatus executionStatus, Instant from, Instant to);
 
     JobExecutionRecord save(JobExecutionRecord executionRecord);
 }

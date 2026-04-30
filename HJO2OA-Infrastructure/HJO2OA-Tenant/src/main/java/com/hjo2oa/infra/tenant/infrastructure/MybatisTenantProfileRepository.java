@@ -54,6 +54,14 @@ public class MybatisTenantProfileRepository implements TenantProfileRepository {
     }
 
     @Override
+    public List<TenantProfile> findAll() {
+        return tenantProfileMapper.selectList(Wrappers.<TenantProfileEntity>lambdaQuery())
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<TenantProfile> findAllActive() {
         return tenantProfileMapper.selectList(Wrappers.<TenantProfileEntity>lambdaQuery()
                         .eq(TenantProfileEntity::getStatus, TenantStatus.ACTIVE.name()))
@@ -72,6 +80,8 @@ public class MybatisTenantProfileRepository implements TenantProfileRepository {
                 entity.getPackageCode(),
                 entity.getDefaultLocale(),
                 entity.getDefaultTimezone(),
+                toUuid(entity.getAdminAccountId()),
+                toUuid(entity.getAdminPersonId()),
                 Boolean.TRUE.equals(entity.getInitialized()),
                 toInstant(entity.getCreatedAt()),
                 toInstant(entity.getUpdatedAt())
@@ -88,10 +98,23 @@ public class MybatisTenantProfileRepository implements TenantProfileRepository {
         entity.setPackageCode(profile.packageCode());
         entity.setDefaultLocale(profile.defaultLocale());
         entity.setDefaultTimezone(profile.defaultTimezone());
+        entity.setAdminAccountId(toValue(profile.adminAccountId()));
+        entity.setAdminPersonId(toValue(profile.adminPersonId()));
         entity.setInitialized(profile.initialized());
         entity.setCreatedAt(toLocalDateTime(profile.createdAt()));
         entity.setUpdatedAt(toLocalDateTime(profile.updatedAt()));
         return entity;
+    }
+
+    private UUID toUuid(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return UUID.fromString(value);
+    }
+
+    private String toValue(UUID value) {
+        return value == null ? null : value.toString();
     }
 
     private Instant toInstant(LocalDateTime value) {

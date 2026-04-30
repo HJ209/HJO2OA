@@ -10,6 +10,8 @@ public record DictionaryItemView(
         UUID parentItemId,
         int sortOrder,
         boolean enabled,
-        String multiLangValue
+        String multiLangValue,
+        boolean defaultItem,
+        String extensionJson
 ) {
 }

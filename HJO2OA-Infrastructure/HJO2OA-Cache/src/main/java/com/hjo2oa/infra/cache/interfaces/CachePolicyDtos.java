@@ -61,6 +61,11 @@ public final class CachePolicyDtos {
         }
     }
 
+    public record ClearNamespaceRequest(
+            @Size(max = 128) String reasonRef
+    ) {
+    }
+
     public record PolicyResponse(
             UUID id,
             String namespace,
@@ -84,6 +89,26 @@ public final class CachePolicyDtos {
             InvalidationReasonType reasonType,
             String reasonRef,
             Instant invalidatedAt
+    ) {
+    }
+
+    public record RuntimeKeyResponse(
+            String namespace,
+            String tenantId,
+            String key,
+            CacheBackendType backendType,
+            Instant expiresAt
+    ) {
+    }
+
+    public record RuntimeMetricsResponse(
+            String namespace,
+            long localHitCount,
+            long redisHitCount,
+            long missCount,
+            long putCount,
+            long invalidationCount,
+            int keyCount
     ) {
     }
 }

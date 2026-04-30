@@ -22,6 +22,8 @@ public final class SchedulerErrorDescriptors {
             SharedErrorDescriptors.of("EXECUTION_CONFLICT", HttpStatus.CONFLICT, "Scheduled job is already running");
     public static final ErrorDescriptor TRIGGER_SOURCE_INVALID =
             SharedErrorDescriptors.of("TRIGGER_SOURCE_INVALID", HttpStatus.UNPROCESSABLE_ENTITY, "Trigger source is invalid");
+    public static final ErrorDescriptor JOB_HANDLER_NOT_FOUND =
+            SharedErrorDescriptors.of("JOB_HANDLER_NOT_FOUND", HttpStatus.UNPROCESSABLE_ENTITY, "Scheduler job handler not found");
 
     private SchedulerErrorDescriptors() {
     }

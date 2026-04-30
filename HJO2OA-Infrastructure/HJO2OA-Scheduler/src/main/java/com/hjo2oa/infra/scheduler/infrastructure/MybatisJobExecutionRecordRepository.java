@@ -41,10 +41,34 @@ public class MybatisJobExecutionRecordRepository implements JobExecutionRecordRe
     }
 
     @Override
+    public Optional<JobExecutionRecord> findByJobIdAndIdempotencyKey(UUID scheduledJobId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return Optional.empty();
+        }
+        LambdaQueryWrapper<JobExecutionRecordEntity> query = new LambdaQueryWrapper<JobExecutionRecordEntity>()
+                .eq(JobExecutionRecordEntity::getScheduledJobId, scheduledJobId.toString())
+                .eq(JobExecutionRecordEntity::getIdempotencyKey, idempotencyKey);
+        return jobExecutionRecordMapper.selectList(query).stream().findFirst().map(this::toDomain);
+    }
+
+    @Override
     public List<JobExecutionRecord> findByCriteria(UUID jobId, Instant from, Instant to) {
+        return findByCriteria(jobId, null, from, to);
+    }
+
+    @Override
+    public List<JobExecutionRecord> findByCriteria(
+            UUID jobId,
+            ExecutionStatus executionStatus,
+            Instant from,
+            Instant to
+    ) {
         LambdaQueryWrapper<JobExecutionRecordEntity> query = new LambdaQueryWrapper<>();
         if (jobId != null) {
             query.eq(JobExecutionRecordEntity::getScheduledJobId, jobId.toString());
+        }
+        if (executionStatus != null) {
+            query.eq(JobExecutionRecordEntity::getExecutionStatus, executionStatus);
         }
         if (from != null) {
             query.ge(JobExecutionRecordEntity::getStartedAt, from);
@@ -73,13 +97,21 @@ public class MybatisJobExecutionRecordRepository implements JobExecutionRecordRe
         return new JobExecutionRecord(
                 UUID.fromString(entity.getId()),
                 UUID.fromString(entity.getScheduledJobId()),
+                entity.getParentExecutionId() == null ? null : UUID.fromString(entity.getParentExecutionId()),
                 entity.getTriggerSource(),
                 entity.getExecutionStatus(),
                 entity.getStartedAt(),
                 entity.getFinishedAt(),
+                entity.getDurationMs(),
+                entity.getAttemptNo(),
+                entity.getMaxAttempts(),
                 entity.getErrorCode(),
                 entity.getErrorMessage(),
-                entity.getExecutionLog()
+                entity.getErrorStack(),
+                entity.getExecutionLog(),
+                entity.getTriggerContext(),
+                entity.getIdempotencyKey(),
+                entity.getNextRetryAt()
         );
     }
 
@@ -87,13 +119,23 @@ public class MybatisJobExecutionRecordRepository implements JobExecutionRecordRe
         JobExecutionRecordEntity entity = new JobExecutionRecordEntity();
         entity.setId(executionRecord.id().toString());
         entity.setScheduledJobId(executionRecord.scheduledJobId().toString());
+        entity.setParentExecutionId(
+                executionRecord.parentExecutionId() == null ? null : executionRecord.parentExecutionId().toString()
+        );
         entity.setTriggerSource(executionRecord.triggerSource());
         entity.setExecutionStatus(executionRecord.executionStatus());
         entity.setStartedAt(executionRecord.startedAt());
         entity.setFinishedAt(executionRecord.finishedAt());
+        entity.setDurationMs(executionRecord.durationMs());
+        entity.setAttemptNo(executionRecord.attemptNo());
+        entity.setMaxAttempts(executionRecord.maxAttempts());
         entity.setErrorCode(executionRecord.errorCode());
         entity.setErrorMessage(executionRecord.errorMessage());
+        entity.setErrorStack(executionRecord.errorStack());
         entity.setExecutionLog(executionRecord.executionLog());
+        entity.setTriggerContext(executionRecord.triggerContext());
+        entity.setIdempotencyKey(executionRecord.idempotencyKey());
+        entity.setNextRetryAt(executionRecord.nextRetryAt());
         return entity;
     }
 }

@@ -15,4 +15,6 @@ public interface CachePolicyRepository {
     CachePolicy save(CachePolicy cachePolicy);
 
     CacheInvalidationRecord saveInvalidationRecord(CacheInvalidationRecord invalidationRecord);
+
+    List<CacheInvalidationRecord> findInvalidationRecords(UUID cachePolicyId, int limit);
 }

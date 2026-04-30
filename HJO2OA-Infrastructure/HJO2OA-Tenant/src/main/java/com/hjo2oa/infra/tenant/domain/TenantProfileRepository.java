@@ -12,5 +12,7 @@ public interface TenantProfileRepository {
 
     TenantProfile save(TenantProfile profile);
 
+    List<TenantProfile> findAll();
+
     List<TenantProfile> findAllActive();
 }

@@ -59,6 +59,18 @@ public class MybatisTimezoneSettingRepository implements TimezoneSettingReposito
     }
 
     @Override
+    public List<TimezoneSetting> findAll() {
+        LambdaQueryWrapper<TimezoneSettingEntity> wrapper = new LambdaQueryWrapper<TimezoneSettingEntity>()
+                .orderByAsc(TimezoneSettingEntity::getScopeType)
+                .orderByAsc(TimezoneSettingEntity::getScopeId);
+        return mapper.selectList(wrapper).stream()
+                .map(this::toDomain)
+                .sorted(Comparator.comparing(TimezoneSetting::scopeType)
+                        .thenComparing(setting -> setting.scopeId() == null ? "" : setting.scopeId().toString()))
+                .toList();
+    }
+
+    @Override
     public TimezoneSetting save(TimezoneSetting setting) {
         TimezoneSettingEntity entity = toEntity(setting);
         if (mapper.selectById(setting.id()) == null) {

@@ -49,7 +49,7 @@ class TenantProfileControllerTest {
     }
 
     @Test
-    void shouldActivateTenantAndReturnActiveList() throws Exception {
+    void shouldActivateTenantAndReturnTenantList() throws Exception {
         TenantProfileApplicationService applicationService = applicationService();
         TenantProfileView createdTenant = applicationService.createTenant(
                 "tenant-beta",
@@ -84,7 +84,7 @@ class TenantProfileControllerTest {
         mockMvc.perform(get("/api/v1/infra/tenants/" + createdTenant.id()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.tenantCode").value("tenant-gamma"))
-                .andExpect(jsonPath("$.data.quotas.length()").value(1))
+                .andExpect(jsonPath("$.data.quotas.length()").value(5))
                 .andExpect(jsonPath("$.data.quotas[0].quotaType").value("API_CALL"))
                 .andExpect(jsonPath("$.data.quotas[0].limitValue").value(1000));
     }
@@ -114,6 +114,51 @@ class TenantProfileControllerTest {
                 .andExpect(jsonPath("$.data.quotaType").value("JOB_COUNT"))
                 .andExpect(jsonPath("$.data.limitValue").value(200))
                 .andExpect(jsonPath("$.meta.requestId").value("req-tenant-quota-1"));
+    }
+
+    @Test
+    void shouldUpdateProfileDisableAndConsumeQuota() throws Exception {
+        TenantProfileApplicationService applicationService = applicationService();
+        TenantProfileView createdTenant = applicationService.createTenant(
+                "tenant-epsilon",
+                "Tenant Epsilon",
+                IsolationMode.SHARED_DB,
+                "basic"
+        );
+        MockMvc mockMvc = buildMockMvc(applicationService);
+
+        mockMvc.perform(put("/api/v1/infra/tenants/" + createdTenant.id())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"Tenant Epsilon Updated",
+                                  "packageCode":"enterprise",
+                                  "defaultLocale":"en-US",
+                                  "defaultTimezone":"UTC"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Tenant Epsilon Updated"))
+                .andExpect(jsonPath("$.data.defaultLocale").value("en-US"))
+                .andExpect(jsonPath("$.data.defaultTimezone").value("UTC"));
+
+        mockMvc.perform(put("/api/v1/infra/tenants/" + createdTenant.id() + "/activate"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/infra/tenants/" + createdTenant.id() + "/quota-usages/API_CALL")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "delta":5
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.quotaType").value("API_CALL"))
+                .andExpect(jsonPath("$.data.usedValue").value(5));
+
+        mockMvc.perform(post("/api/v1/infra/tenants/" + createdTenant.id() + "/disable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("SUSPENDED"));
     }
 
     private MockMvc buildMockMvc() {

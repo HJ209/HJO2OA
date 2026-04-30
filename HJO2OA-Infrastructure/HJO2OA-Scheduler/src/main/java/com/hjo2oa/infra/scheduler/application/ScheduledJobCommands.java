@@ -13,6 +13,7 @@ public final class ScheduledJobCommands {
 
     public record RegisterJobCommand(
             String jobCode,
+            String handlerName,
             String name,
             TriggerType triggerType,
             String cronExpr,
@@ -25,6 +26,7 @@ public final class ScheduledJobCommands {
 
         public RegisterJobCommand {
             jobCode = requireText(jobCode, "jobCode");
+            handlerName = normalizeNullableText(handlerName);
             name = requireText(name, "name");
             Objects.requireNonNull(triggerType, "triggerType must not be null");
             cronExpr = normalizeNullableText(cronExpr);

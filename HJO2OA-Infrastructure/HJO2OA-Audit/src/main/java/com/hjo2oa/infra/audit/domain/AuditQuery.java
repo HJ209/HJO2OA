@@ -10,6 +10,9 @@ public record AuditQuery(
         String objectType,
         String objectId,
         String actionType,
+        UUID operatorAccountId,
+        UUID operatorPersonId,
+        String traceId,
         Instant from,
         Instant to
 ) {
@@ -19,6 +22,7 @@ public record AuditQuery(
         objectType = normalizeNullable(objectType);
         objectId = normalizeNullable(objectId);
         actionType = normalizeNullable(actionType);
+        traceId = normalizeNullable(traceId);
         if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException("from must not be after to");
         }

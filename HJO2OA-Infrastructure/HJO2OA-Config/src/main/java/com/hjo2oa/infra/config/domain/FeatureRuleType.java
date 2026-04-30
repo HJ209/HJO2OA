@@ -5,5 +5,6 @@ public enum FeatureRuleType {
     TENANT,
     ORG,
     ROLE,
+    USER,
     PERCENTAGE
 }

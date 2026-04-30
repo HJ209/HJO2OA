@@ -1,6 +1,8 @@
 package com.hjo2oa.infra.scheduler.application;
 
+import com.hjo2oa.infra.audit.application.Audited;
 import com.hjo2oa.infra.scheduler.domain.ConcurrencyPolicy;
+import com.hjo2oa.infra.scheduler.domain.ExecutionStatus;
 import com.hjo2oa.infra.scheduler.domain.JobExecutionRecord;
 import com.hjo2oa.infra.scheduler.domain.JobExecutionRecordRepository;
 import com.hjo2oa.infra.scheduler.domain.JobExecutionRecordView;
@@ -22,8 +24,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
+import java.util.function.Supplier;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -36,24 +40,51 @@ public class ScheduledJobApplicationService {
     private final ScheduledJobRepository scheduledJobRepository;
     private final JobExecutionRecordRepository jobExecutionRecordRepository;
     private final DomainEventPublisher domainEventPublisher;
+    private final SchedulerExecutionService executionService;
+    private final Supplier<SchedulerRuntimeService> runtimeServiceSupplier;
     private final Clock clock;
+
     @Autowired
     public ScheduledJobApplicationService(
             ScheduledJobRepository scheduledJobRepository,
             JobExecutionRecordRepository jobExecutionRecordRepository,
-            DomainEventPublisher domainEventPublisher
+            DomainEventPublisher domainEventPublisher,
+            SchedulerExecutionService executionService,
+            ObjectProvider<SchedulerRuntimeService> runtimeServiceProvider
     ) {
         this(
                 scheduledJobRepository,
                 jobExecutionRecordRepository,
                 domainEventPublisher,
+                executionService,
+                runtimeServiceProvider::getIfAvailable,
                 Clock.systemUTC()
         );
     }
+
     public ScheduledJobApplicationService(
             ScheduledJobRepository scheduledJobRepository,
             JobExecutionRecordRepository jobExecutionRecordRepository,
             DomainEventPublisher domainEventPublisher,
+            SchedulerExecutionService executionService,
+            Clock clock
+    ) {
+        this(
+                scheduledJobRepository,
+                jobExecutionRecordRepository,
+                domainEventPublisher,
+                executionService,
+                () -> null,
+                clock
+        );
+    }
+
+    public ScheduledJobApplicationService(
+            ScheduledJobRepository scheduledJobRepository,
+            JobExecutionRecordRepository jobExecutionRecordRepository,
+            DomainEventPublisher domainEventPublisher,
+            SchedulerExecutionService executionService,
+            Supplier<SchedulerRuntimeService> runtimeServiceSupplier,
             Clock clock
     ) {
         this.scheduledJobRepository = Objects.requireNonNull(
@@ -65,12 +96,41 @@ public class ScheduledJobApplicationService {
                 "jobExecutionRecordRepository must not be null"
         );
         this.domainEventPublisher = Objects.requireNonNull(domainEventPublisher, "domainEventPublisher must not be null");
+        this.executionService = Objects.requireNonNull(executionService, "executionService must not be null");
+        this.runtimeServiceSupplier = Objects.requireNonNull(runtimeServiceSupplier, "runtimeServiceSupplier");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
+    public ScheduledJobView registerJob(
+            String code,
+            String name,
+            TriggerType triggerType,
+            String cronExpr,
+            String timezoneId,
+            ConcurrencyPolicy concurrencyPolicy,
+            Integer timeoutSeconds,
+            String retryPolicy,
+            UUID tenantId
+    ) {
+        return registerJob(
+                code,
+                code,
+                name,
+                triggerType,
+                cronExpr,
+                timezoneId,
+                concurrencyPolicy,
+                timeoutSeconds,
+                retryPolicy,
+                tenantId
+        );
+    }
+
+    @Audited(module = "scheduler", action = "REGISTER", targetType = "ScheduledJob", targetId = "#result.id")
     @Transactional
     public ScheduledJobView registerJob(
             String code,
+            String handlerName,
             String name,
             TriggerType triggerType,
             String cronExpr,
@@ -90,6 +150,7 @@ public class ScheduledJobApplicationService {
         try {
             ScheduledJob scheduledJob = ScheduledJob.create(
                     code,
+                    handlerName,
                     name,
                     triggerType,
                     cronExpr,
@@ -100,31 +161,57 @@ public class ScheduledJobApplicationService {
                     tenantId,
                     now
             );
-            return scheduledJobRepository.save(scheduledJob).toView();
+            ScheduledJob persisted = scheduledJobRepository.save(scheduledJob);
+            refreshRuntime(persisted.id());
+            return persisted.toView();
         } catch (IllegalArgumentException | DateTimeException ex) {
             throw new BizException(SchedulerErrorDescriptors.JOB_DEFINITION_INVALID, ex.getMessage(), ex);
         }
     }
 
+    @Audited(module = "scheduler", action = "ENABLE", targetType = "ScheduledJob", targetId = "#jobId")
+    @Transactional
+    public ScheduledJobView enableJob(UUID jobId) {
+        return transitionJob(jobId, scheduledJob -> scheduledJob.enable(now()));
+    }
+
+    @Audited(module = "scheduler", action = "PAUSE", targetType = "ScheduledJob", targetId = "#jobId")
     @Transactional
     public ScheduledJobView pauseJob(UUID jobId) {
         return transitionJob(jobId, scheduledJob -> scheduledJob.pause(now()));
     }
 
+    @Audited(module = "scheduler", action = "RESUME", targetType = "ScheduledJob", targetId = "#jobId")
     @Transactional
     public ScheduledJobView resumeJob(UUID jobId) {
         return transitionJob(jobId, scheduledJob -> scheduledJob.resume(now()));
     }
 
+    @Audited(module = "scheduler", action = "DISABLE", targetType = "ScheduledJob", targetId = "#jobId")
     @Transactional
     public ScheduledJobView disableJob(UUID jobId) {
         return transitionJob(jobId, scheduledJob -> scheduledJob.disable(now()));
     }
 
-    @Transactional
+    @Audited(module = "scheduler", action = "TRIGGER", targetType = "ScheduledJob", targetId = "#jobId")
+    public JobExecutionRecordView triggerJob(UUID jobId, SchedulerOperationContext context) {
+        return executionService.triggerJob(jobId, TriggerSource.MANUAL, context);
+    }
+
     public JobExecutionRecordView triggerJob(String jobCode) {
         ScheduledJob scheduledJob = loadJobByCode(jobCode);
-        return recordStart(scheduledJob.id(), TriggerSource.MANUAL);
+        return triggerJob(scheduledJob.id(), SchedulerOperationContext.system("manual:" + jobCode));
+    }
+
+    @Audited(module = "scheduler", action = "TRIGGER", targetType = "ScheduledJob", targetId = "#jobCode")
+    public JobExecutionRecordView triggerJob(String jobCode, SchedulerOperationContext context) {
+        ScheduledJob scheduledJob = loadJobByCode(jobCode);
+        return triggerJob(scheduledJob.id(), context);
+    }
+
+    @Audited(module = "scheduler", action = "RETRY", targetType = "JobExecution", targetId = "#executionId")
+    public JobExecutionRecordView retryExecution(UUID executionId, SchedulerOperationContext context) {
+        return executionService.retryExecution(executionId, context);
     }
 
     @Transactional
@@ -194,19 +281,34 @@ public class ScheduledJobApplicationService {
     }
 
     public List<JobExecutionRecordView> queryExecutions(UUID jobId, Instant from, Instant to) {
+        return queryExecutions(jobId, null, from, to);
+    }
+
+    public List<JobExecutionRecordView> queryExecutions(
+            UUID jobId,
+            ExecutionStatus executionStatus,
+            Instant from,
+            Instant to
+    ) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new BizException(SharedErrorDescriptors.BAD_REQUEST, "from must not be after to");
         }
-        return jobExecutionRecordRepository.findByCriteria(jobId, from, to).stream()
+        return jobExecutionRecordRepository.findByCriteria(jobId, executionStatus, from, to).stream()
                 .sorted(Comparator.comparing(JobExecutionRecord::startedAt).reversed())
                 .map(JobExecutionRecord::toView)
                 .toList();
     }
 
+    public JobExecutionRecordView getExecution(UUID executionId) {
+        return loadExecution(executionId).toView();
+    }
+
     private ScheduledJobView transitionJob(UUID jobId, JobTransition transition) {
         ScheduledJob scheduledJob = loadJob(jobId);
         try {
-            return scheduledJobRepository.save(transition.apply(scheduledJob)).toView();
+            ScheduledJob persisted = scheduledJobRepository.save(transition.apply(scheduledJob));
+            refreshRuntime(persisted.id());
+            return persisted.toView();
         } catch (IllegalStateException ex) {
             throw new BizException(SchedulerErrorDescriptors.JOB_STATE_INVALID, ex.getMessage(), ex);
         }
@@ -261,6 +363,13 @@ public class ScheduledJobApplicationService {
                         SchedulerErrorDescriptors.JOB_EXECUTION_NOT_FOUND,
                         "Job execution not found: " + executionId
                 ));
+    }
+
+    private void refreshRuntime(UUID jobId) {
+        SchedulerRuntimeService runtimeService = runtimeServiceSupplier.get();
+        if (runtimeService != null) {
+            runtimeService.refreshJob(jobId);
+        }
     }
 
     private Instant now() {

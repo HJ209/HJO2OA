@@ -17,11 +17,19 @@ public class JobExecutionRecordEntity {
     @TableId(type = IdType.INPUT)
     private String id;
     private String scheduledJobId;
+    private String parentExecutionId;
     private TriggerSource triggerSource;
     private ExecutionStatus executionStatus;
     private Instant startedAt;
     private Instant finishedAt;
+    private Long durationMs;
+    private Integer attemptNo;
+    private Integer maxAttempts;
     private String errorCode;
     private String errorMessage;
+    private String errorStack;
     private String executionLog;
+    private String triggerContext;
+    private String idempotencyKey;
+    private Instant nextRetryAt;
 }

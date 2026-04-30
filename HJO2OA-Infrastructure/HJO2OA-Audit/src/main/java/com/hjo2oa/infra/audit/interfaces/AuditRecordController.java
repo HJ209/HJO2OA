@@ -57,11 +57,27 @@ public class AuditRecordController {
             @RequestParam(required = false) String objectType,
             @RequestParam(required = false) String objectId,
             @RequestParam(required = false) String actionType,
+            @RequestParam(required = false) UUID operatorAccountId,
+            @RequestParam(required = false) UUID operatorPersonId,
+            @RequestParam(required = false) String traceId,
+            @RequestParam(required = false) String requestId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             HttpServletRequest request
     ) {
-        AuditQuery query = new AuditQuery(tenantId, moduleCode, objectType, objectId, actionType, from, to);
+        String effectiveTraceId = traceId == null || traceId.isBlank() ? requestId : traceId;
+        AuditQuery query = new AuditQuery(
+                tenantId,
+                moduleCode,
+                objectType,
+                objectId,
+                actionType,
+                operatorAccountId,
+                operatorPersonId,
+                effectiveTraceId,
+                from,
+                to
+        );
         return ApiResponse.success(
                 applicationService.queryAudits(query).stream().map(dtoMapper::toSummaryResponse).toList(),
                 responseMetaFactory.create(request)

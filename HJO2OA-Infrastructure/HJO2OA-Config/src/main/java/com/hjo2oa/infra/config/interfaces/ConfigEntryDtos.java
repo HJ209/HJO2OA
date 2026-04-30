@@ -69,6 +69,18 @@ public final class ConfigEntryDtos {
         }
     }
 
+    public record UpdateFeatureRuleRequest(
+            FeatureRuleType ruleType,
+            String ruleValue,
+            @PositiveOrZero Integer sortOrder,
+            Boolean active
+    ) {
+
+        public ConfigEntryCommands.UpdateFeatureRuleCommand toCommand(UUID ruleId) {
+            return new ConfigEntryCommands.UpdateFeatureRuleCommand(ruleId, ruleType, ruleValue, sortOrder, active);
+        }
+    }
+
     public record ResolveValueRequest(
             @NotBlank String key,
             UUID tenantId,

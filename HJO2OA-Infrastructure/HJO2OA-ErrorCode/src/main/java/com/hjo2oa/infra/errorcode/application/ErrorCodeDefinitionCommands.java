@@ -45,4 +45,19 @@ public final class ErrorCodeDefinitionCommands {
             Objects.requireNonNull(codeId, "codeId must not be null");
         }
     }
+
+    public record UpdateDefinitionCommand(
+            UUID codeId,
+            ErrorSeverity severity,
+            int httpStatus,
+            String messageKey,
+            String category,
+            boolean retryable
+    ) {
+
+        public UpdateDefinitionCommand {
+            Objects.requireNonNull(codeId, "codeId must not be null");
+            Objects.requireNonNull(severity, "severity must not be null");
+        }
+    }
 }

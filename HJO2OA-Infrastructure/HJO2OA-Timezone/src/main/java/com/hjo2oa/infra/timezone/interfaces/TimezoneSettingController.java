@@ -2,11 +2,13 @@ package com.hjo2oa.infra.timezone.interfaces;
 
 import com.hjo2oa.infra.timezone.application.TimezoneSettingApplicationService;
 import com.hjo2oa.infra.timezone.application.TimezoneSettingCommands;
+import com.hjo2oa.infra.timezone.domain.TimezoneScopeType;
 import com.hjo2oa.shared.web.ApiResponse;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.UseSharedWebContract;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,6 +46,20 @@ public class TimezoneSettingController {
         TimezoneSettingCommands.SetSystemDefaultCommand command = body.toSystemCommand();
         return ApiResponse.success(
                 dtoMapper.toResponse(applicationService.setSystemDefault(command.timezoneId())),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping
+    public ApiResponse<List<TimezoneSettingDtos.TimezoneSettingResponse>> list(
+            @RequestParam(required = false) UUID tenantId,
+            @RequestParam(required = false) TimezoneScopeType scopeType,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.listSettings(tenantId, scopeType).stream()
+                        .map(dtoMapper::toResponse)
+                        .toList(),
                 responseMetaFactory.create(request)
         );
     }

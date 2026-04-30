@@ -3,6 +3,8 @@ package com.hjo2oa.infra.attachment.interfaces;
 import com.hjo2oa.infra.attachment.domain.AttachmentAssetView;
 import com.hjo2oa.infra.attachment.domain.AttachmentBindingView;
 import com.hjo2oa.infra.attachment.domain.AttachmentVersionView;
+import com.hjo2oa.infra.attachment.application.AttachmentAccessAuditRecord;
+import com.hjo2oa.infra.attachment.application.AttachmentFileApplicationService;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -50,6 +52,31 @@ public class AttachmentAssetDtoMapper {
                 view.businessId(),
                 view.bindingRole(),
                 view.active()
+        );
+    }
+
+    public AttachmentAssetDtos.AttachmentPreviewResponse toResponse(
+            AttachmentFileApplicationService.PreviewInfo previewInfo
+    ) {
+        return new AttachmentAssetDtos.AttachmentPreviewResponse(
+                previewInfo.assetId(),
+                previewInfo.previewStatus(),
+                previewInfo.previewAvailable(),
+                previewInfo.contentType(),
+                previewInfo.downloadUrl()
+        );
+    }
+
+    public AttachmentAssetDtos.AttachmentAccessAuditResponse toResponse(AttachmentAccessAuditRecord record) {
+        return new AttachmentAssetDtos.AttachmentAccessAuditResponse(
+                record.id(),
+                record.attachmentId(),
+                record.versionNo(),
+                record.action(),
+                record.tenantId(),
+                record.operatorId(),
+                record.clientIp(),
+                record.occurredAt()
         );
     }
 }

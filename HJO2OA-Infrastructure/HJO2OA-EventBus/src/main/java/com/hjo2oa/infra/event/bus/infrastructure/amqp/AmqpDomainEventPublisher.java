@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hjo2oa.shared.messaging.DomainEvent;
 import com.hjo2oa.shared.messaging.DomainEventPublisher;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -17,35 +19,41 @@ import org.springframework.stereotype.Component;
 @Component
 public class AmqpDomainEventPublisher implements DomainEventPublisher {
 
-    private static final String STATUS_PENDING = "PENDING";
-
     private final EventOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final DomainEventEnvelopeFactory envelopeFactory;
+    private final Clock clock;
 
+    @Autowired
     public AmqpDomainEventPublisher(EventOutboxRepository outboxRepository, ObjectMapper objectMapper) {
+        this(outboxRepository, objectMapper, Clock.systemUTC());
+    }
+
+    AmqpDomainEventPublisher(EventOutboxRepository outboxRepository, ObjectMapper objectMapper, Clock clock) {
         this.outboxRepository = Objects.requireNonNull(outboxRepository, "outboxRepository must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
+        this.envelopeFactory = new DomainEventEnvelopeFactory(objectMapper, clock);
     }
 
     @Override
     public void publish(DomainEvent event) {
         Objects.requireNonNull(event, "event must not be null");
-        AmqpDomainEventMessage message = new AmqpDomainEventMessage(
-                event.eventId(),
-                event.eventType(),
-                event.getClass().getName(),
-                event.occurredAt(),
-                event.tenantId(),
-                writeJson(event)
-        );
+        DomainEventEnvelope envelope = envelopeFactory.from(event);
+        Instant now = clock.instant();
         EventOutboxEntity entity = new EventOutboxEntity()
-                .setId(event.eventId() == null ? UUID.randomUUID() : event.eventId())
-                .setAggregateType(event.eventType())
-                .setAggregateId(event.tenantId())
-                .setEventType(event.eventType())
-                .setPayloadJson(writeJson(message))
-                .setStatus(STATUS_PENDING)
-                .setCreatedAt(Instant.now())
+                .setId(UUID.randomUUID())
+                .setEventId(envelope.eventId())
+                .setAggregateType(envelope.aggregateType())
+                .setAggregateId(envelope.aggregateId())
+                .setEventType(envelope.eventType())
+                .setTenantId(envelope.tenantId())
+                .setOccurredAt(envelope.occurredAt())
+                .setTraceId(envelope.traceId())
+                .setSchemaVersion(envelope.schemaVersion())
+                .setPayloadJson(writeJson(envelope))
+                .setStatus(EventOutboxStatus.PENDING.name())
+                .setCreatedAt(now)
                 .setRetryCount(0);
         outboxRepository.save(entity);
     }

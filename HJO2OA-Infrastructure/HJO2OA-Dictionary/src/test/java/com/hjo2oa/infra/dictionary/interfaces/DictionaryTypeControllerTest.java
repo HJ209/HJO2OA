@@ -7,7 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hjo2oa.infra.cache.infrastructure.DefaultCacheRuntimeService;
+import com.hjo2oa.infra.dictionary.application.DictionaryCacheService;
+import com.hjo2oa.infra.dictionary.application.DictionaryRuntimeService;
+import com.hjo2oa.infra.dictionary.application.DictionaryTypeCommands;
 import com.hjo2oa.infra.dictionary.application.DictionaryTypeApplicationService;
+import com.hjo2oa.infra.dictionary.domain.DictionaryTypeView;
 import com.hjo2oa.infra.dictionary.application.SystemEnumDictionaryService;
 import com.hjo2oa.infra.dictionary.infrastructure.InMemoryDictionaryTypeRepository;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
@@ -15,6 +20,7 @@ import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -157,6 +163,92 @@ class DictionaryTypeControllerTest {
                 .andExpect(jsonPath("$.code").value("CONFLICT"));
     }
 
+    @Test
+    void shouldExposeRuntimeItemsTreeBatchAndRefreshApis() throws Exception {
+        DefaultCacheRuntimeService cacheRuntimeService = new DefaultCacheRuntimeService(
+                Optional.empty(),
+                false,
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+        DictionaryTypeApplicationService applicationService = new DictionaryTypeApplicationService(
+                new InMemoryDictionaryTypeRepository(),
+                event -> {
+                },
+                new DictionaryCacheService(cacheRuntimeService),
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+        UUID typeId = applicationService.createType(
+                "priority",
+                "Priority",
+                "task",
+                true,
+                true,
+                TENANT_ID
+        ).id();
+        DictionaryTypeView withParent = applicationService.addItem(
+                typeId,
+                TENANT_ID,
+                new DictionaryTypeCommands.AddItemCommand(
+                        "P1",
+                        "High",
+                        null,
+                        10,
+                        true,
+                        "HIGH",
+                        "{\"color\":\"red\"}"
+                )
+        );
+        UUID parentItemId = withParent.items().get(0).id();
+        applicationService.addItem(
+                typeId,
+                TENANT_ID,
+                new DictionaryTypeCommands.AddItemCommand(
+                        "P1-1",
+                        "Critical",
+                        parentItemId,
+                        20,
+                        false,
+                        "CRITICAL",
+                        null
+                )
+        );
+        MockMvc mockMvc = buildRuntimeMockMvc(applicationService, cacheRuntimeService);
+
+        mockMvc.perform(get("/api/v1/infra/dictionaries/priority/items")
+                        .header("X-Tenant-Id", TENANT_ID.toString())
+                        .param("language", "en-US"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].code").value("P1"))
+                .andExpect(jsonPath("$.data[0].value").value("HIGH"))
+                .andExpect(jsonPath("$.data[0].defaultItem").value(true));
+
+        mockMvc.perform(get("/api/v1/infra/dictionaries/priority/tree")
+                        .header("X-Tenant-Id", TENANT_ID.toString())
+                        .param("enabledOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].children[0].code").value("P1-1"));
+
+        mockMvc.perform(post("/api/v1/infra/dictionaries/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Tenant-Id", TENANT_ID.toString())
+                        .content("""
+                                {
+                                  "codes":["priority"],
+                                  "enabledOnly":true,
+                                  "tree":false
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.priority.items.length()").value(2));
+
+        mockMvc.perform(post("/api/v1/infra/dictionaries/priority/cache/refresh")
+                        .header("X-Tenant-Id", TENANT_ID.toString())
+                        .param("tree", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.code").value("priority"))
+                .andExpect(jsonPath("$.data.items[0].children[0].code").value("P1-1"));
+    }
+
     private MockMvc buildMockMvc() {
         return buildMockMvc(applicationService());
     }
@@ -166,6 +258,22 @@ class DictionaryTypeControllerTest {
         return MockMvcBuilders.standaloneSetup(new DictionaryTypeController(
                         applicationService,
                         new SystemEnumDictionaryService(applicationService),
+                        new DictionaryTypeDtoMapper(),
+                        responseMetaFactory
+                ))
+                .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
+                .build();
+    }
+
+    private MockMvc buildRuntimeMockMvc(
+            DictionaryTypeApplicationService applicationService,
+            DefaultCacheRuntimeService cacheRuntimeService
+    ) {
+        ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
+        return MockMvcBuilders.standaloneSetup(new DictionaryTypeController(
+                        applicationService,
+                        new SystemEnumDictionaryService(applicationService),
+                        new DictionaryRuntimeService(applicationService, cacheRuntimeService, 300),
                         new DictionaryTypeDtoMapper(),
                         responseMetaFactory
                 ))

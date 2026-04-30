@@ -35,9 +35,31 @@ public class InMemoryJobExecutionRecordRepository implements JobExecutionRecordR
     }
 
     @Override
+    public Optional<JobExecutionRecord> findByJobIdAndIdempotencyKey(UUID scheduledJobId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return Optional.empty();
+        }
+        return recordsById.values().stream()
+                .filter(record -> record.scheduledJobId().equals(scheduledJobId))
+                .filter(record -> idempotencyKey.equals(record.idempotencyKey()))
+                .findFirst();
+    }
+
+    @Override
     public List<JobExecutionRecord> findByCriteria(UUID jobId, Instant from, Instant to) {
+        return findByCriteria(jobId, null, from, to);
+    }
+
+    @Override
+    public List<JobExecutionRecord> findByCriteria(
+            UUID jobId,
+            ExecutionStatus executionStatus,
+            Instant from,
+            Instant to
+    ) {
         return recordsById.values().stream()
                 .filter(record -> jobId == null || record.scheduledJobId().equals(jobId))
+                .filter(record -> executionStatus == null || record.executionStatus() == executionStatus)
                 .filter(record -> from == null || !record.startedAt().isBefore(from))
                 .filter(record -> to == null || !record.startedAt().isAfter(to))
                 .sorted(Comparator.comparing(JobExecutionRecord::startedAt).reversed())

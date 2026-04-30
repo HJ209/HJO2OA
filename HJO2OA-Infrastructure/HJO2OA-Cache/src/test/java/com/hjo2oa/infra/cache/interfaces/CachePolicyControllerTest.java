@@ -11,12 +11,16 @@ import com.hjo2oa.infra.cache.domain.CacheBackendType;
 import com.hjo2oa.infra.cache.domain.CachePolicyView;
 import com.hjo2oa.infra.cache.domain.EvictionPolicy;
 import com.hjo2oa.infra.cache.domain.InvalidationMode;
+import com.hjo2oa.infra.cache.infrastructure.DefaultCacheRuntimeService;
 import com.hjo2oa.infra.cache.infrastructure.InMemoryCachePolicyRepository;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,6 +29,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class CachePolicyControllerTest {
 
     private static final Instant FIXED_TIME = Instant.parse("2026-04-24T06:00:00Z");
+    private static final UUID TENANT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     @Test
     void shouldCreatePolicyUsingSharedWebContract() throws Exception {
@@ -203,6 +208,70 @@ class CachePolicyControllerTest {
                 .andExpect(jsonPath("$.code").value("INFRA_CACHE_NAMESPACE_CONFLICT"));
     }
 
+    @Test
+    void shouldExposeRuntimeManagementApi() throws Exception {
+        DefaultCacheRuntimeService cacheRuntimeService = new DefaultCacheRuntimeService(
+                Optional.empty(),
+                false,
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+        CachePolicyApplicationService applicationService = new CachePolicyApplicationService(
+                new InMemoryCachePolicyRepository(),
+                event -> {
+                },
+                cacheRuntimeService,
+                Clock.fixed(FIXED_TIME, ZoneOffset.UTC)
+        );
+        applicationService.createPolicy(
+                "infra.dictionary.runtime",
+                CacheBackendType.MEMORY,
+                300,
+                1000,
+                EvictionPolicy.LRU,
+                InvalidationMode.MANUAL
+        );
+        cacheRuntimeService.put(
+                "infra.dictionary.runtime",
+                TENANT_ID,
+                "priority:items:enabled=true:lang=en-US",
+                "cached",
+                Duration.ofMinutes(5)
+        );
+        MockMvc mockMvc = buildRuntimeMockMvc(applicationService);
+
+        mockMvc.perform(get("/api/v1/infra/cache/keys")
+                        .param("namespace", "infra.dictionary.runtime")
+                        .param("tenantId", TENANT_ID.toString())
+                        .param("keyword", "priority"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].namespace").value("infra.dictionary.runtime"))
+                .andExpect(jsonPath("$.data[0].key").value("priority:items:enabled=true:lang=en-US"))
+                .andExpect(jsonPath("$.data[0].backendType").value("MEMORY"));
+
+        mockMvc.perform(get("/api/v1/infra/cache/metrics/infra.dictionary.runtime"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.namespace").value("infra.dictionary.runtime"))
+                .andExpect(jsonPath("$.data.keyCount").value(1));
+
+        mockMvc.perform(post("/api/v1/infra/cache/namespaces/infra.dictionary.runtime/clear")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reasonRef":"ops"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.namespace").value("infra.dictionary.runtime"))
+                .andExpect(jsonPath("$.data.invalidateKey").value("*"))
+                .andExpect(jsonPath("$.data.reasonRef").value("ops"));
+
+        mockMvc.perform(get("/api/v1/infra/cache/invalidations")
+                        .param("namespace", "infra.dictionary.runtime"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].invalidateKey").value("*"));
+    }
+
     private MockMvc buildMockMvc() {
         return buildMockMvc(applicationService());
     }
@@ -211,6 +280,15 @@ class CachePolicyControllerTest {
         ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
         return MockMvcBuilders.standaloneSetup(
                         new CachePolicyController(applicationService, new CachePolicyDtoMapper(), responseMetaFactory)
+                )
+                .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
+                .build();
+    }
+
+    private MockMvc buildRuntimeMockMvc(CachePolicyApplicationService applicationService) {
+        ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
+        return MockMvcBuilders.standaloneSetup(
+                        new CacheRuntimeController(applicationService, new CachePolicyDtoMapper(), responseMetaFactory)
                 )
                 .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
                 .build();

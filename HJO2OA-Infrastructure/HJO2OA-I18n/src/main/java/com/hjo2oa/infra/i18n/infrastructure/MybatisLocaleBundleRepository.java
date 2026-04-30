@@ -51,6 +51,19 @@ public class MybatisLocaleBundleRepository implements LocaleBundleRepository {
     }
 
     @Override
+    public List<LocaleBundle> findAll() {
+        LambdaQueryWrapper<LocaleBundleEntity> wrapper = Wrappers.<LocaleBundleEntity>lambdaQuery()
+                .orderByAsc(LocaleBundleEntity::getModuleCode)
+                .orderByAsc(LocaleBundleEntity::getBundleCode)
+                .orderByAsc(LocaleBundleEntity::getLocale)
+                .orderByAsc(LocaleBundleEntity::getTenantId);
+        return localeBundleMapper.selectList(wrapper).stream()
+                .map(entity -> loadAggregate(entity.getId()))
+                .sorted(BUNDLE_ORDER)
+                .toList();
+    }
+
+    @Override
     public List<LocaleBundle> findByCode(String bundleCode) {
         LambdaQueryWrapper<LocaleBundleEntity> wrapper = Wrappers.<LocaleBundleEntity>lambdaQuery()
                 .eq(LocaleBundleEntity::getBundleCode, bundleCode)
@@ -76,19 +89,26 @@ public class MybatisLocaleBundleRepository implements LocaleBundleRepository {
     }
 
     @Override
+    public List<LocaleBundle> findByLocale(String locale, UUID tenantId) {
+        LambdaQueryWrapper<LocaleBundleEntity> wrapper = Wrappers.<LocaleBundleEntity>lambdaQuery()
+                .eq(LocaleBundleEntity::getLocale, locale)
+                .orderByAsc(LocaleBundleEntity::getBundleCode)
+                .orderByAsc(LocaleBundleEntity::getTenantId);
+        applyTenantScope(wrapper, tenantId);
+        return localeBundleMapper.selectList(wrapper).stream()
+                .map(entity -> loadAggregate(entity.getId()))
+                .sorted(BUNDLE_ORDER)
+                .toList();
+    }
+
+    @Override
     public List<LocaleBundle> findActiveByLocale(String locale, UUID tenantId) {
         LambdaQueryWrapper<LocaleBundleEntity> wrapper = Wrappers.<LocaleBundleEntity>lambdaQuery()
                 .eq(LocaleBundleEntity::getLocale, locale)
                 .eq(LocaleBundleEntity::getStatus, LocaleBundleStatus.ACTIVE.name())
                 .orderByAsc(LocaleBundleEntity::getBundleCode)
                 .orderByAsc(LocaleBundleEntity::getTenantId);
-        if (tenantId == null) {
-            wrapper.isNull(LocaleBundleEntity::getTenantId);
-        } else {
-            wrapper.and(criteria -> criteria.eq(LocaleBundleEntity::getTenantId, tenantId)
-                    .or()
-                    .isNull(LocaleBundleEntity::getTenantId));
-        }
+        applyTenantScope(wrapper, tenantId);
         return localeBundleMapper.selectList(wrapper).stream()
                 .map(entity -> loadAggregate(entity.getId()))
                 .sorted(BUNDLE_ORDER)
@@ -204,5 +224,15 @@ public class MybatisLocaleBundleRepository implements LocaleBundleRepository {
                 entity.getVersion() == null ? 1 : entity.getVersion(),
                 Boolean.TRUE.equals(entity.getActive())
         );
+    }
+
+    private void applyTenantScope(LambdaQueryWrapper<LocaleBundleEntity> wrapper, UUID tenantId) {
+        if (tenantId == null) {
+            wrapper.isNull(LocaleBundleEntity::getTenantId);
+            return;
+        }
+        wrapper.and(criteria -> criteria.eq(LocaleBundleEntity::getTenantId, tenantId)
+                .or()
+                .isNull(LocaleBundleEntity::getTenantId));
     }
 }

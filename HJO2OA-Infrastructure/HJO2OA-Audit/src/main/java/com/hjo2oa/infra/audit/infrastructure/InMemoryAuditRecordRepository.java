@@ -39,6 +39,11 @@ public class InMemoryAuditRecordRepository implements AuditRecordRepository {
                 .filter(record -> query.objectType() == null || query.objectType().equals(record.objectType()))
                 .filter(record -> query.objectId() == null || query.objectId().equals(record.objectId()))
                 .filter(record -> query.actionType() == null || query.actionType().equals(record.actionType()))
+                .filter(record -> query.operatorAccountId() == null
+                        || query.operatorAccountId().equals(record.operatorAccountId()))
+                .filter(record -> query.operatorPersonId() == null
+                        || query.operatorPersonId().equals(record.operatorPersonId()))
+                .filter(record -> query.traceId() == null || query.traceId().equals(record.traceId()))
                 .filter(record -> query.from() == null || !record.occurredAt().isBefore(query.from()))
                 .filter(record -> query.to() == null || !record.occurredAt().isAfter(query.to()))
                 .sorted(Comparator.comparing(AuditRecord::occurredAt)

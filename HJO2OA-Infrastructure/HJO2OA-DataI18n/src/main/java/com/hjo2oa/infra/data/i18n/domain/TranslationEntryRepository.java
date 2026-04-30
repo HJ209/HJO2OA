@@ -12,12 +12,20 @@ public interface TranslationEntryRepository {
             String entityType,
             String entityId,
             String fieldName,
-            String locale
+            String locale,
+            UUID tenantId
     );
 
-    List<TranslationEntry> findTranslationsByEntity(String entityType, String entityId);
+    List<TranslationEntry> findTranslationsByEntity(String entityType, String entityId, UUID tenantId);
 
-    List<TranslationEntry> findTranslationsByLocale(String entityType, String entityId, String locale);
+    List<TranslationEntry> findTranslationsByLocale(
+            String entityType,
+            String entityId,
+            String locale,
+            UUID tenantId
+    );
+
+    List<TranslationEntry> findAll(UUID tenantId);
 
     TranslationEntry save(TranslationEntry entry);
 

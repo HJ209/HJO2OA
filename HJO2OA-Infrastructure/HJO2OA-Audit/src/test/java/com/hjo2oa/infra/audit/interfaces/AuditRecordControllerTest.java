@@ -62,12 +62,13 @@ class AuditRecordControllerTest {
     void shouldQueryAuditListWithFilters() throws Exception {
         AuditRecordApplicationService applicationService = applicationService();
         UUID tenantId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID operatorAccountId = UUID.fromString("33333333-3333-3333-3333-333333333333");
         applicationService.recordAudit(new AuditRecordCommands.RecordAuditCommand(
                 "config",
                 "ConfigItem",
                 "config-1",
                 "UPDATE",
-                null,
+                operatorAccountId,
                 null,
                 tenantId,
                 "trace-config-1",
@@ -90,7 +91,9 @@ class AuditRecordControllerTest {
 
         mockMvc.perform(get("/api/v1/infra/audits")
                         .param("tenantId", tenantId.toString())
-                        .param("moduleCode", "config"))
+                        .param("moduleCode", "config")
+                        .param("operatorAccountId", operatorAccountId.toString())
+                        .param("requestId", "trace-config-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.length()").value(1))

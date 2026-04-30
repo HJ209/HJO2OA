@@ -13,7 +13,17 @@ public final class DictionaryTypeCommands {
             String category,
             boolean hierarchical,
             boolean cacheable,
+            Integer sortOrder,
             UUID tenantId
+    ) {
+    }
+
+    public record UpdateTypeCommand(
+            String name,
+            String category,
+            Boolean hierarchical,
+            Boolean cacheable,
+            Integer sortOrder
     ) {
     }
 
@@ -21,13 +31,27 @@ public final class DictionaryTypeCommands {
             String itemCode,
             String displayName,
             UUID parentItemId,
-            Integer sortOrder
+            Integer sortOrder,
+            Boolean defaultItem,
+            String multiLangValue,
+            String extensionJson
     ) {
     }
 
     public record UpdateItemCommand(
             String displayName,
-            Integer sortOrder
+            UUID parentItemId,
+            Integer sortOrder,
+            Boolean defaultItem,
+            String multiLangValue,
+            String extensionJson
+    ) {
+    }
+
+    public record ReorderItemCommand(
+            UUID itemId,
+            Integer sortOrder,
+            UUID parentItemId
     ) {
     }
 }

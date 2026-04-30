@@ -6,6 +6,7 @@ import com.hjo2oa.infra.timezone.domain.TimezoneSettingRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,6 +57,14 @@ public class InMemoryTimezoneSettingRepository implements TimezoneSettingReposit
     public Optional<TimezoneSetting> findEffectiveForPerson(UUID personId) {
         Objects.requireNonNull(personId, "personId must not be null");
         return currentSetting(TimezoneScopeType.PERSON, personId);
+    }
+
+    @Override
+    public List<TimezoneSetting> findAll() {
+        return settings.values().stream()
+                .sorted(Comparator.comparing(TimezoneSetting::scopeType)
+                        .thenComparing(setting -> setting.scopeId() == null ? "" : setting.scopeId().toString()))
+                .toList();
     }
 
     @Override

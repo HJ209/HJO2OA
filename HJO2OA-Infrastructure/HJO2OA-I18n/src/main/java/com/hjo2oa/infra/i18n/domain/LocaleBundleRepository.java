@@ -8,9 +8,13 @@ public interface LocaleBundleRepository {
 
     Optional<LocaleBundle> findById(UUID bundleId);
 
+    List<LocaleBundle> findAll();
+
     List<LocaleBundle> findByCode(String bundleCode);
 
     List<LocaleBundle> findByModuleAndLocale(String moduleCode, String locale);
+
+    List<LocaleBundle> findByLocale(String locale, UUID tenantId);
 
     List<LocaleBundle> findActiveByLocale(String locale, UUID tenantId);
 

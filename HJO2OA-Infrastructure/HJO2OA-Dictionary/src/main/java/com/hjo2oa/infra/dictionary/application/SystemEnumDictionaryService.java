@@ -1,6 +1,8 @@
 package com.hjo2oa.infra.dictionary.application;
 
 import com.hjo2oa.infra.dictionary.domain.DictionaryTypeView;
+import com.hjo2oa.shared.kernel.BizException;
+import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
 import java.lang.reflect.Modifier;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -47,47 +49,63 @@ public class SystemEnumDictionaryService {
     }
 
     public List<SystemEnumDictionaryView> previewSystemEnums() {
-        return discoverSystemEnums();
+        return discoverSystemEnums().stream()
+                .map(this::withDiff)
+                .toList();
     }
 
     public SystemEnumImportResult importSystemEnums() {
         List<SystemEnumDictionaryView> discoveredEnums = discoverSystemEnums();
         int createdTypes = 0;
         int createdItems = 0;
+        int updatedItems = 0;
+        int disabledItems = 0;
         List<String> importedCodes = new ArrayList<>();
 
         for (SystemEnumDictionaryView discoveredEnum : discoveredEnums) {
             DictionaryTypeView dictionaryType = dictionaryTypeApplicationService
-                    .queryByCode(null, discoveredEnum.code())
+                    .queryExactByCode(null, discoveredEnum.code())
                     .orElse(null);
             if (dictionaryType == null) {
-                dictionaryType = dictionaryTypeApplicationService.createType(
+                dictionaryType = dictionaryTypeApplicationService.createSystemType(
                         discoveredEnum.code(),
                         discoveredEnum.name(),
                         SYSTEM_ENUM_CATEGORY,
-                        false,
-                        true,
+                        0,
                         null
                 );
                 createdTypes++;
+            } else if (!dictionaryType.systemManaged()) {
+                throw new BizException(
+                        SharedErrorDescriptors.CONFLICT,
+                        "Dictionary code conflicts with a non-system dictionary: " + discoveredEnum.code()
+                );
             }
 
-            Set<String> existingItemCodes = dictionaryType.items().stream()
-                    .map(item -> item.itemCode())
-                    .collect(java.util.stream.Collectors.toSet());
+            SystemEnumDictionaryView diff = withDiff(discoveredEnum, dictionaryType);
             for (SystemEnumItemView enumItem : discoveredEnum.items()) {
-                if (existingItemCodes.contains(enumItem.code())) {
-                    continue;
-                }
-                dictionaryType = dictionaryTypeApplicationService.addItem(
+                boolean existed = dictionaryType.items().stream()
+                        .anyMatch(item -> item.itemCode().equals(enumItem.code()));
+                dictionaryType = dictionaryTypeApplicationService.upsertSystemItem(
                         dictionaryType.id(),
                         enumItem.code(),
                         enumItem.name(),
-                        null,
-                        enumItem.sortOrder()
+                        enumItem.sortOrder(),
+                        true
                 );
-                createdItems++;
+                if (existed && diff.changedItemCodes().contains(enumItem.code())) {
+                    updatedItems++;
+                } else if (!existed) {
+                    createdItems++;
+                }
             }
+            dictionaryType = dictionaryTypeApplicationService.disableSystemItemsExcept(
+                    dictionaryType.id(),
+                    discoveredEnum.items().stream()
+                            .map(SystemEnumItemView::code)
+                            .collect(java.util.stream.Collectors.toSet())
+            );
+            disabledItems += diff.disabledItemCodes().size();
             importedCodes.add(discoveredEnum.code());
         }
 
@@ -95,8 +113,53 @@ public class SystemEnumDictionaryService {
                 discoveredEnums.size(),
                 createdTypes,
                 createdItems,
+                updatedItems,
+                disabledItems,
                 importedCodes
         );
+    }
+
+    private SystemEnumDictionaryView withDiff(SystemEnumDictionaryView discoveredEnum) {
+        return withDiff(
+                discoveredEnum,
+                dictionaryTypeApplicationService.queryExactByCode(null, discoveredEnum.code()).orElse(null)
+        );
+    }
+
+    private SystemEnumDictionaryView withDiff(
+            SystemEnumDictionaryView discoveredEnum,
+            DictionaryTypeView dictionaryType
+    ) {
+        if (dictionaryType == null) {
+            return discoveredEnum.withDiff(false, discoveredEnum.items().stream()
+                    .map(SystemEnumItemView::code)
+                    .toList(), List.of(), List.of());
+        }
+        Set<String> discoveredCodes = discoveredEnum.items().stream()
+                .map(SystemEnumItemView::code)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> existingCodes = dictionaryType.items().stream()
+                .map(item -> item.itemCode())
+                .collect(java.util.stream.Collectors.toSet());
+        List<String> newItemCodes = discoveredCodes.stream()
+                .filter(code -> !existingCodes.contains(code))
+                .sorted()
+                .toList();
+        List<String> changedItemCodes = discoveredEnum.items().stream()
+                .filter(item -> dictionaryType.items().stream().anyMatch(existing ->
+                        existing.itemCode().equals(item.code())
+                                && (!existing.displayName().equals(item.name())
+                                || existing.sortOrder() != item.sortOrder()
+                                || !existing.enabled())))
+                .map(SystemEnumItemView::code)
+                .toList();
+        List<String> disabledItemCodes = dictionaryType.items().stream()
+                .filter(item -> !discoveredCodes.contains(item.itemCode()))
+                .filter(item -> item.enabled())
+                .map(item -> item.itemCode())
+                .sorted()
+                .toList();
+        return discoveredEnum.withDiff(true, newItemCodes, changedItemCodes, disabledItemCodes);
     }
 
     private List<SystemEnumDictionaryView> discoverSystemEnums() {
@@ -191,8 +254,40 @@ public class SystemEnumDictionaryService {
             String name,
             String className,
             String category,
+            boolean imported,
+            List<String> newItemCodes,
+            List<String> changedItemCodes,
+            List<String> disabledItemCodes,
             List<SystemEnumItemView> items
     ) {
+        public SystemEnumDictionaryView(
+                String code,
+                String name,
+                String className,
+                String category,
+                List<SystemEnumItemView> items
+        ) {
+            this(code, name, className, category, false, List.of(), List.of(), List.of(), items);
+        }
+
+        public SystemEnumDictionaryView withDiff(
+                boolean imported,
+                List<String> newItemCodes,
+                List<String> changedItemCodes,
+                List<String> disabledItemCodes
+        ) {
+            return new SystemEnumDictionaryView(
+                    code,
+                    name,
+                    className,
+                    category,
+                    imported,
+                    List.copyOf(newItemCodes),
+                    List.copyOf(changedItemCodes),
+                    List.copyOf(disabledItemCodes),
+                    items
+            );
+        }
     }
 
     public record SystemEnumItemView(
@@ -206,6 +301,8 @@ public class SystemEnumDictionaryService {
             int discoveredTypes,
             int createdTypes,
             int createdItems,
+            int updatedItems,
+            int disabledItems,
             List<String> importedCodes
     ) {
     }

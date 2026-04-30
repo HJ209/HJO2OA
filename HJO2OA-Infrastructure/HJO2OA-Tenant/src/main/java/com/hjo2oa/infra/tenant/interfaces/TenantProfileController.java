@@ -61,6 +61,26 @@ public class TenantProfileController {
         );
     }
 
+    @PostMapping("/{tenantId}/activate")
+    public ApiResponse<TenantProfileDtos.TenantProfileResponse> activateByAction(
+            @PathVariable UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return activate(tenantId, request);
+    }
+
+    @PutMapping("/{tenantId}")
+    public ApiResponse<TenantProfileDtos.TenantProfileResponse> update(
+            @PathVariable UUID tenantId,
+            @Valid @RequestBody TenantProfileDtos.UpdateTenantRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.updateTenant(body.toCommand(tenantId))),
+                responseMetaFactory.create(request)
+        );
+    }
+
     @PutMapping("/{tenantId}/initialize")
     public ApiResponse<TenantProfileDtos.TenantProfileResponse> initialize(
             @PathVariable UUID tenantId,
@@ -72,6 +92,14 @@ public class TenantProfileController {
         );
     }
 
+    @PostMapping("/{tenantId}/initialize")
+    public ApiResponse<TenantProfileDtos.TenantProfileResponse> initializeByAction(
+            @PathVariable UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return initialize(tenantId, request);
+    }
+
     @PutMapping("/{tenantId}/suspend")
     public ApiResponse<TenantProfileDtos.TenantProfileResponse> suspend(
             @PathVariable UUID tenantId,
@@ -81,6 +109,14 @@ public class TenantProfileController {
                 dtoMapper.toResponse(applicationService.suspendTenant(tenantId)),
                 responseMetaFactory.create(request)
         );
+    }
+
+    @PostMapping("/{tenantId}/disable")
+    public ApiResponse<TenantProfileDtos.TenantProfileResponse> disable(
+            @PathVariable UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return suspend(tenantId, request);
     }
 
     @PutMapping("/{tenantId}/archive")
@@ -112,7 +148,18 @@ public class TenantProfileController {
     @GetMapping
     public ApiResponse<List<TenantProfileDtos.TenantProfileResponse>> list(HttpServletRequest request) {
         return ApiResponse.success(
-                applicationService.listActive().stream().map(dtoMapper::toResponse).toList(),
+                applicationService.listAll().stream().map(dtoMapper::toResponse).toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/{tenantId}/quotas")
+    public ApiResponse<List<TenantProfileDtos.TenantQuotaResponse>> listQuotas(
+            @PathVariable UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.listQuotas(tenantId).stream().map(dtoMapper::toResponse).toList(),
                 responseMetaFactory.create(request)
         );
     }
@@ -126,6 +173,19 @@ public class TenantProfileController {
     ) {
         return ApiResponse.success(
                 dtoMapper.toResponse(applicationService.updateQuota(body.toCommand(tenantId, quotaType))),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/{tenantId}/quota-usages/{quotaType}")
+    public ApiResponse<TenantProfileDtos.TenantQuotaResponse> consumeQuota(
+            @PathVariable UUID tenantId,
+            @PathVariable QuotaType quotaType,
+            @Valid @RequestBody TenantProfileDtos.ConsumeQuotaRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.consumeQuota(body.toCommand(tenantId, quotaType))),
                 responseMetaFactory.create(request)
         );
     }

@@ -109,6 +109,28 @@ class LocaleBundleApplicationServiceTest {
                 .containsExactly("portal.labels", "portal.messages");
     }
 
+    @Test
+    void shouldInvalidateResolvedMessageCacheAfterEntryUpdate() {
+        LocaleBundleApplicationService service = service();
+        UUID bundleId = service.createBundle(new LocaleBundleCommands.CreateBundleCommand(
+                "portal.cache",
+                "portal",
+                "en-US",
+                null,
+                null
+        )).id();
+        service.addEntry(bundleId, "title", "Old title");
+        service.activateBundle(bundleId);
+
+        assertThat(service.resolveMessage("portal.cache", "title", "en-US", null).resourceValue())
+                .isEqualTo("Old title");
+
+        service.updateEntry(bundleId, "title", "New title");
+
+        assertThat(service.resolveMessage("portal.cache", "title", "en-US", null).resourceValue())
+                .isEqualTo("New title");
+    }
+
     private LocaleBundleApplicationService service() {
         return new LocaleBundleApplicationService(
                 new InMemoryLocaleBundleRepository(),
