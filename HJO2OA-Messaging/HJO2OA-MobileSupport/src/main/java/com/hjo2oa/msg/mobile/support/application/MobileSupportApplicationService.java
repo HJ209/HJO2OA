@@ -3,6 +3,8 @@ package com.hjo2oa.msg.mobile.support.application;
 import com.hjo2oa.msg.mobile.support.domain.DeviceBindStatus;
 import com.hjo2oa.msg.mobile.support.domain.DeviceBinding;
 import com.hjo2oa.msg.mobile.support.domain.DeviceBindingView;
+import com.hjo2oa.msg.mobile.support.domain.MobilePushPreference;
+import com.hjo2oa.msg.mobile.support.domain.MobilePushPreferenceView;
 import com.hjo2oa.msg.mobile.support.domain.MobileRiskLevel;
 import com.hjo2oa.msg.mobile.support.domain.MobileSession;
 import com.hjo2oa.msg.mobile.support.domain.MobileSessionStatus;
@@ -172,6 +174,28 @@ public class MobileSupportApplicationService {
         return repository.findDeviceBindingsByPerson(tenantId, personId, DeviceBindStatus.ACTIVE).stream()
                 .map(DeviceBinding::toView)
                 .toList();
+    }
+
+    public MobilePushPreferenceView pushPreference(UUID tenantId, UUID personId) {
+        return repository.findPushPreference(tenantId, personId)
+                .orElseGet(() -> repository.savePushPreference(
+                        MobilePushPreference.createDefault(tenantId, personId, now())
+                ))
+                .toView();
+    }
+
+    public MobilePushPreferenceView savePushPreference(MobileSupportCommands.SavePushPreferenceCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        MobilePushPreference preference = repository.findPushPreference(command.tenantId(), command.personId())
+                .orElseGet(() -> MobilePushPreference.createDefault(command.tenantId(), command.personId(), now()))
+                .update(
+                        command.pushEnabled(),
+                        command.quietStartsAt(),
+                        command.quietEndsAt(),
+                        command.mutedCategories(),
+                        now()
+                );
+        return repository.savePushPreference(preference).toView();
     }
 
     private DeviceBinding loadDeviceByTenantAndDeviceId(UUID tenantId, String deviceId) {

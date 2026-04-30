@@ -3,8 +3,11 @@ package com.hjo2oa.todo.center.application;
 import com.hjo2oa.todo.center.domain.CopiedTodoItem;
 import com.hjo2oa.todo.center.domain.CopiedTodoRepository;
 import com.hjo2oa.todo.center.domain.CopiedTodoSummary;
+import com.hjo2oa.todo.center.domain.TodoBatchActionResult;
 import com.hjo2oa.todo.center.domain.TodoIdentityContext;
 import com.hjo2oa.todo.center.domain.TodoIdentityContextProvider;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.Clock;
 import java.util.Objects;
 import java.util.Optional;
@@ -53,5 +56,24 @@ public class CopiedTodoActionApplicationService {
         }
 
         return Optional.of(CopiedTodoSummary.from(copiedTodo));
+    }
+
+    public TodoBatchActionResult batchMarkRead(List<String> todoIds) {
+        if (todoIds == null || todoIds.isEmpty()) {
+            return new TodoBatchActionResult(0, 0, 0, List.of(), List.of());
+        }
+        List<String> succeeded = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+        for (String todoId : todoIds.stream().filter(Objects::nonNull).map(String::trim).distinct().toList()) {
+            if (todoId.isBlank()) {
+                continue;
+            }
+            if (markRead(todoId).isPresent()) {
+                succeeded.add(todoId);
+            } else {
+                skipped.add(todoId);
+            }
+        }
+        return new TodoBatchActionResult(todoIds.size(), succeeded.size(), skipped.size(), succeeded, skipped);
     }
 }

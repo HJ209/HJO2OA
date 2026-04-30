@@ -5,6 +5,8 @@ import com.hjo2oa.wf.form.renderer.domain.FieldDefinition;
 import com.hjo2oa.wf.form.renderer.domain.FieldPermission;
 import com.hjo2oa.wf.form.renderer.domain.FieldType;
 import com.hjo2oa.wf.form.renderer.domain.FormMetadataSnapshot;
+import com.hjo2oa.wf.form.renderer.domain.FormSubmission;
+import com.hjo2oa.wf.form.renderer.domain.FormSubmissionStatus;
 import com.hjo2oa.wf.form.renderer.domain.FormValidationResultView;
 import com.hjo2oa.wf.form.renderer.domain.RenderedFieldView;
 import com.hjo2oa.wf.form.renderer.domain.ValidationRule;
@@ -60,6 +62,58 @@ public final class FormRendererDtos {
                     metadataSnapshot.toDomain(),
                     nodeId,
                     formData == null ? Map.of() : formData
+            );
+        }
+    }
+
+    public record CreateDraftSubmissionRequest(
+            @NotNull @Valid MetadataSnapshotRequest metadataSnapshot,
+            UUID processInstanceId,
+            UUID formDataId,
+            @Size(max = 64) String nodeId,
+            Map<String, Object> formData,
+            @NotNull UUID submittedBy
+    ) {
+
+        public FormRendererCommands.CreateDraftCommand toCommand(String idempotencyKey) {
+            return new FormRendererCommands.CreateDraftCommand(
+                    metadataSnapshot.toDomain(),
+                    processInstanceId,
+                    formDataId,
+                    nodeId,
+                    formData == null ? Map.of() : formData,
+                    submittedBy,
+                    idempotencyKey
+            );
+        }
+    }
+
+    public record UpdateDraftSubmissionRequest(
+            @NotNull @Valid MetadataSnapshotRequest metadataSnapshot,
+            Map<String, Object> formData
+    ) {
+
+        public FormRendererCommands.UpdateDraftCommand toCommand(UUID submissionId, String idempotencyKey) {
+            return new FormRendererCommands.UpdateDraftCommand(
+                    submissionId,
+                    metadataSnapshot.toDomain(),
+                    formData == null ? Map.of() : formData,
+                    idempotencyKey
+            );
+        }
+    }
+
+    public record SubmitDraftSubmissionRequest(
+            @NotNull @Valid MetadataSnapshotRequest metadataSnapshot,
+            Map<String, Object> formData
+    ) {
+
+        public FormRendererCommands.SubmitDraftCommand toCommand(UUID submissionId, String idempotencyKey) {
+            return new FormRendererCommands.SubmitDraftCommand(
+                    submissionId,
+                    metadataSnapshot.toDomain(),
+                    formData == null ? Map.of() : formData,
+                    idempotencyKey
             );
         }
     }
@@ -171,6 +225,47 @@ public final class FormRendererDtos {
             List<RenderedFieldView> fields,
             FormValidationResultView validation
     ) {
+    }
+
+    public record FormSubmissionResponse(
+            UUID submissionId,
+            UUID metadataId,
+            String metadataCode,
+            int metadataVersion,
+            UUID processInstanceId,
+            UUID formDataId,
+            String nodeId,
+            FormSubmissionStatus status,
+            Map<String, Object> formData,
+            List<String> attachmentIds,
+            FormValidationResultView validation,
+            UUID submittedBy,
+            UUID tenantId,
+            String createdAt,
+            String updatedAt,
+            String submittedAt
+    ) {
+
+        public static FormSubmissionResponse from(FormSubmission submission) {
+            return new FormSubmissionResponse(
+                    submission.submissionId(),
+                    submission.metadataId(),
+                    submission.metadataCode(),
+                    submission.metadataVersion(),
+                    submission.processInstanceId(),
+                    submission.formDataId(),
+                    submission.nodeId(),
+                    submission.status(),
+                    submission.formData(),
+                    submission.attachmentIds(),
+                    submission.validation(),
+                    submission.submittedBy(),
+                    submission.tenantId(),
+                    submission.createdAt().toString(),
+                    submission.updatedAt().toString(),
+                    submission.submittedAt() == null ? null : submission.submittedAt().toString()
+            );
+        }
     }
 
     private static Map<String, Map<String, FieldPermission>> toPermissionMap(

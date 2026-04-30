@@ -69,4 +69,72 @@ public final class ProcessMonitorDtos {
             List<OverdueTaskResponse> overdueTasks
     ) {
     }
+
+    public record MonitoredInstanceResponse(
+            UUID instanceId,
+            UUID definitionId,
+            String definitionCode,
+            String title,
+            String category,
+            UUID initiatorId,
+            String status,
+            Instant startTime,
+            Instant endTime,
+            Instant updatedAt
+    ) {
+    }
+
+    public record ExceptionInstanceResponse(
+            UUID instanceId,
+            UUID definitionId,
+            String definitionCode,
+            String title,
+            String category,
+            String status,
+            String exceptionType,
+            long exceptionMinutes,
+            Instant detectedAt
+    ) {
+    }
+
+    public record NodeTrailResponse(
+            UUID taskId,
+            UUID instanceId,
+            String nodeId,
+            String nodeName,
+            String nodeType,
+            UUID assigneeId,
+            String taskStatus,
+            Instant createdAt,
+            Instant claimTime,
+            Instant completedTime,
+            Instant dueTime,
+            String lastActionCode,
+            String lastActionName,
+            UUID lastOperatorId,
+            Instant lastActionAt
+    ) {
+    }
+
+    public record InterventionResponse(
+            UUID interventionId,
+            UUID instanceId,
+            UUID taskId,
+            String actionType,
+            UUID operatorId,
+            UUID targetAssigneeId,
+            String reason,
+            Instant createdAt
+    ) {
+    }
+
+    public record InterventionRequest(
+            UUID tenantId,
+            UUID taskId,
+            String actionType,
+            UUID operatorId,
+            UUID targetAssigneeId,
+            String reason
+    ) {
+    }
 }

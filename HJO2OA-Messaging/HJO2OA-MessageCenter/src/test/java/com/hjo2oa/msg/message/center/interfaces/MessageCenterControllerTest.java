@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hjo2oa.msg.message.center.application.MessageNotificationCommandApplicationService;
 import com.hjo2oa.msg.message.center.application.MessageNotificationActionApplicationService;
 import com.hjo2oa.msg.message.center.application.MessageNotificationQueryApplicationService;
 import com.hjo2oa.msg.message.center.domain.MessageIdentityContext;
@@ -25,6 +26,7 @@ import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -343,9 +345,18 @@ class MessageCenterControllerTest {
             MessageNotificationActionApplicationService actionApplicationService
     ) {
         ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
+        MessageNotificationCommandApplicationService commandApplicationService =
+                new MessageNotificationCommandApplicationService(
+                        new InMemoryNotificationRepository(),
+                        new InMemoryNotificationDeliveryRecordRepository(),
+                        List.of(),
+                        event -> {
+                        }
+                );
         return MockMvcBuilders.standaloneSetup(new MessageCenterController(
                         queryApplicationService,
                         actionApplicationService,
+                        commandApplicationService,
                         responseMetaFactory
                 ))
                 .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))

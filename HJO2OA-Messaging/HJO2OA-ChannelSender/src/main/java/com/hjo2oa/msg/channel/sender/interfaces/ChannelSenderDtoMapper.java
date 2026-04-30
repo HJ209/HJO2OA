@@ -1,5 +1,6 @@
 package com.hjo2oa.msg.channel.sender.interfaces;
 
+import com.hjo2oa.msg.channel.sender.application.RenderedMessageView;
 import com.hjo2oa.msg.channel.sender.domain.ChannelEndpointView;
 import com.hjo2oa.msg.channel.sender.domain.DeliveryAttemptView;
 import com.hjo2oa.msg.channel.sender.domain.DeliveryTaskView;
@@ -26,6 +27,18 @@ public class ChannelSenderDtoMapper {
                 view.tenantId(),
                 view.createdAt(),
                 view.updatedAt()
+        );
+    }
+
+    public ChannelSenderDtos.RenderTemplateResponse toRenderTemplateResponse(RenderedMessageView view) {
+        return new ChannelSenderDtos.RenderTemplateResponse(
+                view.templateId(),
+                view.templateCode(),
+                view.channelType(),
+                view.locale(),
+                view.version(),
+                view.title(),
+                view.body()
         );
     }
 

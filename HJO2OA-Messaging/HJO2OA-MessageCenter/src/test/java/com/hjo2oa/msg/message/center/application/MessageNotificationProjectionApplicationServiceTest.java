@@ -21,7 +21,9 @@ import com.hjo2oa.msg.message.center.infrastructure.InMemoryNotificationReposito
 import com.hjo2oa.msg.message.center.infrastructure.InboxNotificationChannelDispatcher;
 import com.hjo2oa.shared.messaging.DomainEvent;
 import com.hjo2oa.todo.center.domain.TodoItemCreatedEvent;
+import com.hjo2oa.todo.center.domain.TodoItemCompletedEvent;
 import com.hjo2oa.todo.center.domain.TodoItemOverdueEvent;
+import com.hjo2oa.todo.center.domain.TodoItemRemindedEvent;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -154,6 +156,55 @@ class MessageNotificationProjectionApplicationServiceTest {
         assertEquals(NotificationPriority.CRITICAL, notification.priority());
         assertTrue(notification.title().startsWith("Overdue: "));
         assertEquals(2, publishedEvents.size());
+    }
+
+    @Test
+    void shouldCreateReminderAndCompletionNotifications() {
+        List<DomainEvent> publishedEvents = new ArrayList<>();
+        NotificationRepository notificationRepository = new InMemoryNotificationRepository();
+        NotificationDeliveryRecordRepository deliveryRecordRepository = new InMemoryNotificationDeliveryRecordRepository();
+        NotificationProjectionEventLog eventLog = new InMemoryNotificationProjectionEventLog();
+        MessageNotificationProjectionApplicationService service = new MessageNotificationProjectionApplicationService(
+                notificationRepository,
+                deliveryRecordRepository,
+                eventLog,
+                List.of(new InboxNotificationChannelDispatcher()),
+                publishedEvents::add
+        );
+
+        service.onTodoItemReminded(new TodoItemRemindedEvent(
+                UUID.randomUUID(),
+                Instant.parse("2026-04-19T18:00:00Z"),
+                "tenant-1",
+                "todo-3",
+                "task-3",
+                "instance-3",
+                "assignment-1",
+                "APPROVAL",
+                "EXPENSE",
+                "Approve expense request",
+                "Please handle it"
+        ));
+        service.onTodoItemCompleted(new TodoItemCompletedEvent(
+                UUID.randomUUID(),
+                Instant.parse("2026-04-19T18:10:00Z"),
+                "tenant-1",
+                "todo-3",
+                "task-3",
+                "instance-3",
+                "assignment-1",
+                "APPROVAL",
+                "EXPENSE",
+                "Approve expense request",
+                Instant.parse("2026-04-19T18:10:00Z")
+        ));
+
+        assertEquals(2, notificationRepository.findAll().size());
+        assertTrue(notificationRepository.findAll().stream()
+                .anyMatch(notification -> notification.category() == NotificationCategory.TODO_REMINDER));
+        assertTrue(notificationRepository.findAll().stream()
+                .anyMatch(notification -> notification.category() == NotificationCategory.TODO_COMPLETED));
+        assertEquals(4, publishedEvents.size());
     }
 
     @Test

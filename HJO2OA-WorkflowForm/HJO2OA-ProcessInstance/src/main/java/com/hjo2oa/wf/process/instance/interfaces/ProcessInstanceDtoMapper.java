@@ -12,7 +12,9 @@ public class ProcessInstanceDtoMapper {
         return new ProcessInstanceDtos.InstanceDetailResponse(
                 toProcessResponse(view.instance()),
                 view.tasks().stream().map(this::toTaskResponse).toList(),
-                view.actions().stream().map(this::toActionResponse).toList()
+                view.actions().stream().map(this::toActionResponse).toList(),
+                view.nodeHistory().stream().map(this::toNodeHistoryResponse).toList(),
+                view.variableHistory().stream().map(this::toVariableHistoryResponse).toList()
         );
     }
 
@@ -51,6 +53,7 @@ public class ProcessInstanceDtoMapper {
                 view.definitionId(),
                 view.definitionVersion(),
                 view.definitionCode(),
+                view.businessKey(),
                 view.title(),
                 view.category(),
                 view.initiatorId(),
@@ -64,6 +67,7 @@ public class ProcessInstanceDtoMapper {
                 view.startTime(),
                 view.endTime(),
                 view.tenantId(),
+                view.idempotencyKey(),
                 view.createdAt(),
                 view.updatedAt()
         );
@@ -85,6 +89,40 @@ public class ProcessInstanceDtoMapper {
                 view.targetNodeId(),
                 view.formDataPatch(),
                 view.createdAt()
+        );
+    }
+
+    private ProcessInstanceDtos.NodeHistoryResponse toNodeHistoryResponse(
+            ProcessInstanceViews.NodeHistoryView view
+    ) {
+        return new ProcessInstanceDtos.NodeHistoryResponse(
+                view.id(),
+                view.instanceId(),
+                view.taskId(),
+                view.nodeId(),
+                view.nodeName(),
+                view.nodeType(),
+                view.status(),
+                view.actionCode(),
+                view.operatorId(),
+                view.occurredAt(),
+                view.tenantId()
+        );
+    }
+
+    private ProcessInstanceDtos.VariableHistoryResponse toVariableHistoryResponse(
+            ProcessInstanceViews.VariableHistoryView view
+    ) {
+        return new ProcessInstanceDtos.VariableHistoryResponse(
+                view.id(),
+                view.instanceId(),
+                view.taskId(),
+                view.variableName(),
+                view.oldValue(),
+                view.newValue(),
+                view.operatorId(),
+                view.occurredAt(),
+                view.tenantId()
         );
     }
 }

@@ -12,6 +12,10 @@ public record TodoItemCompletedEvent(
         String todoId,
         String taskId,
         String instanceId,
+        String assigneeId,
+        String type,
+        String category,
+        String title,
         Instant completedTime
 ) implements DomainEvent {
 
@@ -24,6 +28,10 @@ public record TodoItemCompletedEvent(
         todoId = requireText(todoId, "todoId");
         taskId = requireText(taskId, "taskId");
         instanceId = requireText(instanceId, "instanceId");
+        assigneeId = requireText(assigneeId, "assigneeId");
+        type = requireText(type, "type");
+        category = requireText(category, "category");
+        title = requireText(title, "title");
         Objects.requireNonNull(completedTime, "completedTime must not be null");
     }
 
@@ -31,10 +39,14 @@ public record TodoItemCompletedEvent(
         return new TodoItemCompletedEvent(
                 UUID.randomUUID(),
                 occurredAt,
-                tenantId,
+                todoItem.tenantId(),
                 todoItem.todoId(),
                 todoItem.taskId(),
                 todoItem.instanceId(),
+                todoItem.assigneeId(),
+                todoItem.type(),
+                todoItem.category(),
+                todoItem.title(),
                 todoItem.completedAt()
         );
     }

@@ -3,10 +3,12 @@ package com.hjo2oa.msg.message.center.application;
 import com.hjo2oa.msg.message.center.domain.MessageIdentityContext;
 import com.hjo2oa.msg.message.center.domain.MessageIdentityContextProvider;
 import com.hjo2oa.msg.message.center.domain.Notification;
+import com.hjo2oa.msg.message.center.domain.NotificationCategory;
 import com.hjo2oa.msg.message.center.domain.NotificationDetail;
 import com.hjo2oa.msg.message.center.domain.NotificationDeliveryRecord;
 import com.hjo2oa.msg.message.center.domain.NotificationDeliveryRecordRepository;
 import com.hjo2oa.msg.message.center.domain.NotificationDeliveryStatus;
+import com.hjo2oa.msg.message.center.domain.NotificationInboxStatus;
 import com.hjo2oa.msg.message.center.domain.NotificationRepository;
 import com.hjo2oa.msg.message.center.domain.NotificationSummary;
 import com.hjo2oa.msg.message.center.domain.NotificationUnreadSummary;
@@ -35,9 +37,20 @@ public class MessageNotificationQueryApplicationService {
     }
 
     public List<NotificationSummary> inbox() {
+        return inbox(new MessageNotificationQuery(null, null, null, null));
+    }
+
+    public List<NotificationSummary> inbox(MessageNotificationQuery query) {
         MessageIdentityContext context = identityContextProvider.currentContext();
+        MessageNotificationQuery resolvedQuery = query == null
+                ? new MessageNotificationQuery(null, null, null, null)
+                : query;
+        List<NotificationCategory> categories = resolvedQuery.requestedCategories();
         return notificationRepository.findAll().stream()
                 .filter(notification -> notification.isVisibleTo(context))
+                .filter(notification -> matchesInboxStatus(notification, resolvedQuery))
+                .filter(notification -> categories.isEmpty() || categories.contains(notification.category()))
+                .filter(notification -> matchesText(notification.sourceModule(), resolvedQuery.sourceModule()))
                 .sorted(Comparator.comparing(Notification::createdAt).reversed())
                 .map(this::toSummary)
                 .toList();
@@ -130,5 +143,21 @@ public class MessageNotificationQueryApplicationService {
                 .map(NotificationDeliveryRecord::status)
                 .findFirst()
                 .orElse(NotificationDeliveryStatus.PENDING);
+    }
+
+    private boolean matchesInboxStatus(Notification notification, MessageNotificationQuery query) {
+        NotificationInboxStatus status = notification.inboxStatus();
+        if (query.inboxStatus() != null) {
+            return status == query.inboxStatus();
+        }
+        if (query.readStatus() != null && !query.readStatus().isBlank()
+                && !"ALL".equalsIgnoreCase(query.readStatus())) {
+            return status.name().equalsIgnoreCase(query.readStatus());
+        }
+        return !status.isHiddenFromInbox();
+    }
+
+    private boolean matchesText(String value, String expected) {
+        return expected == null || expected.isBlank() || expected.equals(value);
     }
 }

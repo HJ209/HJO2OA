@@ -1,5 +1,9 @@
 package com.hjo2oa.msg.message.center.domain;
 
 public enum NotificationDeliveryChannel {
-    INBOX
+    INBOX,
+    EMAIL,
+    SMS,
+    WEBHOOK,
+    MOBILE_PUSH
 }

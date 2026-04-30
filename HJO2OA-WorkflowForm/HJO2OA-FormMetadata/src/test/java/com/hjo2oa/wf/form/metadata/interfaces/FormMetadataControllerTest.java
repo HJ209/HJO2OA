@@ -83,7 +83,9 @@ class FormMetadataControllerTest {
 
         mockMvc.perform(post("/api/v1/form/metadata/" + metadataId + "/validate"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].fieldCode").value("leaveType"));
+                .andExpect(jsonPath("$.data.valid").value(true))
+                .andExpect(jsonPath("$.data.fieldCount").value(2))
+                .andExpect(jsonPath("$.data.permissionNodeCount").value(1));
 
         mockMvc.perform(put("/api/v1/form/metadata/" + metadataId)
                         .contentType(MediaType.APPLICATION_JSON)

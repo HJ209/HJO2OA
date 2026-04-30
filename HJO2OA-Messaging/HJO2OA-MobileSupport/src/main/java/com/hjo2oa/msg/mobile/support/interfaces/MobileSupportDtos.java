@@ -13,6 +13,8 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 public final class MobileSupportDtos {
@@ -167,6 +169,40 @@ public final class MobileSupportDtos {
             Instant lastHeartbeatAt,
             int refreshVersion,
             UUID tenantId,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
+    public record SavePushPreferenceRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID personId,
+            boolean pushEnabled,
+            LocalTime quietStartsAt,
+            LocalTime quietEndsAt,
+            List<@Size(max = 64) String> mutedCategories
+    ) {
+
+        public MobileSupportCommands.SavePushPreferenceCommand toCommand() {
+            return new MobileSupportCommands.SavePushPreferenceCommand(
+                    tenantId,
+                    personId,
+                    pushEnabled,
+                    quietStartsAt,
+                    quietEndsAt,
+                    mutedCategories
+            );
+        }
+    }
+
+    public record PushPreferenceResponse(
+            UUID id,
+            UUID tenantId,
+            UUID personId,
+            boolean pushEnabled,
+            LocalTime quietStartsAt,
+            LocalTime quietEndsAt,
+            List<String> mutedCategories,
             Instant createdAt,
             Instant updatedAt
     ) {

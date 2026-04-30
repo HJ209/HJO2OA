@@ -21,4 +21,8 @@ public interface MobileSupportRepository {
     List<MobileSession> findMobileSessionsByPerson(UUID tenantId, UUID personId, MobileSessionStatus status);
 
     MobileSession saveMobileSession(MobileSession mobileSession);
+
+    Optional<MobilePushPreference> findPushPreference(UUID tenantId, UUID personId);
+
+    MobilePushPreference savePushPreference(MobilePushPreference preference);
 }

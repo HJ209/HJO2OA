@@ -2,6 +2,7 @@ package com.hjo2oa.process.monitor.interfaces;
 
 import com.hjo2oa.process.monitor.application.ProcessMonitorQueryApplicationService;
 import com.hjo2oa.process.monitor.domain.MonitorQueryFilter;
+import com.hjo2oa.process.monitor.domain.ProcessInterventionCommand;
 import com.hjo2oa.shared.web.ApiResponse;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.UseSharedWebContract;
@@ -11,13 +12,16 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/admin/wf/process-monitor")
+@RequestMapping({"/api/v1/process/monitor/admin", "/api/v1/admin/wf/process-monitor"})
 public class ProcessMonitorAdminController {
 
     private final ProcessMonitorQueryApplicationService applicationService;
@@ -177,6 +181,104 @@ public class ProcessMonitorAdminController {
                         startedTo,
                         limit,
                         null
+                ))),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/instances")
+    public ApiResponse<List<ProcessMonitorDtos.MonitoredInstanceResponse>> instances(
+            @RequestParam(name = "filter[tenantId]", required = false) UUID tenantId,
+            @RequestParam(name = "filter[definitionId]", required = false) UUID definitionId,
+            @RequestParam(name = "filter[definitionCode]", required = false) String definitionCode,
+            @RequestParam(name = "filter[category]", required = false) String category,
+            @RequestParam(name = "filter[status]", required = false) String status,
+            @RequestParam(name = "filter[startedFrom]", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startedFrom,
+            @RequestParam(name = "filter[startedTo]", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startedTo,
+            @RequestParam(name = "page[limit]", required = false) Integer limit,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toInstanceResponses(applicationService.instances(toFilter(
+                        tenantId,
+                        definitionId,
+                        definitionCode,
+                        category,
+                        startedFrom,
+                        startedTo,
+                        limit,
+                        null
+                ), status)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/exceptions")
+    public ApiResponse<List<ProcessMonitorDtos.ExceptionInstanceResponse>> exceptions(
+            @RequestParam(name = "filter[tenantId]", required = false) UUID tenantId,
+            @RequestParam(name = "filter[definitionId]", required = false) UUID definitionId,
+            @RequestParam(name = "filter[definitionCode]", required = false) String definitionCode,
+            @RequestParam(name = "filter[category]", required = false) String category,
+            @RequestParam(name = "page[limit]", required = false) Integer limit,
+            @RequestParam(name = "filter[stalledThresholdMinutes]", required = false) Long stalledThresholdMinutes,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toExceptionResponses(applicationService.exceptionInstances(toFilter(
+                        tenantId,
+                        definitionId,
+                        definitionCode,
+                        category,
+                        null,
+                        null,
+                        limit,
+                        stalledThresholdMinutes
+                ))),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/instances/{instanceId}/trail")
+    public ApiResponse<List<ProcessMonitorDtos.NodeTrailResponse>> nodeTrail(
+            @RequestParam(name = "filter[tenantId]") UUID tenantId,
+            @PathVariable UUID instanceId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toNodeTrailResponses(applicationService.nodeTrail(tenantId, instanceId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/instances/{instanceId}/interventions")
+    public ApiResponse<List<ProcessMonitorDtos.InterventionResponse>> interventions(
+            @RequestParam(name = "filter[tenantId]") UUID tenantId,
+            @PathVariable UUID instanceId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toInterventionResponses(applicationService.interventions(tenantId, instanceId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/instances/{instanceId}/interventions")
+    public ApiResponse<ProcessMonitorDtos.InterventionResponse> intervene(
+            @PathVariable UUID instanceId,
+            @RequestBody ProcessMonitorDtos.InterventionRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toInterventionResponse(applicationService.intervene(new ProcessInterventionCommand(
+                        body.tenantId(),
+                        instanceId,
+                        body.taskId(),
+                        body.actionType(),
+                        body.operatorId(),
+                        body.targetAssigneeId(),
+                        body.reason()
                 ))),
                 responseMetaFactory.create(request)
         );

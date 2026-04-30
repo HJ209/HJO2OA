@@ -2,6 +2,7 @@ package com.hjo2oa.msg.mobile.support.infrastructure;
 
 import com.hjo2oa.msg.mobile.support.domain.DeviceBindStatus;
 import com.hjo2oa.msg.mobile.support.domain.DeviceBinding;
+import com.hjo2oa.msg.mobile.support.domain.MobilePushPreference;
 import com.hjo2oa.msg.mobile.support.domain.MobileSession;
 import com.hjo2oa.msg.mobile.support.domain.MobileSessionStatus;
 import com.hjo2oa.msg.mobile.support.domain.MobileSupportRepository;
@@ -25,6 +26,7 @@ public class InMemoryMobileSupportRepository implements MobileSupportRepository 
 
     private final Map<UUID, DeviceBinding> deviceBindingsById = new LinkedHashMap<>();
     private final Map<UUID, MobileSession> mobileSessionsById = new LinkedHashMap<>();
+    private final Map<UUID, MobilePushPreference> pushPreferencesById = new LinkedHashMap<>();
 
     @Override
     public Optional<DeviceBinding> findDeviceBindingById(UUID id) {
@@ -87,5 +89,19 @@ public class InMemoryMobileSupportRepository implements MobileSupportRepository 
     public MobileSession saveMobileSession(MobileSession mobileSession) {
         mobileSessionsById.put(mobileSession.id(), Objects.requireNonNull(mobileSession, "mobileSession must not be null"));
         return mobileSession;
+    }
+
+    @Override
+    public Optional<MobilePushPreference> findPushPreference(UUID tenantId, UUID personId) {
+        return pushPreferencesById.values().stream()
+                .filter(preference -> preference.tenantId().equals(tenantId))
+                .filter(preference -> preference.personId().equals(personId))
+                .findFirst();
+    }
+
+    @Override
+    public MobilePushPreference savePushPreference(MobilePushPreference preference) {
+        pushPreferencesById.put(preference.id(), Objects.requireNonNull(preference, "preference must not be null"));
+        return preference;
     }
 }

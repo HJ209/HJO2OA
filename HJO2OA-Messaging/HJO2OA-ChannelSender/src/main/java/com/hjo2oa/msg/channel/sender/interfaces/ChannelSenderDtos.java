@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class ChannelSenderDtos {
@@ -70,6 +71,36 @@ public final class ChannelSenderDtos {
     ) {
     }
 
+    public record RenderTemplateRequest(
+            UUID tenantId,
+            @NotBlank @Size(max = 64) String templateCode,
+            @NotNull ChannelType channelType,
+            @NotBlank @Size(max = 16) String locale,
+            Map<String, Object> variables
+    ) {
+
+        public ChannelSenderCommands.RenderTemplateCommand toCommand() {
+            return new ChannelSenderCommands.RenderTemplateCommand(
+                    tenantId,
+                    templateCode,
+                    channelType,
+                    locale,
+                    variables
+            );
+        }
+    }
+
+    public record RenderTemplateResponse(
+            UUID templateId,
+            String templateCode,
+            ChannelType channelType,
+            String locale,
+            int version,
+            String title,
+            String body
+    ) {
+    }
+
     public record CreateEndpointRequest(
             @NotBlank @Size(max = 64) String endpointCode,
             @NotNull ChannelType channelType,
@@ -112,6 +143,29 @@ public final class ChannelSenderDtos {
             Instant createdAt,
             Instant updatedAt
     ) {
+    }
+
+    public record SendTestRequest(
+            @NotNull UUID tenantId,
+            @NotNull ChannelType channelType,
+            @NotNull UUID endpointId,
+            @NotBlank @Size(max = 512) String target,
+            @NotBlank @Size(max = 256) String title,
+            @NotBlank @Size(max = 4000) String body,
+            @Size(max = 512) String deepLink
+    ) {
+
+        public ChannelSenderCommands.SendTestCommand toCommand() {
+            return new ChannelSenderCommands.SendTestCommand(
+                    tenantId,
+                    channelType,
+                    endpointId,
+                    target,
+                    title,
+                    body,
+                    deepLink
+            );
+        }
     }
 
     public record CreateRoutingPolicyRequest(

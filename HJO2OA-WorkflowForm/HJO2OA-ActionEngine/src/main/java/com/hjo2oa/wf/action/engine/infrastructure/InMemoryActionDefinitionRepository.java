@@ -54,6 +54,24 @@ public class InMemoryActionDefinitionRepository implements ActionDefinitionRepos
                         tenantId
                 ),
                 ActionDefinition.preset(
+                        "delegate",
+                        "Delegate",
+                        ActionCategory.DELEGATE,
+                        RouteTarget.CURRENT_NODE,
+                        false,
+                        true,
+                        tenantId
+                ),
+                ActionDefinition.preset(
+                        "withdraw",
+                        "Withdraw",
+                        ActionCategory.WITHDRAW,
+                        RouteTarget.END,
+                        true,
+                        false,
+                        tenantId
+                ),
+                ActionDefinition.preset(
                         "add_sign",
                         "Add sign",
                         ActionCategory.ADD_SIGN,
@@ -69,6 +87,15 @@ public class InMemoryActionDefinitionRepository implements ActionDefinitionRepos
                         RouteTarget.CURRENT_NODE,
                         false,
                         true,
+                        tenantId
+                ),
+                ActionDefinition.preset(
+                        "terminate",
+                        "Terminate",
+                        ActionCategory.TERMINATE,
+                        RouteTarget.END,
+                        true,
+                        false,
                         tenantId
                 )
         );

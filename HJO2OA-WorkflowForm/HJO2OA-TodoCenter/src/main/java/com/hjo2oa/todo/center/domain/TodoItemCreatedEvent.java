@@ -40,7 +40,7 @@ public record TodoItemCreatedEvent(
         return new TodoItemCreatedEvent(
                 UUID.randomUUID(),
                 occurredAt,
-                tenantId,
+                todoItem.tenantId(),
                 todoItem.todoId(),
                 todoItem.taskId(),
                 todoItem.instanceId(),

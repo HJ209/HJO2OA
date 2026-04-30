@@ -4,7 +4,9 @@ public enum ChannelType {
     INBOX,
     EMAIL,
     SMS,
+    WEBHOOK,
     WECHAT_WORK,
     DINGTALK,
-    PUSH
+    PUSH,
+    APP_PUSH
 }

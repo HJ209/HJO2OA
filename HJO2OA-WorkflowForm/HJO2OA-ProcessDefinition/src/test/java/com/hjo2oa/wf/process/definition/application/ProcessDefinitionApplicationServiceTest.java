@@ -19,6 +19,7 @@ class ProcessDefinitionApplicationServiceTest {
 
     private static final Instant FIXED_TIME = Instant.parse("2026-04-24T06:00:00Z");
     private static final UUID TENANT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID FORM_METADATA_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     @Test
     void shouldVersionPublishAndDeprecatePreviousActiveDefinition() {
@@ -26,15 +27,25 @@ class ProcessDefinitionApplicationServiceTest {
 
         ProcessDefinitionView first = service.createDefinition(definitionCommand(null, "Leave Approval"));
         ProcessDefinitionView activeFirst =
-                service.publishDefinition(new ProcessDefinitionCommands.PublishDefinitionCommand(first.id(), null));
+                service.publishDefinition(new ProcessDefinitionCommands.PublishDefinitionCommand(
+                        first.id(),
+                        null,
+                        "publish-first",
+                        "req-publish-first"
+                ));
         ProcessDefinitionView second = service.createNextVersion(activeFirst.id());
 
-        assertThat(activeFirst.status()).isEqualTo(DefinitionStatus.ACTIVE);
+        assertThat(activeFirst.status()).isEqualTo(DefinitionStatus.PUBLISHED);
         assertThat(second.version()).isEqualTo(2);
         assertThat(second.status()).isEqualTo(DefinitionStatus.DRAFT);
 
         ProcessDefinitionView activeSecond =
-                service.publishDefinition(new ProcessDefinitionCommands.PublishDefinitionCommand(second.id(), null));
+                service.publishDefinition(new ProcessDefinitionCommands.PublishDefinitionCommand(
+                        second.id(),
+                        null,
+                        "publish-second",
+                        "req-publish-second"
+                ));
         List<ProcessDefinitionView> versions = service.queryDefinitions(new ProcessDefinitionCommands.DefinitionQuery(
                 TENANT_ID,
                 "leave",
@@ -42,10 +53,10 @@ class ProcessDefinitionApplicationServiceTest {
                 null
         ));
 
-        assertThat(activeSecond.status()).isEqualTo(DefinitionStatus.ACTIVE);
+        assertThat(activeSecond.status()).isEqualTo(DefinitionStatus.PUBLISHED);
         assertThat(versions)
                 .extracting(ProcessDefinitionView::status)
-                .containsExactly(DefinitionStatus.ACTIVE, DefinitionStatus.DEPRECATED);
+                .containsExactly(DefinitionStatus.PUBLISHED, DefinitionStatus.DEPRECATED);
     }
 
     @Test
@@ -61,7 +72,9 @@ class ProcessDefinitionApplicationServiceTest {
                 false,
                 false,
                 "{\"color\":\"green\"}",
-                TENANT_ID
+                TENANT_ID,
+                "action-create",
+                "req-action-create"
         )).id();
 
         service.updateAction(new ProcessDefinitionCommands.SaveActionCommand(
@@ -73,7 +86,9 @@ class ProcessDefinitionApplicationServiceTest {
                 true,
                 false,
                 "{\"color\":\"blue\"}",
-                TENANT_ID
+                TENANT_ID,
+                "action-update",
+                "req-action-update"
         ));
 
         assertThat(service.getAction(actionId).name()).isEqualTo("Approve Updated");
@@ -91,12 +106,27 @@ class ProcessDefinitionApplicationServiceTest {
                 "leave",
                 name,
                 "HR",
-                null,
+                FORM_METADATA_ID,
                 "start",
                 "end",
-                "[]",
-                "[]",
-                TENANT_ID
+                """
+                        [
+                          {"nodeId":"start","type":"START","name":"Start"},
+                          {"nodeId":"approve","type":"USER_TASK","name":"Approve",
+                           "participantRule":{"type":"SPECIFIC_PERSON","ids":["person-1"]},
+                           "actionCodes":["approve"]},
+                          {"nodeId":"end","type":"END","name":"End"}
+                        ]
+                        """,
+                """
+                        [
+                          {"routeId":"r1","sourceNodeId":"start","targetNodeId":"approve"},
+                          {"routeId":"r2","sourceNodeId":"approve","targetNodeId":"end"}
+                        ]
+                        """,
+                TENANT_ID,
+                "definition-" + name,
+                "req-definition-" + name
         );
     }
 

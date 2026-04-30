@@ -7,6 +7,7 @@ public record CopiedTodoItem(
         String todoId,
         String taskId,
         String instanceId,
+        String tenantId,
         String recipientAssignmentId,
         String type,
         String category,
@@ -22,6 +23,7 @@ public record CopiedTodoItem(
         todoId = requireText(todoId, "todoId");
         taskId = requireText(taskId, "taskId");
         instanceId = requireText(instanceId, "instanceId");
+        tenantId = requireText(tenantId, "tenantId");
         recipientAssignmentId = requireText(recipientAssignmentId, "recipientAssignmentId");
         type = requireText(type, "type");
         category = requireText(category, "category");
@@ -30,6 +32,37 @@ public record CopiedTodoItem(
         Objects.requireNonNull(readStatus, "readStatus must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+    }
+
+    public CopiedTodoItem(
+            String todoId,
+            String taskId,
+            String instanceId,
+            String recipientAssignmentId,
+            String type,
+            String category,
+            String title,
+            String urgency,
+            CopiedTodoReadStatus readStatus,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant readAt
+    ) {
+        this(
+                todoId,
+                taskId,
+                instanceId,
+                "tenant-1",
+                recipientAssignmentId,
+                type,
+                category,
+                title,
+                urgency,
+                readStatus,
+                createdAt,
+                updatedAt,
+                readAt
+        );
     }
 
     public static CopiedTodoItem unread(
@@ -43,10 +76,37 @@ public record CopiedTodoItem(
             String urgency,
             Instant createdAt
     ) {
+        return unread(
+                todoId,
+                taskId,
+                instanceId,
+                "tenant-1",
+                recipientAssignmentId,
+                type,
+                category,
+                title,
+                urgency,
+                createdAt
+        );
+    }
+
+    public static CopiedTodoItem unread(
+            String todoId,
+            String taskId,
+            String instanceId,
+            String tenantId,
+            String recipientAssignmentId,
+            String type,
+            String category,
+            String title,
+            String urgency,
+            Instant createdAt
+    ) {
         return new CopiedTodoItem(
                 todoId,
                 taskId,
                 instanceId,
+                tenantId,
                 recipientAssignmentId,
                 type,
                 category,
@@ -61,7 +121,7 @@ public record CopiedTodoItem(
 
     public boolean isVisibleTo(TodoIdentityContext identityContext) {
         Objects.requireNonNull(identityContext, "identityContext must not be null");
-        return recipientAssignmentId.equals(identityContext.assignmentId());
+        return tenantId.equals(identityContext.tenantId()) && recipientAssignmentId.equals(identityContext.assignmentId());
     }
 
     public boolean isUnread() {
@@ -77,6 +137,7 @@ public record CopiedTodoItem(
                 todoId,
                 taskId,
                 instanceId,
+                tenantId,
                 recipientAssignmentId,
                 type,
                 category,

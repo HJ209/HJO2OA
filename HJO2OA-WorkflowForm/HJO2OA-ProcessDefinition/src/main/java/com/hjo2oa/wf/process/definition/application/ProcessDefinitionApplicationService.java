@@ -2,13 +2,22 @@ package com.hjo2oa.wf.process.definition.application;
 
 import com.hjo2oa.shared.kernel.BizException;
 import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
+import com.hjo2oa.shared.messaging.DomainEventPublisher;
+import com.hjo2oa.infra.audit.application.AuditRecordApplicationService;
+import com.hjo2oa.infra.audit.application.AuditRecordCommands;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hjo2oa.wf.process.definition.domain.ActionDefinition;
 import com.hjo2oa.wf.process.definition.domain.ActionDefinitionRepository;
 import com.hjo2oa.wf.process.definition.domain.ActionDefinitionView;
 import com.hjo2oa.wf.process.definition.domain.DefinitionStatus;
 import com.hjo2oa.wf.process.definition.domain.ProcessDefinition;
+import com.hjo2oa.wf.process.definition.domain.ProcessDefinitionEvents;
 import com.hjo2oa.wf.process.definition.domain.ProcessDefinitionRepository;
 import com.hjo2oa.wf.process.definition.domain.ProcessDefinitionView;
+import com.hjo2oa.wf.process.definition.domain.model.WorkflowDefinitionJsonParser;
+import com.hjo2oa.wf.process.definition.domain.model.WorkflowDefinitionModel;
+import com.hjo2oa.wf.process.definition.domain.model.WorkflowNodeDefinition;
+import com.hjo2oa.wf.process.definition.domain.model.WorkflowRouteDefinition;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
@@ -34,32 +43,45 @@ public class ProcessDefinitionApplicationService {
     private final ProcessDefinitionRepository definitionRepository;
     private final ActionDefinitionRepository actionRepository;
     private final ProcessDefinitionEngineGateway engineGateway;
+    private final WorkflowDefinitionJsonParser modelParser;
+    private final DomainEventPublisher eventPublisher;
+    private final AuditRecordApplicationService auditService;
     private final Clock clock;
     @Autowired
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
             ActionDefinitionRepository actionRepository,
-            ObjectProvider<ProcessDefinitionEngineGateway> engineGateway
+            ObjectProvider<ProcessDefinitionEngineGateway> engineGateway,
+            WorkflowDefinitionJsonParser modelParser,
+            DomainEventPublisher eventPublisher,
+            ObjectProvider<AuditRecordApplicationService> auditService
     ) {
         this(definitionRepository, actionRepository, engineGateway.getIfAvailable(ProcessDefinitionEngineGateway::noop),
-                Clock.systemUTC());
+                modelParser, eventPublisher, auditService.getIfAvailable(), Clock.systemUTC());
     }
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
             ActionDefinitionRepository actionRepository,
             Clock clock
     ) {
-        this(definitionRepository, actionRepository, ProcessDefinitionEngineGateway.noop(), clock);
+        this(definitionRepository, actionRepository, ProcessDefinitionEngineGateway.noop(),
+                new WorkflowDefinitionJsonParser(new ObjectMapper()), event -> { }, null, clock);
     }
     public ProcessDefinitionApplicationService(
             ProcessDefinitionRepository definitionRepository,
             ActionDefinitionRepository actionRepository,
             ProcessDefinitionEngineGateway engineGateway,
+            WorkflowDefinitionJsonParser modelParser,
+            DomainEventPublisher eventPublisher,
+            AuditRecordApplicationService auditService,
             Clock clock
     ) {
         this.definitionRepository = Objects.requireNonNull(definitionRepository, "definitionRepository must not be null");
         this.actionRepository = Objects.requireNonNull(actionRepository, "actionRepository must not be null");
         this.engineGateway = Objects.requireNonNull(engineGateway, "engineGateway must not be null");
+        this.modelParser = modelParser;
+        this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher must not be null");
+        this.auditService = auditService;
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -81,7 +103,15 @@ public class ProcessDefinitionApplicationService {
                 command.tenantId(),
                 now
         );
-        return definitionRepository.save(definition).toView();
+        ProcessDefinition saved = definitionRepository.save(definition);
+        eventPublisher.publish(ProcessDefinitionEvents.ProcessDefinitionChangedEvent.of(
+                ProcessDefinitionEvents.CREATED,
+                saved,
+                now
+        ));
+        audit("PROCESS_DEFINITION", saved.id().toString(), "CREATE", null, saved.status().name(),
+                command.tenantId(), null, command.requestId(), "Created process definition " + saved.code());
+        return saved.toView();
     }
 
     public ProcessDefinitionView updateDefinition(ProcessDefinitionCommands.SaveDefinitionCommand command) {
@@ -97,7 +127,10 @@ public class ProcessDefinitionApplicationService {
                 command.routes(),
                 now()
         );
-        return definitionRepository.save(updated).toView();
+        ProcessDefinition saved = definitionRepository.save(updated);
+        audit("PROCESS_DEFINITION", saved.id().toString(), "UPDATE", definition.status().name(), saved.status().name(),
+                saved.tenantId(), null, command.requestId(), "Updated process definition " + saved.code());
+        return saved.toView();
     }
 
     public ProcessDefinitionView createNextVersion(UUID definitionId) {
@@ -110,18 +143,42 @@ public class ProcessDefinitionApplicationService {
     public ProcessDefinitionView publishDefinition(ProcessDefinitionCommands.PublishDefinitionCommand command) {
         Objects.requireNonNull(command, "command must not be null");
         ProcessDefinition target = loadRequiredDefinition(command.definitionId());
+        validatePublishable(target);
         ProcessDefinition active = definitionRepository.save(target.publish(command.publishedBy(), now()));
         engineGateway.deploy(active);
         definitionRepository.findByCode(active.tenantId(), active.code()).stream()
-                .filter(definition -> definition.status() == DefinitionStatus.ACTIVE)
+                .filter(definition -> definition.status() == DefinitionStatus.PUBLISHED)
                 .filter(definition -> !definition.id().equals(active.id()))
-                .forEach(definition -> definitionRepository.save(definition.deprecate(now())));
+                .forEach(definition -> {
+                    ProcessDefinition deprecated = definitionRepository.save(definition.deprecate(now()));
+                    eventPublisher.publish(ProcessDefinitionEvents.ProcessDefinitionChangedEvent.of(
+                            ProcessDefinitionEvents.DEPRECATED,
+                            deprecated,
+                            now()
+                    ));
+                });
+        eventPublisher.publish(ProcessDefinitionEvents.ProcessDefinitionChangedEvent.of(
+                ProcessDefinitionEvents.PUBLISHED,
+                active,
+                active.publishedAt()
+        ));
+        audit("PROCESS_DEFINITION", active.id().toString(), "PUBLISH", target.status().name(), active.status().name(),
+                active.tenantId(), command.publishedBy(), command.requestId(), "Published process definition " + active.code());
         return active.toView();
     }
 
     public ProcessDefinitionView deprecateDefinition(UUID definitionId) {
         ProcessDefinition definition = loadRequiredDefinition(definitionId);
-        return definitionRepository.save(definition.deprecate(now())).toView();
+        ProcessDefinition deprecated = definitionRepository.save(definition.deprecate(now()));
+        eventPublisher.publish(ProcessDefinitionEvents.ProcessDefinitionChangedEvent.of(
+                ProcessDefinitionEvents.DEPRECATED,
+                deprecated,
+                now()
+        ));
+        audit("PROCESS_DEFINITION", deprecated.id().toString(), "DEPRECATE", definition.status().name(),
+                deprecated.status().name(), deprecated.tenantId(), null, null,
+                "Deprecated process definition " + deprecated.code());
+        return deprecated.toView();
     }
 
     public void deleteDefinition(UUID definitionId) {
@@ -242,5 +299,61 @@ public class ProcessDefinitionApplicationService {
 
     private Instant now() {
         return clock.instant();
+    }
+
+    private void validatePublishable(ProcessDefinition definition) {
+        if (definition.formMetadataId() == null) {
+            throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, "Published process definition must bind form metadata");
+        }
+        WorkflowDefinitionModel model = parseModel(definition);
+        long startCount = model.nodes().stream().filter(WorkflowNodeDefinition::isStart).count();
+        if (startCount != 1 || model.endNodes().isEmpty()) {
+            throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, "Process definition must have one start node and at least one end node");
+        }
+        for (WorkflowNodeDefinition node : model.nodes()) {
+            if (node.isUserTask() && (node.participantRule() == null || node.actionCodes().isEmpty())) {
+                throw new BizException(
+                        SharedErrorDescriptors.BUSINESS_RULE_VIOLATION,
+                        "User task must have participant rule and action codes: " + node.nodeId()
+                );
+            }
+        }
+        for (WorkflowRouteDefinition route : model.routes()) {
+            if (model.findNode(route.sourceNodeId()).isEmpty() || model.findNode(route.targetNodeId()).isEmpty()) {
+                throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, "Process route references missing node");
+            }
+        }
+    }
+
+    private WorkflowDefinitionModel parseModel(ProcessDefinition definition) {
+        return modelParser.parse(definition.nodes(), definition.routes());
+    }
+
+    private void audit(
+            String objectType,
+            String objectId,
+            String actionType,
+            String oldStatus,
+            String newStatus,
+            UUID tenantId,
+            UUID operatorPersonId,
+            String requestId,
+            String summary
+    ) {
+        if (auditService == null) {
+            return;
+        }
+        auditService.recordAudit(new AuditRecordCommands.RecordAuditCommand(
+                "process-definition",
+                objectType,
+                objectId,
+                actionType,
+                null,
+                operatorPersonId,
+                tenantId,
+                requestId,
+                summary,
+                List.of(new AuditRecordCommands.FieldChangeCommand("status", oldStatus, newStatus, null))
+        ));
     }
 }

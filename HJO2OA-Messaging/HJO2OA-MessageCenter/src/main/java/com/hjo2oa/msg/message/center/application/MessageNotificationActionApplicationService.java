@@ -119,6 +119,54 @@ public class MessageNotificationActionApplicationService {
         );
     }
 
+    public Optional<NotificationSummary> archive(String notificationId, String reason) {
+        Objects.requireNonNull(notificationId, "notificationId must not be null");
+        MessageIdentityContext context = identityContextProvider.currentContext();
+        Optional<Notification> foundNotification = visibleNotification(notificationId, context);
+        if (foundNotification.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Notification notification = foundNotification.orElseThrow();
+        if (notification.inboxStatus() != com.hjo2oa.msg.message.center.domain.NotificationInboxStatus.ARCHIVED) {
+            Instant archivedAt = now();
+            Notification archivedNotification = notification.archive(archivedAt, reason);
+            notificationRepository.save(archivedNotification);
+            notificationActionRepository.save(NotificationAction.archive(
+                    UUID.randomUUID().toString(),
+                    archivedNotification.notificationId(),
+                    context.recipientId(),
+                    archivedAt
+            ));
+        }
+
+        return queryApplicationService.summary(notificationId);
+    }
+
+    public Optional<NotificationSummary> delete(String notificationId, String reason) {
+        Objects.requireNonNull(notificationId, "notificationId must not be null");
+        MessageIdentityContext context = identityContextProvider.currentContext();
+        Optional<Notification> foundNotification = visibleNotification(notificationId, context);
+        if (foundNotification.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Notification notification = foundNotification.orElseThrow();
+        if (notification.inboxStatus() != com.hjo2oa.msg.message.center.domain.NotificationInboxStatus.DELETED) {
+            Instant deletedAt = now();
+            Notification deletedNotification = notification.delete(deletedAt, reason);
+            notificationRepository.save(deletedNotification);
+            notificationActionRepository.save(NotificationAction.delete(
+                    UUID.randomUUID().toString(),
+                    deletedNotification.notificationId(),
+                    context.recipientId(),
+                    deletedAt
+            ));
+        }
+
+        return queryApplicationService.summary(notificationId);
+    }
+
     private Instant now() {
         return clock.instant();
     }

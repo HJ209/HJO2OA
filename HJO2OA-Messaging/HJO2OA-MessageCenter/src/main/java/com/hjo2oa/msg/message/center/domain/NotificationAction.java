@@ -34,6 +34,36 @@ public record NotificationAction(
         );
     }
 
+    public static NotificationAction archive(
+            String actionId,
+            String notificationId,
+            String operatorId,
+            Instant occurredAt
+    ) {
+        return new NotificationAction(
+                actionId,
+                notificationId,
+                NotificationActionType.ARCHIVE,
+                operatorId,
+                occurredAt
+        );
+    }
+
+    public static NotificationAction delete(
+            String actionId,
+            String notificationId,
+            String operatorId,
+            Instant occurredAt
+    ) {
+        return new NotificationAction(
+                actionId,
+                notificationId,
+                NotificationActionType.DELETE,
+                operatorId,
+                occurredAt
+        );
+    }
+
     private static String requireText(String value, String fieldName) {
         Objects.requireNonNull(value, fieldName + " must not be null");
         if (value.isBlank()) {

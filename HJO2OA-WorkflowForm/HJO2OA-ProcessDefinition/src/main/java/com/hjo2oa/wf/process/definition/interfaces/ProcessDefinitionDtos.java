@@ -25,10 +25,15 @@ public final class ProcessDefinitionDtos {
             @Size(max = 64) String endNodeId,
             @NotNull JsonNode nodes,
             @NotNull JsonNode routes,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public ProcessDefinitionCommands.SaveDefinitionCommand toCommand(UUID definitionId) {
+        public ProcessDefinitionCommands.SaveDefinitionCommand toCommand(
+                UUID definitionId,
+                UUID resolvedTenantId,
+                String idempotencyKey,
+                String requestId
+        ) {
             return new ProcessDefinitionCommands.SaveDefinitionCommand(
                     definitionId,
                     code,
@@ -39,7 +44,9 @@ public final class ProcessDefinitionDtos {
                     endNodeId,
                     nodes.toString(),
                     routes.toString(),
-                    tenantId
+                    resolvedTenantId == null ? tenantId : resolvedTenantId,
+                    idempotencyKey,
+                    requestId
             );
         }
     }
@@ -48,8 +55,12 @@ public final class ProcessDefinitionDtos {
             UUID publishedBy
     ) {
 
-        public ProcessDefinitionCommands.PublishDefinitionCommand toCommand(UUID definitionId) {
-            return new ProcessDefinitionCommands.PublishDefinitionCommand(definitionId, publishedBy);
+        public ProcessDefinitionCommands.PublishDefinitionCommand toCommand(
+                UUID definitionId,
+                String idempotencyKey,
+                String requestId
+        ) {
+            return new ProcessDefinitionCommands.PublishDefinitionCommand(definitionId, publishedBy, idempotencyKey, requestId);
         }
     }
 
@@ -81,10 +92,15 @@ public final class ProcessDefinitionDtos {
             boolean requireOpinion,
             boolean requireTarget,
             JsonNode uiConfig,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public ProcessDefinitionCommands.SaveActionCommand toCommand(UUID actionId) {
+        public ProcessDefinitionCommands.SaveActionCommand toCommand(
+                UUID actionId,
+                UUID resolvedTenantId,
+                String idempotencyKey,
+                String requestId
+        ) {
             return new ProcessDefinitionCommands.SaveActionCommand(
                     actionId,
                     code,
@@ -94,7 +110,9 @@ public final class ProcessDefinitionDtos {
                     requireOpinion,
                     requireTarget,
                     uiConfig == null ? null : uiConfig.toString(),
-                    tenantId
+                    resolvedTenantId == null ? tenantId : resolvedTenantId,
+                    idempotencyKey,
+                    requestId
             );
         }
     }

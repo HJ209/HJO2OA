@@ -11,5 +11,9 @@ public interface CopiedTodoRepository {
 
     List<CopiedTodoItem> findByRecipientAssignmentId(String recipientAssignmentId);
 
+    List<CopiedTodoItem> findByTenantIdAndRecipientAssignmentId(String tenantId, String recipientAssignmentId);
+
     long countUnreadByRecipientAssignmentId(String recipientAssignmentId);
+
+    long countUnreadByTenantIdAndRecipientAssignmentId(String tenantId, String recipientAssignmentId);
 }

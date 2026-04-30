@@ -28,6 +28,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-CollaborationHub</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>

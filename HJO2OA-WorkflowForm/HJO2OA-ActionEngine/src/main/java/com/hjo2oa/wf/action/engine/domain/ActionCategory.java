@@ -4,6 +4,7 @@ public enum ActionCategory {
     APPROVE,
     REJECT,
     RETURN,
+    WITHDRAW,
     DELEGATE,
     TRANSFER,
     ADD_SIGN,

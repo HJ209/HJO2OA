@@ -39,8 +39,8 @@ public record ProcessDefinition(
         Objects.requireNonNull(tenantId, "tenantId must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
-        if (status == DefinitionStatus.ACTIVE && publishedAt == null) {
-            throw new IllegalArgumentException("publishedAt must not be null for active definition");
+        if (status == DefinitionStatus.PUBLISHED && publishedAt == null) {
+            throw new IllegalArgumentException("publishedAt must not be null for published definition");
         }
     }
 
@@ -110,7 +110,7 @@ public record ProcessDefinition(
     }
 
     public ProcessDefinition publish(UUID publisherId, Instant now) {
-        if (status == DefinitionStatus.ACTIVE) {
+        if (status == DefinitionStatus.PUBLISHED) {
             return this;
         }
         if (status == DefinitionStatus.DEPRECATED) {
@@ -122,7 +122,7 @@ public record ProcessDefinition(
                 name,
                 category,
                 version,
-                DefinitionStatus.ACTIVE,
+                DefinitionStatus.PUBLISHED,
                 formMetadataId,
                 startNodeId,
                 endNodeId,

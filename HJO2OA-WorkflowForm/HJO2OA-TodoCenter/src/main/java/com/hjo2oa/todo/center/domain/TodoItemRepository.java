@@ -13,5 +13,9 @@ public interface TodoItemRepository {
 
     List<TodoItem> findByAssigneeIdAndStatus(String assigneeId, TodoItemStatus status);
 
+    List<TodoItem> findByTenantIdAndAssigneeIdAndStatus(String tenantId, String assigneeId, TodoItemStatus status);
+
     long countByAssigneeIdAndStatus(String assigneeId, TodoItemStatus status);
+
+    long countByTenantIdAndAssigneeIdAndStatus(String tenantId, String assigneeId, TodoItemStatus status);
 }

@@ -5,6 +5,7 @@ import com.hjo2oa.msg.mobile.support.domain.DeviceBindStatus;
 import com.hjo2oa.msg.mobile.support.domain.DeviceBinding;
 import com.hjo2oa.msg.mobile.support.domain.MobileAppType;
 import com.hjo2oa.msg.mobile.support.domain.MobilePlatform;
+import com.hjo2oa.msg.mobile.support.domain.MobilePushPreference;
 import com.hjo2oa.msg.mobile.support.domain.MobileRiskLevel;
 import com.hjo2oa.msg.mobile.support.domain.MobileSession;
 import com.hjo2oa.msg.mobile.support.domain.MobileSessionStatus;
@@ -27,13 +28,16 @@ public class MybatisMobileSupportRepository implements MobileSupportRepository {
 
     private final DeviceBindingMapper deviceBindingMapper;
     private final MobileSessionMapper mobileSessionMapper;
+    private final MobilePushPreferenceMapper pushPreferenceMapper;
 
     public MybatisMobileSupportRepository(
             DeviceBindingMapper deviceBindingMapper,
-            MobileSessionMapper mobileSessionMapper
+            MobileSessionMapper mobileSessionMapper,
+            MobilePushPreferenceMapper pushPreferenceMapper
     ) {
         this.deviceBindingMapper = Objects.requireNonNull(deviceBindingMapper, "deviceBindingMapper must not be null");
         this.mobileSessionMapper = Objects.requireNonNull(mobileSessionMapper, "mobileSessionMapper must not be null");
+        this.pushPreferenceMapper = Objects.requireNonNull(pushPreferenceMapper, "pushPreferenceMapper must not be null");
     }
 
     @Override
@@ -124,6 +128,28 @@ public class MybatisMobileSupportRepository implements MobileSupportRepository {
         return findMobileSessionById(mobileSession.id()).orElseThrow();
     }
 
+    @Override
+    public Optional<MobilePushPreference> findPushPreference(UUID tenantId, UUID personId) {
+        return pushPreferenceMapper.selectList(Wrappers.<MobilePushPreferenceEntity>lambdaQuery()
+                        .eq(MobilePushPreferenceEntity::getTenantId, tenantId)
+                        .eq(MobilePushPreferenceEntity::getPersonId, personId))
+                .stream()
+                .findFirst()
+                .map(this::toPreference);
+    }
+
+    @Override
+    public MobilePushPreference savePushPreference(MobilePushPreference preference) {
+        MobilePushPreferenceEntity existing = pushPreferenceMapper.selectById(preference.id());
+        MobilePushPreferenceEntity entity = toPreferenceEntity(preference, existing);
+        if (existing == null) {
+            pushPreferenceMapper.insert(entity);
+        } else {
+            pushPreferenceMapper.updateById(entity);
+        }
+        return findPushPreference(preference.tenantId(), preference.personId()).orElseThrow();
+    }
+
     private DeviceBinding toDomain(DeviceBindingEntity entity) {
         return new DeviceBinding(
                 entity.getId(),
@@ -161,6 +187,20 @@ public class MybatisMobileSupportRepository implements MobileSupportRepository {
                 entity.getLastHeartbeatAt(),
                 entity.getRefreshVersion() == null ? 0 : entity.getRefreshVersion(),
                 entity.getTenantId(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
+        );
+    }
+
+    private MobilePushPreference toPreference(MobilePushPreferenceEntity entity) {
+        return new MobilePushPreference(
+                entity.getId(),
+                entity.getTenantId(),
+                entity.getPersonId(),
+                Boolean.TRUE.equals(entity.getPushEnabled()),
+                entity.getQuietStartsAt(),
+                entity.getQuietEndsAt(),
+                fromCategoryText(entity.getMutedCategories()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -206,5 +246,32 @@ public class MybatisMobileSupportRepository implements MobileSupportRepository {
         entity.setCreatedAt(session.createdAt());
         entity.setUpdatedAt(session.updatedAt());
         return entity;
+    }
+
+    private MobilePushPreferenceEntity toPreferenceEntity(
+            MobilePushPreference preference,
+            MobilePushPreferenceEntity existing
+    ) {
+        MobilePushPreferenceEntity entity = existing == null ? new MobilePushPreferenceEntity() : existing;
+        entity.setId(preference.id());
+        entity.setTenantId(preference.tenantId());
+        entity.setPersonId(preference.personId());
+        entity.setPushEnabled(preference.pushEnabled());
+        entity.setQuietStartsAt(preference.quietStartsAt());
+        entity.setQuietEndsAt(preference.quietEndsAt());
+        entity.setMutedCategories(String.join(",", preference.mutedCategories()));
+        entity.setCreatedAt(preference.createdAt());
+        entity.setUpdatedAt(preference.updatedAt());
+        return entity;
+    }
+
+    private List<String> fromCategoryText(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
     }
 }

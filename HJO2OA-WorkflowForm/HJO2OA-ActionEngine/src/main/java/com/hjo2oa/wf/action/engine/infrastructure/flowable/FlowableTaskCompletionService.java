@@ -24,7 +24,7 @@ public class FlowableTaskCompletionService implements TaskCompletionGateway {
     }
 
     @Override
-    public void apply(
+    public TaskStatus apply(
             TaskInstanceSnapshot task,
             ActionDefinition definition,
             ActionExecutionRequest request,
@@ -35,15 +35,16 @@ public class FlowableTaskCompletionService implements TaskCompletionGateway {
                 .active()
                 .singleResult();
         if (flowableTask == null) {
-            return;
+            return null;
         }
         if (definition.category() == ActionCategory.TRANSFER || definition.category() == ActionCategory.DELEGATE) {
             taskService.setAssignee(flowableTask.getId(), firstAssignee(request));
-            return;
+            return null;
         }
         if (status == TaskStatus.COMPLETED) {
             taskService.complete(flowableTask.getId(), variables(task, definition, request));
         }
+        return null;
     }
 
     private Map<String, Object> variables(

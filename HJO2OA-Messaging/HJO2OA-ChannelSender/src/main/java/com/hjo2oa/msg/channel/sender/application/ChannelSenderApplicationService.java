@@ -1,5 +1,8 @@
 package com.hjo2oa.msg.channel.sender.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hjo2oa.msg.channel.sender.domain.ChannelEndpoint;
 import com.hjo2oa.msg.channel.sender.domain.ChannelEndpointStatus;
 import com.hjo2oa.msg.channel.sender.domain.ChannelSenderRepository;
@@ -7,8 +10,10 @@ import com.hjo2oa.msg.channel.sender.domain.ChannelType;
 import com.hjo2oa.msg.channel.sender.domain.DeliveryAttempt;
 import com.hjo2oa.msg.channel.sender.domain.DeliveryAttemptResultStatus;
 import com.hjo2oa.msg.channel.sender.domain.DeliveryTask;
+import com.hjo2oa.msg.channel.sender.domain.DeliveryTaskStatus;
 import com.hjo2oa.msg.channel.sender.domain.DeliveryTaskView;
 import com.hjo2oa.msg.channel.sender.domain.MessageTemplate;
+import com.hjo2oa.msg.channel.sender.domain.MessageTemplateStatus;
 import com.hjo2oa.msg.channel.sender.domain.MessageTemplateView;
 import com.hjo2oa.msg.channel.sender.domain.RoutingPolicy;
 import com.hjo2oa.msg.channel.sender.domain.RoutingPolicyView;
@@ -19,7 +24,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -36,15 +44,40 @@ public class ChannelSenderApplicationService {
             Duration.ofMinutes(5),
             Duration.ofMinutes(30)
     );
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
+    };
 
     private final ChannelSenderRepository repository;
+    private final List<ChannelDeliveryAdapter> deliveryAdapters;
+    private final ObjectMapper objectMapper;
     private final Clock clock;
+
     @Autowired
-    public ChannelSenderApplicationService(ChannelSenderRepository repository) {
-        this(repository, Clock.systemUTC());
+    public ChannelSenderApplicationService(
+            ChannelSenderRepository repository,
+            List<ChannelDeliveryAdapter> deliveryAdapters,
+            ObjectMapper objectMapper
+    ) {
+        this(repository, deliveryAdapters, objectMapper, Clock.systemUTC());
     }
+
+    public ChannelSenderApplicationService(ChannelSenderRepository repository) {
+        this(repository, List.of(), new ObjectMapper(), Clock.systemUTC());
+    }
+
     public ChannelSenderApplicationService(ChannelSenderRepository repository, Clock clock) {
+        this(repository, List.of(), new ObjectMapper(), clock);
+    }
+
+    public ChannelSenderApplicationService(
+            ChannelSenderRepository repository,
+            List<ChannelDeliveryAdapter> deliveryAdapters,
+            ObjectMapper objectMapper,
+            Clock clock
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
+        this.deliveryAdapters = List.copyOf(deliveryAdapters == null ? List.of() : deliveryAdapters);
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -257,13 +290,258 @@ public class ChannelSenderApplicationService {
                 .toList();
     }
 
+    public RenderedMessageView renderTemplate(ChannelSenderCommands.RenderTemplateCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        MessageTemplate template = resolvePublishedTemplate(
+                command.tenantId(),
+                command.templateCode(),
+                command.channelType(),
+                command.locale()
+        );
+        return new RenderedMessageView(
+                template.id(),
+                template.code(),
+                template.channelType(),
+                template.locale(),
+                template.version(),
+                renderText(template.titleTemplate(), command.variables()),
+                renderText(template.bodyTemplate(), command.variables())
+        );
+    }
+
+    public List<DeliveryTaskView> dispatchNotification(
+            ChannelSenderCommands.DispatchNotificationCommand command
+    ) {
+        Objects.requireNonNull(command, "command must not be null");
+        List<ChannelType> channels = resolveChannels(command);
+        java.util.ArrayList<DeliveryTaskView> sentTasks = new java.util.ArrayList<>(channels.size());
+        int order = 0;
+        for (ChannelType channel : channels) {
+            if (channel == ChannelType.INBOX) {
+                order++;
+                continue;
+            }
+            UUID endpointId = selectEndpoint(command.tenantId(), channel);
+            DeliveryTaskView task = createDeliveryTask(new ChannelSenderCommands.CreateDeliveryTaskCommand(
+                    command.notificationId(),
+                    channel,
+                    endpointId,
+                    order++,
+                    command.tenantId()
+            ));
+            sentTasks.add(sendDeliveryTask(
+                    task.id(),
+                    command.recipientId(),
+                    command.title(),
+                    command.body(),
+                    command.deepLink(),
+                    Map.of("source", "message-center")
+            ));
+        }
+        return sentTasks;
+    }
+
+    public DeliveryTaskView sendTest(ChannelSenderCommands.SendTestCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        DeliveryTaskView task = createDeliveryTask(new ChannelSenderCommands.CreateDeliveryTaskCommand(
+                UUID.randomUUID(),
+                command.channelType(),
+                command.endpointId(),
+                0,
+                command.tenantId()
+        ));
+        return sendDeliveryTask(
+                task.id(),
+                command.target(),
+                command.title(),
+                command.body(),
+                command.deepLink(),
+                Map.of("source", "send-test")
+        );
+    }
+
+    public DeliveryTaskView retryDeliveryTask(UUID deliveryTaskId) {
+        DeliveryTask task = loadTask(deliveryTaskId);
+        if (task.status() != DeliveryTaskStatus.FAILED && task.status() != DeliveryTaskStatus.GAVE_UP) {
+            throw new BizException(SharedErrorDescriptors.CONFLICT, "Delivery task is not retryable");
+        }
+        Map<String, Object> snapshot = lastRequestSnapshot(task);
+        return sendDeliveryTask(
+                deliveryTaskId,
+                stringValue(snapshot.get("recipientId")),
+                stringValue(snapshot.get("title")),
+                stringValue(snapshot.get("body")),
+                stringValue(snapshot.get("deepLink")),
+                snapshot
+        );
+    }
+
+    private DeliveryTaskView sendDeliveryTask(
+            UUID deliveryTaskId,
+            String recipientId,
+            String title,
+            String body,
+            String deepLink,
+            Map<String, Object> attributes
+    ) {
+        DeliveryTask task = loadTask(deliveryTaskId);
+        ChannelEndpoint endpoint = task.endpointId() == null ? null : loadEndpoint(task.endpointId());
+        ChannelDeliveryRequest request = new ChannelDeliveryRequest(
+                task.id(),
+                task.notificationId(),
+                task.tenantId(),
+                task.channelType(),
+                endpoint,
+                recipientId,
+                title,
+                body,
+                deepLink,
+                attributes
+        );
+        ChannelDeliveryResult result = adapterFor(task.channelType()).send(request);
+        return recordDeliveryResult(new ChannelSenderCommands.RecordDeliveryResultCommand(
+                deliveryTaskId,
+                result.success()
+                        ? DeliveryAttemptResultStatus.SUCCESS
+                        : DeliveryAttemptResultStatus.FAILED,
+                requestSnapshot(request),
+                result.providerResponse(),
+                result.providerMessageId(),
+                result.errorCode(),
+                result.errorMessage()
+        ));
+    }
+
+    private List<ChannelType> resolveChannels(ChannelSenderCommands.DispatchNotificationCommand command) {
+        List<RoutingPolicy> policies = repository.findEnabledRoutingPolicies(
+                command.tenantId(),
+                command.category(),
+                command.priority()
+        );
+        List<ChannelType> channels = policies.isEmpty()
+                ? command.allowedChannels()
+                : policies.get(0).targetChannelOrder();
+        if (command.allowedChannels().isEmpty()) {
+            return channels;
+        }
+        return channels.stream()
+                .filter(channel -> command.allowedChannels().contains(channel))
+                .toList();
+    }
+
+    private ChannelDeliveryAdapter adapterFor(ChannelType channelType) {
+        return deliveryAdapters.stream()
+                .filter(adapter -> adapter.channelType() == channelType)
+                .findFirst()
+                .orElse(new MissingChannelDeliveryAdapter(channelType));
+    }
+
+    private MessageTemplate resolvePublishedTemplate(
+            UUID tenantId,
+            String templateCode,
+            ChannelType channelType,
+            String locale
+    ) {
+        String normalizedLocale = normalizeLocale(locale == null ? "zh-CN" : locale);
+        return candidateTemplates(tenantId).stream()
+                .filter(template -> template.status() == MessageTemplateStatus.PUBLISHED)
+                .filter(template -> template.code().equals(templateCode))
+                .filter(template -> template.channelType() == channelType)
+                .sorted(Comparator
+                        .comparingInt((MessageTemplate template) -> localeScore(template.locale(), normalizedLocale))
+                        .thenComparing(Comparator.comparingInt(MessageTemplate::version).reversed()))
+                .findFirst()
+                .orElseThrow(() -> new BizException(
+                        SharedErrorDescriptors.RESOURCE_NOT_FOUND,
+                        "Published message template not found"
+                ));
+    }
+
+    private List<MessageTemplate> candidateTemplates(UUID tenantId) {
+        java.util.ArrayList<MessageTemplate> templates =
+                new java.util.ArrayList<>(repository.findTemplates(tenantId, null));
+        if (tenantId != null) {
+            templates.addAll(repository.findTemplates(null, null));
+        }
+        return templates;
+    }
+
+    private int localeScore(String candidate, String requested) {
+        if (candidate.equals(requested)) {
+            return 0;
+        }
+        if ("zh-cn".equals(candidate)) {
+            return 1;
+        }
+        if ("en-us".equals(candidate)) {
+            return 2;
+        }
+        return 3;
+    }
+
+    private String renderText(String template, Map<String, Object> variables) {
+        String rendered = template;
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            String value = entry.getValue() == null ? "" : String.valueOf(entry.getValue());
+            rendered = rendered.replace("{{" + entry.getKey() + "}}", value)
+                    .replace("${" + entry.getKey() + "}", value);
+        }
+        if (rendered.contains("{{") || rendered.contains("${")) {
+            throw new BizException(
+                    SharedErrorDescriptors.BUSINESS_RULE_VIOLATION,
+                    "Template variables are incomplete"
+            );
+        }
+        return rendered;
+    }
+
+    private String requestSnapshot(ChannelDeliveryRequest request) {
+        Map<String, Object> snapshot = new LinkedHashMap<>(request.attributes());
+        snapshot.put("notificationId", request.notificationId());
+        snapshot.put("tenantId", request.tenantId());
+        snapshot.put("channelType", request.channelType());
+        snapshot.put("recipientId", request.recipientId());
+        snapshot.put("title", request.title());
+        snapshot.put("body", request.body());
+        snapshot.put("deepLink", request.deepLink());
+        snapshot.put("endpointId", request.endpoint() == null ? null : request.endpoint().id());
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException ex) {
+            throw new BizException(SharedErrorDescriptors.INTERNAL_ERROR, "Unable to serialize delivery request");
+        }
+    }
+
+    private Map<String, Object> lastRequestSnapshot(DeliveryTask task) {
+        return task.attempts().stream()
+                .reduce((first, second) -> second)
+                .map(DeliveryAttempt::requestPayloadSnapshot)
+                .filter(snapshot -> snapshot != null && !snapshot.isBlank())
+                .map(this::readSnapshot)
+                .orElse(Map.of());
+    }
+
+    private Map<String, Object> readSnapshot(String snapshot) {
+        try {
+            return objectMapper.readValue(snapshot, MAP_TYPE);
+        } catch (JsonProcessingException ex) {
+            return Map.of();
+        }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String normalizeLocale(String locale) {
+        return locale.trim().replace('_', '-').toLowerCase(Locale.ROOT);
+    }
+
     private int nextTemplateVersion(ChannelSenderCommands.CreateTemplateCommand command) {
         return repository.findTemplates(command.tenantId(), command.category()).stream()
                 .filter(template -> template.code().equals(command.code()))
                 .filter(template -> template.channelType() == command.channelType())
-                .filter(template -> template.locale().equals(command.locale()
-                        .replace('_', '-')
-                        .toLowerCase(java.util.Locale.ROOT)))
+                .filter(template -> template.locale().equals(normalizeLocale(command.locale())))
                 .mapToInt(MessageTemplate::version)
                 .max()
                 .orElse(0) + 1;

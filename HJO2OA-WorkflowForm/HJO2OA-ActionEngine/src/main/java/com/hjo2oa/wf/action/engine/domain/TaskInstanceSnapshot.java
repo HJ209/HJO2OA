@@ -14,7 +14,7 @@ public record TaskInstanceSnapshot(
     public TaskInstanceSnapshot {
         Objects.requireNonNull(taskId, "taskId must not be null");
         Objects.requireNonNull(instanceId, "instanceId must not be null");
-        assigneeId = requireText(assigneeId, "assigneeId");
+        assigneeId = normalize(assigneeId);
         Objects.requireNonNull(status, "status must not be null");
         tenantId = requireText(tenantId, "tenantId");
     }
@@ -29,5 +29,9 @@ public record TaskInstanceSnapshot(
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return value;
+    }
+
+    private static String normalize(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }

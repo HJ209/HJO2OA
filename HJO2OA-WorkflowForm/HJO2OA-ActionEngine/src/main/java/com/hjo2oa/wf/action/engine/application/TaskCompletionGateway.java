@@ -7,7 +7,7 @@ import com.hjo2oa.wf.action.engine.domain.TaskStatus;
 
 public interface TaskCompletionGateway {
 
-    void apply(TaskInstanceSnapshot task, ActionDefinition definition, ActionExecutionRequest request, TaskStatus status);
+    TaskStatus apply(TaskInstanceSnapshot task, ActionDefinition definition, ActionExecutionRequest request, TaskStatus status);
 
     static TaskCompletionGateway noop() {
         return NoopTaskCompletionGateway.INSTANCE;
@@ -17,12 +17,13 @@ public interface TaskCompletionGateway {
         INSTANCE;
 
         @Override
-        public void apply(
+        public TaskStatus apply(
                 TaskInstanceSnapshot task,
                 ActionDefinition definition,
                 ActionExecutionRequest request,
                 TaskStatus status
         ) {
+            return null;
         }
     }
 }

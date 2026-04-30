@@ -114,7 +114,7 @@ public record TaskInstance(
         if (status != TaskInstanceStatus.CREATED && status != TaskInstanceStatus.CLAIMED) {
             throw new IllegalStateException("Task is not transferable: " + status);
         }
-        return copy(toPersonId, toOrgId, toDeptId, toPositionId, TaskInstanceStatus.TRANSFERRED, now, null, now);
+        return copy(toPersonId, toOrgId, toDeptId, toPositionId, TaskInstanceStatus.CLAIMED, now, null, now);
     }
 
     public TaskInstance terminate(Instant now) {

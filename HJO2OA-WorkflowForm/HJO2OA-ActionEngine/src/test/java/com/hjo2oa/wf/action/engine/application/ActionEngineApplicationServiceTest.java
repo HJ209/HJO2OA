@@ -3,8 +3,11 @@ package com.hjo2oa.wf.action.engine.application;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.hjo2oa.shared.kernel.BizException;
 import com.hjo2oa.shared.messaging.DomainEvent;
+import com.hjo2oa.wf.action.engine.domain.ActionDefinition;
 import com.hjo2oa.wf.action.engine.domain.ActionExecutionResult;
 import com.hjo2oa.wf.action.engine.domain.ProcessTaskActionExecutedEvent;
 import com.hjo2oa.wf.action.engine.domain.ProcessTaskCompletedEvent;
@@ -71,7 +74,29 @@ class ActionEngineApplicationServiceTest {
         assertEquals(1, fixture.actionRepository.findByTaskId(fixture.taskId).size());
     }
 
+    @Test
+    void availableActionsShouldRespectTaskActionPolicy() {
+        Fixture fixture = fixture((task, actionCode) -> "approve".equals(actionCode));
+
+        List<ActionDefinition> actions = fixture.service.availableActions(fixture.taskId);
+
+        assertEquals(1, actions.size());
+        assertEquals("approve", actions.get(0).code());
+    }
+
+    @Test
+    void executeShouldRejectActionBlockedByTaskActionPolicy() {
+        Fixture fixture = fixture((task, actionCode) -> "approve".equals(actionCode));
+        ActionEngineCommands.ExecuteActionCommand command = command(fixture.taskId, "reject", "idem-policy", List.of());
+
+        assertThrows(BizException.class, () -> fixture.service.reject(command));
+    }
+
     private Fixture fixture() {
+        return fixture(TaskActionPolicy.allowAll());
+    }
+
+    private Fixture fixture(TaskActionPolicy policy) {
         UUID taskId = UUID.randomUUID();
         UUID instanceId = UUID.randomUUID();
         InMemoryTaskInstanceGateway taskGateway = new InMemoryTaskInstanceGateway();
@@ -83,6 +108,8 @@ class ActionEngineApplicationServiceTest {
                 new InMemoryActionDefinitionRepository(),
                 actionRepository,
                 events::add,
+                TaskCompletionGateway.noop(),
+                policy,
                 CLOCK
         );
         return new Fixture(taskId, instanceId, taskGateway, actionRepository, events, service);

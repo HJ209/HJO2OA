@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.hjo2oa.todo.center.application.CopiedTodoActionApplicationService;
+import com.hjo2oa.todo.center.application.TodoActionApplicationService;
 import com.hjo2oa.todo.center.application.TodoQueryApplicationService;
 import com.hjo2oa.todo.center.domain.CopiedTodoItem;
 import com.hjo2oa.todo.center.domain.TodoIdentityContext;
@@ -14,7 +15,9 @@ import com.hjo2oa.todo.center.domain.TodoItem;
 import com.hjo2oa.todo.center.domain.TodoItemRepository;
 import com.hjo2oa.todo.center.domain.TodoItemStatus;
 import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
+import com.hjo2oa.todo.center.infrastructure.InMemoryTodoActionLogRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
+import com.hjo2oa.todo.center.infrastructure.InMemoryTodoProcessViewRepository;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
 import java.time.Clock;
@@ -56,11 +59,12 @@ class TodoCenterControllerTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
         CopiedTodoActionApplicationService copiedTodoActionApplicationService =
                 new CopiedTodoActionApplicationService(copiedTodoRepository, identityContextProvider);
-        MockMvc mockMvc = mockMvc(service, copiedTodoActionApplicationService);
+        MockMvc mockMvc = mockMvc(service, repository, identityContextProvider, copiedTodoActionApplicationService);
 
         mockMvc.perform(get("/api/v1/todo/completed"))
                 .andExpect(status().isOk())
@@ -99,11 +103,12 @@ class TodoCenterControllerTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
         CopiedTodoActionApplicationService copiedTodoActionApplicationService =
                 new CopiedTodoActionApplicationService(copiedTodoRepository, identityContextProvider);
-        MockMvc mockMvc = mockMvc(service, copiedTodoActionApplicationService);
+        MockMvc mockMvc = mockMvc(service, repository, identityContextProvider, copiedTodoActionApplicationService);
 
         mockMvc.perform(get("/api/v1/todo/overdue"))
                 .andExpect(status().isOk())
@@ -147,11 +152,12 @@ class TodoCenterControllerTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
         CopiedTodoActionApplicationService copiedTodoActionApplicationService =
                 new CopiedTodoActionApplicationService(copiedTodoRepository, identityContextProvider);
-        MockMvc mockMvc = mockMvc(service, copiedTodoActionApplicationService);
+        MockMvc mockMvc = mockMvc(service, repository, identityContextProvider, copiedTodoActionApplicationService);
 
         mockMvc.perform(get("/api/v1/todo/copied")
                         .param("filter[readStatus]", "UNREAD"))
@@ -185,6 +191,7 @@ class TodoCenterControllerTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
         CopiedTodoActionApplicationService copiedTodoActionApplicationService =
@@ -193,7 +200,7 @@ class TodoCenterControllerTest {
                         identityContextProvider,
                         Clock.fixed(Instant.parse("2026-04-19T10:00:00Z"), ZoneOffset.UTC)
                 );
-        MockMvc mockMvc = mockMvc(service, copiedTodoActionApplicationService);
+        MockMvc mockMvc = mockMvc(service, repository, identityContextProvider, copiedTodoActionApplicationService);
 
         mockMvc.perform(post("/api/v1/todo/copied/copied-1/read"))
                 .andExpect(status().isOk())
@@ -227,11 +234,12 @@ class TodoCenterControllerTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
         CopiedTodoActionApplicationService copiedTodoActionApplicationService =
                 new CopiedTodoActionApplicationService(copiedTodoRepository, identityContextProvider);
-        MockMvc mockMvc = mockMvc(service, copiedTodoActionApplicationService);
+        MockMvc mockMvc = mockMvc(service, repository, identityContextProvider, copiedTodoActionApplicationService);
 
         mockMvc.perform(post("/api/v1/todo/copied/copied-1/read"))
                 .andExpect(status().isNotFound())
@@ -240,11 +248,25 @@ class TodoCenterControllerTest {
 
     private static MockMvc mockMvc(
             TodoQueryApplicationService service,
+            TodoItemRepository repository,
+            TodoIdentityContextProvider identityContextProvider,
             CopiedTodoActionApplicationService copiedTodoActionApplicationService
     ) {
         ResponseMetaFactory responseMetaFactory = new ResponseMetaFactory();
+        TodoActionApplicationService todoActionApplicationService = new TodoActionApplicationService(
+                repository,
+                new InMemoryTodoActionLogRepository(),
+                identityContextProvider,
+                event -> {
+                }
+        );
         return MockMvcBuilders.standaloneSetup(
-                        new TodoCenterController(service, copiedTodoActionApplicationService, responseMetaFactory)
+                        new TodoCenterController(
+                                service,
+                                todoActionApplicationService,
+                                copiedTodoActionApplicationService,
+                                responseMetaFactory
+                        )
                 )
                 .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
                 .build();

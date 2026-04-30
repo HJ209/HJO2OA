@@ -15,6 +15,7 @@ public final class ProcessInstanceViews {
             UUID definitionId,
             int definitionVersion,
             String definitionCode,
+            String businessKey,
             String title,
             String category,
             UUID initiatorId,
@@ -28,6 +29,7 @@ public final class ProcessInstanceViews {
             Instant startTime,
             Instant endTime,
             UUID tenantId,
+            String idempotencyKey,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -76,7 +78,37 @@ public final class ProcessInstanceViews {
     public record InstanceDetailView(
             ProcessInstanceView instance,
             List<TaskInstanceView> tasks,
-            List<TaskActionView> actions
+            List<TaskActionView> actions,
+            List<NodeHistoryView> nodeHistory,
+            List<VariableHistoryView> variableHistory
+    ) {
+    }
+
+    public record NodeHistoryView(
+            UUID id,
+            UUID instanceId,
+            UUID taskId,
+            String nodeId,
+            String nodeName,
+            TaskNodeType nodeType,
+            String status,
+            String actionCode,
+            UUID operatorId,
+            Instant occurredAt,
+            UUID tenantId
+    ) {
+    }
+
+    public record VariableHistoryView(
+            UUID id,
+            UUID instanceId,
+            UUID taskId,
+            String variableName,
+            String oldValue,
+            String newValue,
+            UUID operatorId,
+            Instant occurredAt,
+            UUID tenantId
     ) {
     }
 }

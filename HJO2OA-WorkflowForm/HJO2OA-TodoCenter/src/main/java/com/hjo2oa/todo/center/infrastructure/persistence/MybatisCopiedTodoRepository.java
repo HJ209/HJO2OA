@@ -47,8 +47,30 @@ public class MybatisCopiedTodoRepository implements CopiedTodoRepository {
     }
 
     @Override
+    public List<CopiedTodoItem> findByTenantIdAndRecipientAssignmentId(
+            String tenantId,
+            String recipientAssignmentId
+    ) {
+        return mapper.selectList(new QueryWrapper<CopiedTodoEntity>()
+                        .eq("tenant_id", tenantId)
+                        .eq("recipient_assignment_id", recipientAssignmentId)
+                        .orderByDesc("created_at"))
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public long countUnreadByRecipientAssignmentId(String recipientAssignmentId) {
         return mapper.selectCount(new QueryWrapper<CopiedTodoEntity>()
+                .eq("recipient_assignment_id", recipientAssignmentId)
+                .eq("read_status", CopiedTodoReadStatus.UNREAD.name()));
+    }
+
+    @Override
+    public long countUnreadByTenantIdAndRecipientAssignmentId(String tenantId, String recipientAssignmentId) {
+        return mapper.selectCount(new QueryWrapper<CopiedTodoEntity>()
+                .eq("tenant_id", tenantId)
                 .eq("recipient_assignment_id", recipientAssignmentId)
                 .eq("read_status", CopiedTodoReadStatus.UNREAD.name()));
     }
@@ -58,6 +80,7 @@ public class MybatisCopiedTodoRepository implements CopiedTodoRepository {
                 entity.getTodoId(),
                 entity.getTaskId(),
                 entity.getInstanceId(),
+                entity.getTenantId(),
                 entity.getRecipientAssignmentId(),
                 entity.getType(),
                 entity.getCategory(),
@@ -75,6 +98,7 @@ public class MybatisCopiedTodoRepository implements CopiedTodoRepository {
         entity.setTodoId(copiedTodoItem.todoId());
         entity.setTaskId(copiedTodoItem.taskId());
         entity.setInstanceId(copiedTodoItem.instanceId());
+        entity.setTenantId(copiedTodoItem.tenantId());
         entity.setRecipientAssignmentId(copiedTodoItem.recipientAssignmentId());
         entity.setType(copiedTodoItem.type());
         entity.setCategory(copiedTodoItem.category());

@@ -8,6 +8,7 @@ import com.hjo2oa.msg.channel.sender.domain.MessagePriority;
 import com.hjo2oa.msg.channel.sender.domain.ProviderType;
 import com.hjo2oa.msg.channel.sender.domain.QuietWindowBehavior;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class ChannelSenderCommands {
@@ -82,6 +83,49 @@ public final class ChannelSenderCommands {
             String providerMessageId,
             String errorCode,
             String errorMessage
+    ) {
+    }
+
+    public record RenderTemplateCommand(
+            UUID tenantId,
+            String templateCode,
+            ChannelType channelType,
+            String locale,
+            Map<String, Object> variables
+    ) {
+
+        public RenderTemplateCommand {
+            variables = variables == null
+                    ? Map.of()
+                    : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(variables));
+        }
+    }
+
+    public record DispatchNotificationCommand(
+            UUID notificationId,
+            UUID tenantId,
+            String recipientId,
+            String title,
+            String body,
+            String deepLink,
+            MessageCategory category,
+            MessagePriority priority,
+            List<ChannelType> allowedChannels
+    ) {
+
+        public DispatchNotificationCommand {
+            allowedChannels = allowedChannels == null ? List.of() : List.copyOf(allowedChannels);
+        }
+    }
+
+    public record SendTestCommand(
+            UUID tenantId,
+            ChannelType channelType,
+            UUID endpointId,
+            String target,
+            String title,
+            String body,
+            String deepLink
     ) {
     }
 }

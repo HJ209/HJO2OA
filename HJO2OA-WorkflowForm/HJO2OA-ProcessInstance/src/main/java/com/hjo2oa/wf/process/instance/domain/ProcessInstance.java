@@ -11,6 +11,7 @@ public record ProcessInstance(
         UUID definitionId,
         int definitionVersion,
         String definitionCode,
+        String businessKey,
         String title,
         String category,
         UUID initiatorId,
@@ -24,6 +25,7 @@ public record ProcessInstance(
         Instant startTime,
         Instant endTime,
         UUID tenantId,
+        String idempotencyKey,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -32,6 +34,7 @@ public record ProcessInstance(
         Objects.requireNonNull(id, "id must not be null");
         Objects.requireNonNull(definitionId, "definitionId must not be null");
         definitionCode = requireText(definitionCode, "definitionCode");
+        businessKey = normalize(businessKey);
         title = requireText(title, "title");
         Objects.requireNonNull(initiatorId, "initiatorId must not be null");
         Objects.requireNonNull(initiatorOrgId, "initiatorOrgId must not be null");
@@ -42,6 +45,7 @@ public record ProcessInstance(
         Objects.requireNonNull(status, "status must not be null");
         Objects.requireNonNull(startTime, "startTime must not be null");
         Objects.requireNonNull(tenantId, "tenantId must not be null");
+        idempotencyKey = normalize(idempotencyKey);
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }
@@ -50,6 +54,7 @@ public record ProcessInstance(
             UUID definitionId,
             int definitionVersion,
             String definitionCode,
+            String businessKey,
             String title,
             String category,
             UUID initiatorId,
@@ -60,6 +65,7 @@ public record ProcessInstance(
             UUID formDataId,
             List<String> currentNodes,
             UUID tenantId,
+            String idempotencyKey,
             Instant now
     ) {
         return new ProcessInstance(
@@ -67,6 +73,7 @@ public record ProcessInstance(
                 definitionId,
                 definitionVersion,
                 definitionCode,
+                businessKey,
                 title,
                 category,
                 initiatorId,
@@ -80,6 +87,7 @@ public record ProcessInstance(
                 now,
                 null,
                 tenantId,
+                idempotencyKey,
                 now,
                 now
         );
@@ -120,6 +128,7 @@ public record ProcessInstance(
                 definitionId,
                 definitionVersion,
                 definitionCode,
+                businessKey,
                 title,
                 category,
                 initiatorId,
@@ -133,6 +142,7 @@ public record ProcessInstance(
                 startTime,
                 endTime,
                 tenantId,
+                idempotencyKey,
                 createdAt,
                 updatedAt
         );
@@ -149,6 +159,7 @@ public record ProcessInstance(
                 definitionId,
                 definitionVersion,
                 definitionCode,
+                businessKey,
                 title,
                 category,
                 initiatorId,
@@ -162,6 +173,7 @@ public record ProcessInstance(
                 startTime,
                 nextEndTime,
                 tenantId,
+                idempotencyKey,
                 createdAt,
                 now
         );
@@ -193,5 +205,12 @@ public record ProcessInstance(
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return normalized;
+    }
+
+    private static String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

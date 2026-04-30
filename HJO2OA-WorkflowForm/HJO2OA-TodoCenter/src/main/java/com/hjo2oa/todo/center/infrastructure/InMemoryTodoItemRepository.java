@@ -41,7 +41,25 @@ public class InMemoryTodoItemRepository implements TodoItemRepository {
     }
 
     @Override
+    public List<TodoItem> findByTenantIdAndAssigneeIdAndStatus(
+            String tenantId,
+            String assigneeId,
+            TodoItemStatus status
+    ) {
+        return itemsByTaskId.values().stream()
+                .filter(todoItem -> todoItem.tenantId().equals(tenantId))
+                .filter(todoItem -> todoItem.assigneeId().equals(assigneeId))
+                .filter(todoItem -> todoItem.status() == status)
+                .toList();
+    }
+
+    @Override
     public long countByAssigneeIdAndStatus(String assigneeId, TodoItemStatus status) {
         return findByAssigneeIdAndStatus(assigneeId, status).size();
+    }
+
+    @Override
+    public long countByTenantIdAndAssigneeIdAndStatus(String tenantId, String assigneeId, TodoItemStatus status) {
+        return findByTenantIdAndAssigneeIdAndStatus(tenantId, assigneeId, status).size();
     }
 }

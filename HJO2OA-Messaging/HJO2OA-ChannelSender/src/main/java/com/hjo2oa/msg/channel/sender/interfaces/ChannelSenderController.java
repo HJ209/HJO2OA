@@ -73,6 +73,17 @@ public class ChannelSenderController {
         );
     }
 
+    @PostMapping("/templates/render")
+    public ApiResponse<ChannelSenderDtos.RenderTemplateResponse> renderTemplate(
+            @Valid @RequestBody ChannelSenderDtos.RenderTemplateRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toRenderTemplateResponse(applicationService.renderTemplate(body.toCommand())),
+                responseMetaFactory.create(request)
+        );
+    }
+
     @GetMapping("/templates")
     public ApiResponse<List<ChannelSenderDtos.TemplateResponse>> templates(
             @RequestParam(required = false) UUID tenantId,
@@ -122,6 +133,17 @@ public class ChannelSenderController {
                 applicationService.listEndpoints(tenantId, channelType).stream()
                         .map(dtoMapper::toEndpointResponse)
                         .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/endpoints/send-test")
+    public ApiResponse<ChannelSenderDtos.DeliveryTaskResponse> sendTest(
+            @Valid @RequestBody ChannelSenderDtos.SendTestRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toDeliveryTaskResponse(applicationService.sendTest(body.toCommand())),
                 responseMetaFactory.create(request)
         );
     }
@@ -219,6 +241,17 @@ public class ChannelSenderController {
                 applicationService.retryableTasks(tenantId).stream()
                         .map(dtoMapper::toDeliveryTaskResponse)
                         .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/delivery-tasks/{deliveryTaskId}/retry")
+    public ApiResponse<ChannelSenderDtos.DeliveryTaskResponse> retryDeliveryTask(
+            @PathVariable UUID deliveryTaskId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toDeliveryTaskResponse(applicationService.retryDeliveryTask(deliveryTaskId)),
                 responseMetaFactory.create(request)
         );
     }

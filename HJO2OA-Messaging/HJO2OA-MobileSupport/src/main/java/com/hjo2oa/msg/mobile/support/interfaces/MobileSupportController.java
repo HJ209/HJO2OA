@@ -143,4 +143,27 @@ public class MobileSupportController {
                 responseMetaFactory.create(request)
         );
     }
+
+    @GetMapping("/push-preferences")
+    public ApiResponse<MobileSupportDtos.PushPreferenceResponse> pushPreference(
+            @RequestParam UUID tenantId,
+            @RequestParam UUID personId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.pushPreference(tenantId, personId)),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PutMapping("/push-preferences")
+    public ApiResponse<MobileSupportDtos.PushPreferenceResponse> savePushPreference(
+            @Valid @RequestBody MobileSupportDtos.SavePushPreferenceRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResponse(applicationService.savePushPreference(body.toCommand())),
+                responseMetaFactory.create(request)
+        );
+    }
 }

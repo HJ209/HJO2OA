@@ -61,6 +61,43 @@ class FormMetadataApplicationServiceTest {
     }
 
     @Test
+    void shouldRejectPermissionMapThatReferencesUnknownField() {
+        FormMetadataApplicationService service = service();
+        JsonNode badPermissionMap = JsonNodeFactory.instance.objectNode()
+                .set("start", JsonNodeFactory.instance.objectNode()
+                        .set("missingField", JsonNodeFactory.instance.objectNode()
+                                .put("visible", true)));
+
+        FormMetadataCommands.SaveFormMetadataCommand command = new FormMetadataCommands.SaveFormMetadataCommand(
+                "bad.permission",
+                "Bad Permission",
+                null,
+                List.of(textField("title")),
+                layout(),
+                null,
+                badPermissionMap,
+                TENANT_ID
+        );
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("permission references unknown fieldCode");
+    }
+
+    @Test
+    void shouldReportFormMetadataValidationCountsAndIssues() {
+        FormMetadataApplicationService service = service();
+        FormMetadataDetailView created = service.create(createCommand("validation.report"));
+
+        var report = service.validate(created.id());
+
+        assertThat(report.valid()).isTrue();
+        assertThat(report.fieldCount()).isEqualTo(2);
+        assertThat(report.permissionNodeCount()).isEqualTo(1);
+        assertThat(report.issues()).isEmpty();
+    }
+
+    @Test
     void shouldRejectUpdatingPublishedMetadata() {
         FormMetadataApplicationService service = service();
         FormMetadataDetailView created = service.create(createCommand("expense.claim"));

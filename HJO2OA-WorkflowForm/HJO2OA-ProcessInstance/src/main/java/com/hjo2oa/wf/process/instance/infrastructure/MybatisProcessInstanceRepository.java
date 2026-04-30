@@ -29,6 +29,17 @@ public class MybatisProcessInstanceRepository implements ProcessInstanceReposito
     }
 
     @Override
+    public Optional<ProcessInstance> findByTenantAndIdempotencyKey(UUID tenantId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(mapper.selectOne(Wrappers.<ProcessInstanceEntity>lambdaQuery()
+                        .eq(ProcessInstanceEntity::getTenantId, tenantId)
+                        .eq(ProcessInstanceEntity::getIdempotencyKey, idempotencyKey)))
+                .map(this::toDomain);
+    }
+
+    @Override
     public List<ProcessInstance> findByInitiator(UUID tenantId, UUID initiatorId) {
         return mapper.selectList(Wrappers.<ProcessInstanceEntity>lambdaQuery()
                         .eq(ProcessInstanceEntity::getTenantId, tenantId)
@@ -56,6 +67,7 @@ public class MybatisProcessInstanceRepository implements ProcessInstanceReposito
                 entity.getDefinitionId(),
                 entity.getDefinitionVersion(),
                 entity.getDefinitionCode(),
+                entity.getBusinessKey(),
                 entity.getTitle(),
                 entity.getCategory(),
                 entity.getInitiatorId(),
@@ -69,6 +81,7 @@ public class MybatisProcessInstanceRepository implements ProcessInstanceReposito
                 entity.getStartTime(),
                 entity.getEndTime(),
                 entity.getTenantId(),
+                entity.getIdempotencyKey(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -80,6 +93,7 @@ public class MybatisProcessInstanceRepository implements ProcessInstanceReposito
                 .setDefinitionId(instance.definitionId())
                 .setDefinitionVersion(instance.definitionVersion())
                 .setDefinitionCode(instance.definitionCode())
+                .setBusinessKey(instance.businessKey())
                 .setTitle(instance.title())
                 .setCategory(instance.category())
                 .setInitiatorId(instance.initiatorId())
@@ -93,6 +107,7 @@ public class MybatisProcessInstanceRepository implements ProcessInstanceReposito
                 .setStartTime(instance.startTime())
                 .setEndTime(instance.endTime())
                 .setTenantId(instance.tenantId())
+                .setIdempotencyKey(instance.idempotencyKey())
                 .setCreatedAt(instance.createdAt())
                 .setUpdatedAt(instance.updatedAt());
     }

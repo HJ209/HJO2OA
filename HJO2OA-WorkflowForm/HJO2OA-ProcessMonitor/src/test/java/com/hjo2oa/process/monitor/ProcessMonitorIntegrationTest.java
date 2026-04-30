@@ -4,10 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hjo2oa.process.monitor.application.ProcessMonitorQueryApplicationService;
 import com.hjo2oa.process.monitor.domain.ApprovalCongestionAnalysisView;
+import com.hjo2oa.process.monitor.domain.ExceptionProcessInstanceView;
 import com.hjo2oa.process.monitor.domain.MonitorQueryFilter;
+import com.hjo2oa.process.monitor.domain.MonitoredProcessInstanceView;
 import com.hjo2oa.process.monitor.domain.NodeStagnationAnalysisView;
+import com.hjo2oa.process.monitor.domain.NodeTrailView;
 import com.hjo2oa.process.monitor.domain.OverdueTaskObservationView;
 import com.hjo2oa.process.monitor.domain.ProcessDurationAnalysisView;
+import com.hjo2oa.process.monitor.domain.ProcessInterventionCommand;
+import com.hjo2oa.process.monitor.domain.ProcessInterventionView;
 import com.hjo2oa.process.monitor.domain.ProcessMonitorQueryRepository;
 import java.time.Instant;
 import java.util.List;
@@ -131,6 +136,111 @@ class ProcessMonitorIntegrationTest {
                     Instant.parse("2026-04-27T08:00:00Z"),
                     90
             ));
+        }
+
+        @Override
+        public List<MonitoredProcessInstanceView> findInstances(MonitorQueryFilter filter, String status) {
+            queryCount++;
+            return List.of(new MonitoredProcessInstanceView(
+                    UUID.randomUUID(),
+                    UUID.randomUUID(),
+                    "expense",
+                    "Expense approval",
+                    "finance",
+                    UUID.randomUUID(),
+                    status,
+                    Instant.parse("2026-04-26T08:00:00Z"),
+                    null,
+                    Instant.parse("2026-04-27T08:00:00Z")
+            ));
+        }
+
+        @Override
+        public List<ExceptionProcessInstanceView> findExceptionInstances(MonitorQueryFilter filter) {
+            queryCount++;
+            return List.of(new ExceptionProcessInstanceView(
+                    UUID.randomUUID(),
+                    UUID.randomUUID(),
+                    "expense",
+                    "Expense approval",
+                    "finance",
+                    "RUNNING",
+                    "OVERDUE_TASK",
+                    90,
+                    Instant.parse("2026-04-27T08:00:00Z")
+            ));
+        }
+
+        @Override
+        public List<NodeTrailView> findNodeTrail(UUID tenantId, UUID instanceId) {
+            queryCount++;
+            return List.of(new NodeTrailView(
+                    UUID.randomUUID(),
+                    instanceId,
+                    "managerApprove",
+                    "Manager approve",
+                    "USER_TASK",
+                    UUID.randomUUID(),
+                    "CLAIMED",
+                    Instant.parse("2026-04-26T08:00:00Z"),
+                    null,
+                    null,
+                    null,
+                    "APPROVE",
+                    "Approve",
+                    UUID.randomUUID(),
+                    Instant.parse("2026-04-27T08:00:00Z")
+            ));
+        }
+
+        @Override
+        public List<ProcessInterventionView> findInterventions(UUID tenantId, UUID instanceId) {
+            queryCount++;
+            return List.of(new ProcessInterventionView(
+                    UUID.randomUUID(),
+                    instanceId,
+                    null,
+                    "SUSPEND",
+                    UUID.randomUUID(),
+                    null,
+                    "maintenance",
+                    Instant.parse("2026-04-27T08:00:00Z")
+            ));
+        }
+
+        @Override
+        public ProcessInterventionView recordIntervention(ProcessInterventionCommand command) {
+            writeCount++;
+            return new ProcessInterventionView(
+                    UUID.randomUUID(),
+                    command.instanceId(),
+                    command.taskId(),
+                    command.actionType(),
+                    command.operatorId(),
+                    command.targetAssigneeId(),
+                    command.reason(),
+                    Instant.parse("2026-04-27T08:00:00Z")
+            );
+        }
+
+        @Override
+        public void suspendInstance(UUID tenantId, UUID instanceId) {
+            writeCount++;
+        }
+
+        @Override
+        public void resumeInstance(UUID tenantId, UUID instanceId) {
+            writeCount++;
+        }
+
+        @Override
+        public void terminateInstance(UUID tenantId, UUID instanceId) {
+            writeCount++;
+        }
+
+        @Override
+        public void reassignTask(UUID tenantId, UUID taskId, UUID targetAssigneeId) {
+            writeCount++;
         }
     }
 }

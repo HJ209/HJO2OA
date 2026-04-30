@@ -12,6 +12,7 @@ import com.hjo2oa.todo.center.domain.TodoItemStatus;
 import com.hjo2oa.todo.center.domain.TodoItemSummary;
 import com.hjo2oa.todo.center.infrastructure.InMemoryCopiedTodoRepository;
 import com.hjo2oa.todo.center.infrastructure.InMemoryTodoItemRepository;
+import com.hjo2oa.todo.center.infrastructure.InMemoryTodoProcessViewRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -85,6 +86,7 @@ class TodoQueryApplicationServiceTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 new InMemoryCopiedTodoRepository(),
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
 
@@ -151,6 +153,7 @@ class TodoQueryApplicationServiceTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 new InMemoryCopiedTodoRepository(),
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
 
@@ -226,6 +229,7 @@ class TodoQueryApplicationServiceTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 new InMemoryCopiedTodoRepository(),
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
 
@@ -285,6 +289,7 @@ class TodoQueryApplicationServiceTest {
         TodoQueryApplicationService service = new TodoQueryApplicationService(
                 repository,
                 copiedTodoRepository,
+                new InMemoryTodoProcessViewRepository(),
                 identityContextProvider
         );
 

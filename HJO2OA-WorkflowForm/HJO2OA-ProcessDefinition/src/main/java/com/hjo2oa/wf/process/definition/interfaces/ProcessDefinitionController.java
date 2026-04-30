@@ -5,6 +5,8 @@ import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.UseSharedWebContract;
 import com.hjo2oa.wf.process.definition.application.ProcessDefinitionApplicationService;
 import com.hjo2oa.wf.process.definition.application.ProcessDefinitionCommands;
+import com.hjo2oa.shared.kernel.BizException;
+import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
 import com.hjo2oa.wf.process.definition.domain.ActionCategory;
 import com.hjo2oa.wf.process.definition.domain.DefinitionStatus;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,12 +21,16 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/workflow/process-definitions")
+@RequestMapping({"/api/v1/process/definitions", "/api/v1/workflow/process-definitions"})
 public class ProcessDefinitionController {
+
+    private static final String TENANT_ID_HEADER = "X-Tenant-Id";
+    private static final String IDEMPOTENCY_KEY_HEADER = "X-Idempotency-Key";
 
     private final ProcessDefinitionApplicationService applicationService;
     private final ProcessDefinitionDtoMapper dtoMapper;
@@ -43,10 +49,14 @@ public class ProcessDefinitionController {
     @PostMapping
     public ApiResponse<ProcessDefinitionDtos.DefinitionResponse> createDefinition(
             @Valid @RequestBody ProcessDefinitionDtos.SaveDefinitionRequest body,
+            @RequestHeader(value = TENANT_ID_HEADER, required = false) UUID tenantId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                dtoMapper.toDefinitionResponse(applicationService.createDefinition(body.toCommand(null))),
+                dtoMapper.toDefinitionResponse(applicationService.createDefinition(
+                        body.toCommand(null, resolveTenantId(tenantId, body.tenantId()),
+                                requireIdempotencyKey(idempotencyKey), requestId(request)))),
                 responseMetaFactory.create(request)
         );
     }
@@ -55,10 +65,14 @@ public class ProcessDefinitionController {
     public ApiResponse<ProcessDefinitionDtos.DefinitionResponse> updateDefinition(
             @PathVariable UUID definitionId,
             @Valid @RequestBody ProcessDefinitionDtos.SaveDefinitionRequest body,
+            @RequestHeader(value = TENANT_ID_HEADER, required = false) UUID tenantId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                dtoMapper.toDefinitionResponse(applicationService.updateDefinition(body.toCommand(definitionId))),
+                dtoMapper.toDefinitionResponse(applicationService.updateDefinition(
+                        body.toCommand(definitionId, resolveTenantId(tenantId, body.tenantId()),
+                                requireIdempotencyKey(idempotencyKey), requestId(request)))),
                 responseMetaFactory.create(request)
         );
     }
@@ -66,8 +80,10 @@ public class ProcessDefinitionController {
     @PostMapping("/{definitionId}/versions")
     public ApiResponse<ProcessDefinitionDtos.DefinitionResponse> createNextVersion(
             @PathVariable UUID definitionId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
+        requireIdempotencyKey(idempotencyKey);
         return ApiResponse.success(
                 dtoMapper.toDefinitionResponse(applicationService.createNextVersion(definitionId)),
                 responseMetaFactory.create(request)
@@ -77,13 +93,15 @@ public class ProcessDefinitionController {
     @PutMapping("/{definitionId}/publish")
     public ApiResponse<ProcessDefinitionDtos.DefinitionResponse> publishDefinition(
             @PathVariable UUID definitionId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             @RequestBody(required = false) ProcessDefinitionDtos.PublishDefinitionRequest body,
             HttpServletRequest request
     ) {
         ProcessDefinitionDtos.PublishDefinitionRequest publishRequest =
                 body == null ? new ProcessDefinitionDtos.PublishDefinitionRequest(null) : body;
         return ApiResponse.success(
-                dtoMapper.toDefinitionResponse(applicationService.publishDefinition(publishRequest.toCommand(definitionId))),
+                dtoMapper.toDefinitionResponse(applicationService.publishDefinition(
+                        publishRequest.toCommand(definitionId, requireIdempotencyKey(idempotencyKey), requestId(request)))),
                 responseMetaFactory.create(request)
         );
     }
@@ -91,8 +109,10 @@ public class ProcessDefinitionController {
     @PutMapping("/{definitionId}/deprecate")
     public ApiResponse<ProcessDefinitionDtos.DefinitionResponse> deprecateDefinition(
             @PathVariable UUID definitionId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
+        requireIdempotencyKey(idempotencyKey);
         return ApiResponse.success(
                 dtoMapper.toDefinitionResponse(applicationService.deprecateDefinition(definitionId)),
                 responseMetaFactory.create(request)
@@ -112,14 +132,15 @@ public class ProcessDefinitionController {
 
     @GetMapping
     public ApiResponse<List<ProcessDefinitionDtos.DefinitionResponse>> queryDefinitions(
-            @RequestParam UUID tenantId,
+            @RequestHeader(value = TENANT_ID_HEADER, required = false) UUID headerTenantId,
+            @RequestParam(required = false) UUID tenantId,
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) DefinitionStatus status,
             HttpServletRequest request
     ) {
         ProcessDefinitionCommands.DefinitionQuery query =
-                new ProcessDefinitionCommands.DefinitionQuery(tenantId, code, category, status);
+                new ProcessDefinitionCommands.DefinitionQuery(resolveTenantId(headerTenantId, tenantId), code, category, status);
         return ApiResponse.success(
                 applicationService.queryDefinitions(query).stream()
                         .map(dtoMapper::toDefinitionResponse)
@@ -140,10 +161,14 @@ public class ProcessDefinitionController {
     @PostMapping("/actions")
     public ApiResponse<ProcessDefinitionDtos.ActionResponse> createAction(
             @Valid @RequestBody ProcessDefinitionDtos.SaveActionRequest body,
+            @RequestHeader(value = TENANT_ID_HEADER, required = false) UUID tenantId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                dtoMapper.toActionResponse(applicationService.createAction(body.toCommand(null))),
+                dtoMapper.toActionResponse(applicationService.createAction(
+                        body.toCommand(null, resolveTenantId(tenantId, body.tenantId()),
+                                requireIdempotencyKey(idempotencyKey), requestId(request)))),
                 responseMetaFactory.create(request)
         );
     }
@@ -152,10 +177,14 @@ public class ProcessDefinitionController {
     public ApiResponse<ProcessDefinitionDtos.ActionResponse> updateAction(
             @PathVariable UUID actionId,
             @Valid @RequestBody ProcessDefinitionDtos.SaveActionRequest body,
+            @RequestHeader(value = TENANT_ID_HEADER, required = false) UUID tenantId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                dtoMapper.toActionResponse(applicationService.updateAction(body.toCommand(actionId))),
+                dtoMapper.toActionResponse(applicationService.updateAction(
+                        body.toCommand(actionId, resolveTenantId(tenantId, body.tenantId()),
+                                requireIdempotencyKey(idempotencyKey), requestId(request)))),
                 responseMetaFactory.create(request)
         );
     }
@@ -173,11 +202,13 @@ public class ProcessDefinitionController {
 
     @GetMapping("/actions")
     public ApiResponse<List<ProcessDefinitionDtos.ActionResponse>> queryActions(
-            @RequestParam UUID tenantId,
+            @RequestHeader(value = TENANT_ID_HEADER, required = false) UUID headerTenantId,
+            @RequestParam(required = false) UUID tenantId,
             @RequestParam(required = false) ActionCategory category,
             HttpServletRequest request
     ) {
-        ProcessDefinitionCommands.ActionQuery query = new ProcessDefinitionCommands.ActionQuery(tenantId, category);
+        ProcessDefinitionCommands.ActionQuery query =
+                new ProcessDefinitionCommands.ActionQuery(resolveTenantId(headerTenantId, tenantId), category);
         return ApiResponse.success(
                 applicationService.queryActions(query).stream()
                         .map(dtoMapper::toActionResponse)
@@ -193,5 +224,24 @@ public class ProcessDefinitionController {
     ) {
         applicationService.deleteAction(actionId);
         return ApiResponse.success(null, responseMetaFactory.create(request));
+    }
+
+    private UUID resolveTenantId(UUID headerTenantId, UUID bodyTenantId) {
+        UUID tenantId = headerTenantId == null ? bodyTenantId : headerTenantId;
+        if (tenantId == null) {
+            throw new BizException(SharedErrorDescriptors.BAD_REQUEST, "X-Tenant-Id is required");
+        }
+        return tenantId;
+    }
+
+    private String requireIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BizException(SharedErrorDescriptors.BAD_REQUEST, "X-Idempotency-Key is required");
+        }
+        return idempotencyKey;
+    }
+
+    private String requestId(HttpServletRequest request) {
+        return request == null ? null : request.getHeader(ResponseMetaFactory.REQUEST_ID_HEADER);
     }
 }

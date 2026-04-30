@@ -5,9 +5,14 @@ public enum NotificationInboxStatus {
     READ,
     ARCHIVED,
     REVOKED,
-    EXPIRED;
+    EXPIRED,
+    DELETED;
 
     public boolean isUnread() {
         return this == UNREAD;
+    }
+
+    public boolean isHiddenFromInbox() {
+        return this == ARCHIVED || this == DELETED;
     }
 }

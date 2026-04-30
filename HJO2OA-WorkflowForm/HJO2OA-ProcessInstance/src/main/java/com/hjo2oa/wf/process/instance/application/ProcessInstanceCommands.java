@@ -17,6 +17,7 @@ public final class ProcessInstanceCommands {
             UUID definitionId,
             int definitionVersion,
             String definitionCode,
+            String businessKey,
             String title,
             String category,
             UUID initiatorId,
@@ -28,11 +29,14 @@ public final class ProcessInstanceCommands {
             String firstNodeId,
             String firstNodeName,
             TaskNodeType firstNodeType,
+            Map<String, Object> variables,
             List<TaskParticipantCommand> participants,
             MultiInstanceType multiInstanceType,
             String completionCondition,
             Instant dueTime,
-            UUID tenantId
+            UUID tenantId,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 
@@ -63,7 +67,9 @@ public final class ProcessInstanceCommands {
             Instant nextDueTime,
             List<RouteConditionCommand> routeConditions,
             Map<String, Object> formDataPatch,
-            boolean endProcess
+            boolean endProcess,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 
@@ -72,7 +78,9 @@ public final class ProcessInstanceCommands {
             UUID assigneeId,
             UUID assigneeOrgId,
             UUID assigneeDeptId,
-            UUID assigneePositionId
+            UUID assigneePositionId,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 
@@ -81,13 +89,47 @@ public final class ProcessInstanceCommands {
             UUID toAssigneeId,
             UUID toAssigneeOrgId,
             UUID toAssigneeDeptId,
-            UUID toAssigneePositionId
+            UUID toAssigneePositionId,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 
     public record TerminateProcessCommand(
             UUID instanceId,
-            String reason
+            UUID operatorId,
+            String reason,
+            String idempotencyKey,
+            String requestId
+    ) {
+    }
+
+    public record SuspendProcessCommand(
+            UUID instanceId,
+            UUID operatorId,
+            String reason,
+            String idempotencyKey,
+            String requestId
+    ) {
+    }
+
+    public record ResumeProcessCommand(
+            UUID instanceId,
+            UUID operatorId,
+            String idempotencyKey,
+            String requestId
+    ) {
+    }
+
+    public record AddSignCommand(
+            UUID taskId,
+            UUID operatorId,
+            UUID operatorOrgId,
+            UUID operatorPositionId,
+            List<TaskParticipantCommand> participants,
+            String opinion,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 

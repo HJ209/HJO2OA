@@ -54,8 +54,32 @@ public class MybatisTodoItemRepository implements TodoItemRepository {
     }
 
     @Override
+    public List<TodoItem> findByTenantIdAndAssigneeIdAndStatus(
+            String tenantId,
+            String assigneeId,
+            TodoItemStatus status
+    ) {
+        return mapper.selectList(new QueryWrapper<TodoItemEntity>()
+                        .eq("tenant_id", tenantId)
+                        .eq("assignee_id", assigneeId)
+                        .eq("status", status.name())
+                        .orderByDesc("updated_at"))
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public long countByAssigneeIdAndStatus(String assigneeId, TodoItemStatus status) {
         return mapper.selectCount(new QueryWrapper<TodoItemEntity>()
+                .eq("assignee_id", assigneeId)
+                .eq("status", status.name()));
+    }
+
+    @Override
+    public long countByTenantIdAndAssigneeIdAndStatus(String tenantId, String assigneeId, TodoItemStatus status) {
+        return mapper.selectCount(new QueryWrapper<TodoItemEntity>()
+                .eq("tenant_id", tenantId)
                 .eq("assignee_id", assigneeId)
                 .eq("status", status.name()));
     }
@@ -65,6 +89,7 @@ public class MybatisTodoItemRepository implements TodoItemRepository {
                 entity.getTodoId(),
                 entity.getTaskId(),
                 entity.getInstanceId(),
+                entity.getTenantId(),
                 entity.getAssigneeId(),
                 entity.getType(),
                 entity.getCategory(),
@@ -85,6 +110,7 @@ public class MybatisTodoItemRepository implements TodoItemRepository {
         entity.setTodoId(todoItem.todoId());
         entity.setTaskId(todoItem.taskId());
         entity.setInstanceId(todoItem.instanceId());
+        entity.setTenantId(todoItem.tenantId());
         entity.setAssigneeId(todoItem.assigneeId());
         entity.setType(todoItem.type());
         entity.setCategory(todoItem.category());

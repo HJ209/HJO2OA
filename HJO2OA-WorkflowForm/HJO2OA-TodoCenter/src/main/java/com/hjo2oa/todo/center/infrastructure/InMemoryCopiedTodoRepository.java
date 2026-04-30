@@ -32,8 +32,23 @@ public class InMemoryCopiedTodoRepository implements CopiedTodoRepository {
     }
 
     @Override
+    public List<CopiedTodoItem> findByTenantIdAndRecipientAssignmentId(String tenantId, String recipientAssignmentId) {
+        return copiedTodosById.values().stream()
+                .filter(copiedTodoItem -> copiedTodoItem.tenantId().equals(tenantId))
+                .filter(copiedTodoItem -> copiedTodoItem.recipientAssignmentId().equals(recipientAssignmentId))
+                .toList();
+    }
+
+    @Override
     public long countUnreadByRecipientAssignmentId(String recipientAssignmentId) {
         return findByRecipientAssignmentId(recipientAssignmentId).stream()
+                .filter(CopiedTodoItem::isUnread)
+                .count();
+    }
+
+    @Override
+    public long countUnreadByTenantIdAndRecipientAssignmentId(String tenantId, String recipientAssignmentId) {
+        return findByTenantIdAndRecipientAssignmentId(tenantId, recipientAssignmentId).stream()
                 .filter(CopiedTodoItem::isUnread)
                 .count();
     }

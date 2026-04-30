@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/wf/form-renderer")
+@RequestMapping({"/api/v1/form/renderer", "/api/v1/wf/form-renderer"})
 public class FormRendererController {
 
     private final FormRendererApplicationService applicationService;

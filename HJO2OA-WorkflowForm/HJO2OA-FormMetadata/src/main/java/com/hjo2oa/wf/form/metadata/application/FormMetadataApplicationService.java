@@ -7,13 +7,21 @@ import com.hjo2oa.wf.form.metadata.domain.FormMetadata;
 import com.hjo2oa.wf.form.metadata.domain.FormMetadataDetailView;
 import com.hjo2oa.wf.form.metadata.domain.FormMetadataRepository;
 import com.hjo2oa.wf.form.metadata.domain.FormMetadataStatus;
+import com.hjo2oa.wf.form.metadata.domain.FormMetadataValidationIssue;
+import com.hjo2oa.wf.form.metadata.domain.FormMetadataValidationReport;
 import com.hjo2oa.wf.form.metadata.domain.FormMetadataView;
 import com.hjo2oa.wf.form.metadata.domain.FormRenderSchemaView;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,7 +53,7 @@ public class FormMetadataApplicationService {
     public FormMetadataDetailView create(FormMetadataCommands.SaveFormMetadataCommand command) {
         Objects.requireNonNull(command, "command must not be null");
         ensureVersionAvailable(command.tenantId(), command.code(), 1);
-        validateFieldSchema(command.fieldSchema());
+        validateMetadata(command.fieldSchema(), command.layout(), command.validations(), command.fieldPermissionMap());
         FormMetadata metadata = FormMetadata.create(
                 UUID.randomUUID(),
                 command.code(),
@@ -63,7 +71,7 @@ public class FormMetadataApplicationService {
 
     public FormMetadataDetailView update(FormMetadataCommands.UpdateFormMetadataCommand command) {
         Objects.requireNonNull(command, "command must not be null");
-        validateFieldSchema(command.fieldSchema());
+        validateMetadata(command.fieldSchema(), command.layout(), command.validations(), command.fieldPermissionMap());
         FormMetadata metadata = loadRequired(command.metadataId());
         try {
             return repository.save(metadata.updateDraft(
@@ -82,6 +90,7 @@ public class FormMetadataApplicationService {
 
     public FormMetadataDetailView publish(UUID metadataId) {
         FormMetadata metadata = loadRequired(metadataId);
+        validateMetadata(metadata.fieldSchema(), metadata.layout(), metadata.validations(), metadata.fieldPermissionMap());
         try {
             return repository.save(metadata.publish(now())).toDetailView();
         } catch (IllegalStateException ex) {
@@ -154,17 +163,45 @@ public class FormMetadataApplicationService {
         return metadata.toRenderSchemaView();
     }
 
-    public List<FormFieldDefinition> fields(UUID metadataId) {
-        return loadRequired(metadataId).sortedFieldSchema();
+    public FormMetadataValidationReport validate(UUID metadataId) {
+        FormMetadata metadata = loadRequired(metadataId);
+        return validationReport(
+                metadata.fieldSchema(),
+                metadata.layout(),
+                metadata.validations(),
+                metadata.fieldPermissionMap()
+        );
     }
 
     private FormMetadata loadRequired(UUID metadataId) {
         return repository.findById(metadataId).orElseThrow(this::notFound);
     }
 
-    private void validateFieldSchema(List<FormFieldDefinition> fields) {
+    private void validateMetadata(
+            List<FormFieldDefinition> fields,
+            JsonNode layout,
+            JsonNode validations,
+            JsonNode fieldPermissionMap
+    ) {
+        FormMetadataValidationReport report = validationReport(fields, layout, validations, fieldPermissionMap);
+        if (!report.valid()) {
+            throw new BizException(
+                    SharedErrorDescriptors.BUSINESS_RULE_VIOLATION,
+                    "Invalid form metadata: " + report.issues().get(0).message()
+            );
+        }
+    }
+
+    private FormMetadataValidationReport validationReport(
+            List<FormFieldDefinition> fields,
+            JsonNode layout,
+            JsonNode validations,
+            JsonNode fieldPermissionMap
+    ) {
+        List<FormMetadataValidationIssue> issues = new ArrayList<>();
+        Set<String> fieldCodes = new HashSet<>();
         try {
-            new FormMetadata(
+            FormMetadata probe = new FormMetadata(
                     UUID.randomUUID(),
                     "VALIDATION_ONLY",
                     "Validation Only",
@@ -180,12 +217,115 @@ public class FormMetadataApplicationService {
                     now(),
                     now()
             );
+            probe.fieldSchema().forEach(field -> field.flatten().forEach(flattened -> fieldCodes.add(flattened.fieldCode())));
         } catch (IllegalArgumentException ex) {
-            throw new BizException(
-                    SharedErrorDescriptors.BUSINESS_RULE_VIOLATION,
-                    "Invalid form field schema: " + ex.getMessage(),
-                    ex
-            );
+            issues.add(new FormMetadataValidationIssue("fieldSchema", "FORM_FIELD_SCHEMA_INVALID", ex.getMessage()));
+        }
+        int permissionNodeCount = validatePermissionMap(fieldPermissionMap, fieldCodes, issues);
+        validateFieldReferences(layout, fieldCodes, "layout", issues);
+        validateFieldReferences(validations, fieldCodes, "validations", issues);
+        if (issues.isEmpty()) {
+            return FormMetadataValidationReport.valid(fieldCodes.size(), permissionNodeCount);
+        }
+        return FormMetadataValidationReport.invalid(fieldCodes.size(), permissionNodeCount, issues);
+    }
+
+    private int validatePermissionMap(
+            JsonNode fieldPermissionMap,
+            Set<String> fieldCodes,
+            List<FormMetadataValidationIssue> issues
+    ) {
+        if (fieldPermissionMap == null || fieldPermissionMap.isNull()) {
+            return 0;
+        }
+        if (!fieldPermissionMap.isObject()) {
+            issues.add(new FormMetadataValidationIssue(
+                    "fieldPermissionMap",
+                    "FORM_PERMISSION_MAP_INVALID",
+                    "fieldPermissionMap must be an object"
+            ));
+            return 0;
+        }
+        int permissionNodeCount = 0;
+        Iterator<Map.Entry<String, JsonNode>> nodeIterator = fieldPermissionMap.fields();
+        while (nodeIterator.hasNext()) {
+            Map.Entry<String, JsonNode> nodeEntry = nodeIterator.next();
+            String nodeId = nodeEntry.getKey();
+            JsonNode nodePermissions = nodeEntry.getValue();
+            if (!nodePermissions.isObject()) {
+                issues.add(new FormMetadataValidationIssue(
+                        "fieldPermissionMap." + nodeId,
+                        "FORM_PERMISSION_MAP_INVALID",
+                        "node permission must be an object"
+                ));
+                continue;
+            }
+            permissionNodeCount++;
+            Iterator<Map.Entry<String, JsonNode>> fieldIterator = nodePermissions.fields();
+            while (fieldIterator.hasNext()) {
+                Map.Entry<String, JsonNode> fieldEntry = fieldIterator.next();
+                String fieldCode = fieldEntry.getKey();
+                if (!fieldCodes.contains(fieldCode)) {
+                    issues.add(new FormMetadataValidationIssue(
+                            "fieldPermissionMap." + nodeId + "." + fieldCode,
+                            "FORM_PERMISSION_FIELD_NOT_FOUND",
+                            "permission references unknown fieldCode: " + fieldCode
+                    ));
+                }
+                validatePermissionFlags(fieldEntry.getValue(), "fieldPermissionMap." + nodeId + "." + fieldCode, issues);
+            }
+        }
+        return permissionNodeCount;
+    }
+
+    private void validatePermissionFlags(
+            JsonNode permission,
+            String path,
+            List<FormMetadataValidationIssue> issues
+    ) {
+        if (!permission.isObject()) {
+            issues.add(new FormMetadataValidationIssue(path, "FORM_PERMISSION_MAP_INVALID",
+                    "field permission must be an object"));
+            return;
+        }
+        for (String flag : List.of("visible", "editable", "required")) {
+            JsonNode value = permission.get(flag);
+            if (value != null && !value.isBoolean()) {
+                issues.add(new FormMetadataValidationIssue(path + "." + flag,
+                        "FORM_PERMISSION_FLAG_INVALID", "permission flag must be boolean: " + flag));
+            }
+        }
+    }
+
+    private void validateFieldReferences(
+            JsonNode node,
+            Set<String> fieldCodes,
+            String path,
+            List<FormMetadataValidationIssue> issues
+    ) {
+        if (node == null || node.isNull()) {
+            return;
+        }
+        if (node.isObject()) {
+            JsonNode fieldCodeNode = node.get("fieldCode");
+            if (fieldCodeNode != null && fieldCodeNode.isTextual() && !fieldCodes.contains(fieldCodeNode.asText())) {
+                issues.add(new FormMetadataValidationIssue(
+                        path + ".fieldCode",
+                        "FORM_FIELD_REFERENCE_NOT_FOUND",
+                        "metadata references unknown fieldCode: " + fieldCodeNode.asText()
+                ));
+            }
+            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
+                validateFieldReferences(entry.getValue(), fieldCodes, path + "." + entry.getKey(), issues);
+            }
+            return;
+        }
+        if (node.isArray()) {
+            for (int index = 0; index < node.size(); index++) {
+                validateFieldReferences(node.get(index), fieldCodes, path + "[" + index + "]", issues);
+            }
         }
     }
 

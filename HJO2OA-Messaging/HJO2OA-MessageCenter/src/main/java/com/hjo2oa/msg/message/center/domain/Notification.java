@@ -112,7 +112,9 @@ public record Notification(
 
     public Notification markRead(Instant readAt) {
         Objects.requireNonNull(readAt, "readAt must not be null");
-        if (!isUnread()) {
+        if (!isUnread() || inboxStatus == NotificationInboxStatus.REVOKED
+                || inboxStatus == NotificationInboxStatus.EXPIRED
+                || inboxStatus == NotificationInboxStatus.DELETED) {
             return this;
         }
         return new Notification(
@@ -138,6 +140,71 @@ public record Notification(
                 revokedAt,
                 expiredAt,
                 statusReason
+        );
+    }
+
+    public Notification archive(Instant archivedAt, String reason) {
+        Objects.requireNonNull(archivedAt, "archivedAt must not be null");
+        if (inboxStatus == NotificationInboxStatus.ARCHIVED
+                || inboxStatus == NotificationInboxStatus.REVOKED
+                || inboxStatus == NotificationInboxStatus.EXPIRED
+                || inboxStatus == NotificationInboxStatus.DELETED) {
+            return this;
+        }
+        return new Notification(
+                notificationId,
+                dedupKey,
+                tenantId,
+                recipientId,
+                targetAssignmentId,
+                targetPositionId,
+                title,
+                bodySummary,
+                deepLink,
+                category,
+                priority,
+                NotificationInboxStatus.ARCHIVED,
+                sourceModule,
+                sourceEventType,
+                sourceBusinessId,
+                createdAt,
+                archivedAt,
+                readAt,
+                archivedAt,
+                revokedAt,
+                expiredAt,
+                normalize(reason)
+        );
+    }
+
+    public Notification delete(Instant deletedAt, String reason) {
+        Objects.requireNonNull(deletedAt, "deletedAt must not be null");
+        if (inboxStatus == NotificationInboxStatus.DELETED) {
+            return this;
+        }
+        return new Notification(
+                notificationId,
+                dedupKey,
+                tenantId,
+                recipientId,
+                targetAssignmentId,
+                targetPositionId,
+                title,
+                bodySummary,
+                deepLink,
+                category,
+                priority,
+                NotificationInboxStatus.DELETED,
+                sourceModule,
+                sourceEventType,
+                sourceBusinessId,
+                createdAt,
+                deletedAt,
+                readAt,
+                archivedAt,
+                deletedAt,
+                expiredAt,
+                normalize(reason)
         );
     }
 

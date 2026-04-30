@@ -22,6 +22,9 @@ public class CopiedTodoEntity {
     @TableField("instance_id")
     private String instanceId;
 
+    @TableField("tenant_id")
+    private String tenantId;
+
     @TableField("recipient_assignment_id")
     private String recipientAssignmentId;
 

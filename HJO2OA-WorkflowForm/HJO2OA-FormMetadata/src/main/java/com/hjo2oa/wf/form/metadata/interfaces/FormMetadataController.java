@@ -2,8 +2,8 @@ package com.hjo2oa.wf.form.metadata.interfaces;
 
 import com.hjo2oa.wf.form.metadata.application.FormMetadataApplicationService;
 import com.hjo2oa.wf.form.metadata.application.FormMetadataCommands;
-import com.hjo2oa.wf.form.metadata.domain.FormFieldDefinition;
 import com.hjo2oa.wf.form.metadata.domain.FormMetadataStatus;
+import com.hjo2oa.wf.form.metadata.domain.FormMetadataValidationReport;
 import com.hjo2oa.shared.web.ApiResponse;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.UseSharedWebContract;
@@ -89,12 +89,12 @@ public class FormMetadataController {
     }
 
     @PostMapping("/metadata/{metadataId}/validate")
-    public ApiResponse<List<FormFieldDefinition>> validate(
+    public ApiResponse<FormMetadataValidationReport> validate(
             @PathVariable UUID metadataId,
             HttpServletRequest request
     ) {
         return ApiResponse.success(
-                applicationService.fields(metadataId),
+                applicationService.validate(metadataId),
                 responseMetaFactory.create(request)
         );
     }

@@ -13,7 +13,9 @@ import com.hjo2oa.msg.message.center.domain.NotificationProjectionEventLog;
 import com.hjo2oa.msg.message.center.domain.NotificationRepository;
 import com.hjo2oa.shared.messaging.DomainEventPublisher;
 import com.hjo2oa.todo.center.domain.TodoItemCreatedEvent;
+import com.hjo2oa.todo.center.domain.TodoItemCompletedEvent;
 import com.hjo2oa.todo.center.domain.TodoItemOverdueEvent;
+import com.hjo2oa.todo.center.domain.TodoItemRemindedEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -98,6 +100,100 @@ public class MessageNotificationProjectionApplicationService {
         createNotificationIfAbsent(notification);
     }
 
+    public void onTodoItemReminded(TodoItemRemindedEvent event) {
+        Objects.requireNonNull(event, "event must not be null");
+        if (!projectionEventLog.registerIfAbsent(event.eventId())) {
+            return;
+        }
+
+        Notification notification = Notification.create(
+                UUID.randomUUID().toString(),
+                buildDedupKey(event.eventType(), event.todoId()),
+                event.tenantId(),
+                event.assigneeId(),
+                event.assigneeId(),
+                null,
+                "Reminder: " + event.title(),
+                event.reason() == null ? "Todo item reminder" : event.reason(),
+                buildTodoDeepLink(event.todoId()),
+                NotificationCategory.TODO_REMINDER,
+                NotificationPriority.URGENT,
+                SOURCE_MODULE,
+                event.eventType(),
+                event.todoId(),
+                event.occurredAt()
+        );
+
+        createNotificationIfAbsent(notification);
+    }
+
+    public void onTodoItemCompleted(TodoItemCompletedEvent event) {
+        Objects.requireNonNull(event, "event must not be null");
+        if (!projectionEventLog.registerIfAbsent(event.eventId())) {
+            return;
+        }
+
+        Notification notification = Notification.create(
+                UUID.randomUUID().toString(),
+                buildDedupKey(event.eventType(), event.todoId()),
+                event.tenantId(),
+                event.assigneeId(),
+                event.assigneeId(),
+                null,
+                "Completed: " + event.title(),
+                "Todo item has been completed",
+                buildTodoDeepLink(event.todoId()),
+                NotificationCategory.TODO_COMPLETED,
+                NotificationPriority.NORMAL,
+                SOURCE_MODULE,
+                event.eventType(),
+                event.todoId(),
+                event.occurredAt()
+        );
+
+        createNotificationIfAbsent(notification);
+    }
+
+    @SuppressWarnings("ParameterNumber")
+    public void projectBusinessNotification(
+            java.util.UUID sourceEventId,
+            String dedupKey,
+            String tenantId,
+            String recipientId,
+            String title,
+            String bodySummary,
+            String deepLink,
+            NotificationCategory category,
+            NotificationPriority priority,
+            String sourceModule,
+            String sourceEventType,
+            String sourceBusinessId,
+            java.time.Instant occurredAt
+    ) {
+        Objects.requireNonNull(sourceEventId, "sourceEventId must not be null");
+        if (!projectionEventLog.registerIfAbsent(sourceEventId)) {
+            return;
+        }
+        Notification notification = Notification.create(
+                UUID.randomUUID().toString(),
+                dedupKey,
+                tenantId,
+                recipientId,
+                recipientId,
+                null,
+                title,
+                bodySummary,
+                deepLink,
+                category,
+                priority,
+                sourceModule,
+                sourceEventType,
+                sourceBusinessId,
+                occurredAt
+        );
+        createNotificationIfAbsent(notification);
+    }
+
     private void createNotificationIfAbsent(Notification notification) {
         if (notificationRepository.findByDedupKey(notification.dedupKey()).isPresent()) {
             return;
@@ -105,11 +201,12 @@ public class MessageNotificationProjectionApplicationService {
 
         notificationRepository.save(notification);
         for (NotificationChannelDispatcher channelDispatcher : channelDispatchers) {
-            NotificationDeliveryRecord deliveryRecord = channelDispatcher.dispatch(notification);
-            deliveryRecordRepository.save(deliveryRecord);
-            domainEventPublisher.publish(MsgNotificationSentEvent.from(notification, deliveryRecord));
-            if (deliveryRecord.status() == NotificationDeliveryStatus.DELIVERED) {
-                domainEventPublisher.publish(MsgNotificationDeliveredEvent.from(notification, deliveryRecord));
+            for (NotificationDeliveryRecord deliveryRecord : channelDispatcher.dispatch(notification)) {
+                deliveryRecordRepository.save(deliveryRecord);
+                domainEventPublisher.publish(MsgNotificationSentEvent.from(notification, deliveryRecord));
+                if (deliveryRecord.status() == NotificationDeliveryStatus.DELIVERED) {
+                    domainEventPublisher.publish(MsgNotificationDeliveredEvent.from(notification, deliveryRecord));
+                }
             }
         }
     }

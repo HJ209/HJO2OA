@@ -38,9 +38,9 @@ public class FlowableProcessInstanceService implements ProcessInstanceEngineGate
         Objects.requireNonNull(instance, "instance must not be null");
         Objects.requireNonNull(command, "command must not be null");
         ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionKey(command.definitionCode())
-                .processDefinitionVersion(command.definitionVersion())
-                .processDefinitionTenantId(command.tenantId().toString())
+                .processDefinitionKey(instance.definitionCode())
+                .processDefinitionVersion(instance.definitionVersion())
+                .processDefinitionTenantId(instance.tenantId().toString())
                 .singleResult();
         if (processDefinition == null) {
             return;
@@ -104,11 +104,15 @@ public class FlowableProcessInstanceService implements ProcessInstanceEngineGate
         variables.put("definitionId", instance.definitionId().toString());
         variables.put("definitionVersion", instance.definitionVersion());
         variables.put("definitionCode", instance.definitionCode());
+        variables.put("businessKey", instance.businessKey());
         variables.put("title", instance.title());
-        variables.put("initiatorId", command.initiatorId().toString());
-        variables.put("tenantId", command.tenantId().toString());
-        variables.put("formMetadataId", command.formMetadataId().toString());
-        variables.put("formDataId", command.formDataId().toString());
+        variables.put("initiatorId", instance.initiatorId().toString());
+        variables.put("tenantId", instance.tenantId().toString());
+        variables.put("formMetadataId", instance.formMetadataId().toString());
+        variables.put("formDataId", instance.formDataId().toString());
+        if (command.variables() != null) {
+            variables.putAll(command.variables());
+        }
         return variables;
     }
 

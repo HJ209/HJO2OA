@@ -7,6 +7,7 @@ public record TodoItem(
         String todoId,
         String taskId,
         String instanceId,
+        String tenantId,
         String assigneeId,
         String type,
         String category,
@@ -25,6 +26,7 @@ public record TodoItem(
         todoId = requireText(todoId, "todoId");
         taskId = requireText(taskId, "taskId");
         instanceId = requireText(instanceId, "instanceId");
+        tenantId = requireText(tenantId, "tenantId");
         assigneeId = requireText(assigneeId, "assigneeId");
         type = requireText(type, "type");
         category = requireText(category, "category");
@@ -36,11 +38,49 @@ public record TodoItem(
         cancellationReason = normalize(cancellationReason);
     }
 
+    public TodoItem(
+            String todoId,
+            String taskId,
+            String instanceId,
+            String assigneeId,
+            String type,
+            String category,
+            String title,
+            String urgency,
+            TodoItemStatus status,
+            Instant dueTime,
+            Instant overdueAt,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant completedAt,
+            String cancellationReason
+    ) {
+        this(
+                todoId,
+                taskId,
+                instanceId,
+                "tenant-1",
+                assigneeId,
+                type,
+                category,
+                title,
+                urgency,
+                status,
+                dueTime,
+                overdueAt,
+                createdAt,
+                updatedAt,
+                completedAt,
+                cancellationReason
+        );
+    }
+
     public static TodoItem create(String todoId, ProcessTaskCreatedEvent event) {
         return new TodoItem(
                 todoId,
                 event.taskId(),
                 event.instanceId(),
+                event.tenantId(),
                 event.assigneeId(),
                 event.type(),
                 event.category(),
@@ -61,6 +101,7 @@ public record TodoItem(
                 todoId,
                 taskId,
                 event.instanceId(),
+                event.tenantId(),
                 event.assigneeId(),
                 event.type(),
                 event.category(),
@@ -81,6 +122,7 @@ public record TodoItem(
                 todoId,
                 taskId,
                 instanceId,
+                tenantId,
                 assigneeId,
                 type,
                 category,
@@ -101,6 +143,7 @@ public record TodoItem(
                 todoId,
                 taskId,
                 instanceId,
+                tenantId,
                 assigneeId,
                 type,
                 category,
@@ -121,6 +164,7 @@ public record TodoItem(
                 todoId,
                 taskId,
                 instanceId,
+                tenantId,
                 assigneeId,
                 type,
                 category,
@@ -141,6 +185,7 @@ public record TodoItem(
                 todoId,
                 taskId,
                 instanceId,
+                tenantId,
                 requireText(newAssigneeId, "newAssigneeId"),
                 type,
                 category,

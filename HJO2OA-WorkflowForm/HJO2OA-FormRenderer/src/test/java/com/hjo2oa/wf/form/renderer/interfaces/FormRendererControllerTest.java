@@ -24,7 +24,7 @@ class FormRendererControllerTest {
     void shouldUseSharedWebContractForRenderAndValidate() throws Exception {
         MockMvc mockMvc = buildMockMvc();
 
-        mockMvc.perform(post("/api/v1/wf/form-renderer/render")
+        mockMvc.perform(post("/api/v1/form/renderer/render")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-form-render-1")
                         .content(requestBody(true)))
@@ -35,7 +35,7 @@ class FormRendererControllerTest {
                 .andExpect(jsonPath("$.data.validation.valid").value(true))
                 .andExpect(jsonPath("$.meta.requestId").value("req-form-render-1"));
 
-        mockMvc.perform(post("/api/v1/wf/form-renderer/validate")
+        mockMvc.perform(post("/api/v1/form/renderer/validate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody(false)))
                 .andExpect(status().isOk())

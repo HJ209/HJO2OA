@@ -2,5 +2,16 @@ package com.hjo2oa.msg.message.center.domain;
 
 public enum NotificationCategory {
     TODO_CREATED,
-    TODO_OVERDUE
+    TODO_OVERDUE,
+    TODO_REMINDER,
+    TODO_COMPLETED,
+    PROCESS_TASK_OVERDUE,
+    ORG_ACCOUNT_LOCKED,
+    SYSTEM_SECURITY,
+    BUSINESS_NOTICE,
+    APPROVAL,
+    COLLAB_MENTION,
+    COLLAB_TASK_ASSIGNED,
+    COLLAB_TASK_CHANGED,
+    COLLAB_MEETING_REMINDER
 }

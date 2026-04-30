@@ -1,6 +1,7 @@
 package com.hjo2oa.msg.mobile.support.interfaces;
 
 import com.hjo2oa.msg.mobile.support.domain.DeviceBindingView;
+import com.hjo2oa.msg.mobile.support.domain.MobilePushPreferenceView;
 import com.hjo2oa.msg.mobile.support.domain.MobileSessionView;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +45,20 @@ public class MobileSupportDtoMapper {
                 view.lastHeartbeatAt(),
                 view.refreshVersion(),
                 view.tenantId(),
+                view.createdAt(),
+                view.updatedAt()
+        );
+    }
+
+    public MobileSupportDtos.PushPreferenceResponse toResponse(MobilePushPreferenceView view) {
+        return new MobileSupportDtos.PushPreferenceResponse(
+                view.id(),
+                view.tenantId(),
+                view.personId(),
+                view.pushEnabled(),
+                view.quietStartsAt(),
+                view.quietEndsAt(),
+                view.mutedCategories(),
                 view.createdAt(),
                 view.updatedAt()
         );

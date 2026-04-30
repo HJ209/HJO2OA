@@ -77,9 +77,12 @@ public class ActionEngineActionDefinitionRepository implements ActionDefinitionR
         return List.of(
                 ActionDefinition.preset("approve", "Approve", ActionCategory.APPROVE, RouteTarget.NEXT_NODE, false, false, tenantId),
                 ActionDefinition.preset("reject", "Reject", ActionCategory.REJECT, RouteTarget.END, true, false, tenantId),
+                ActionDefinition.preset("withdraw", "Withdraw", ActionCategory.WITHDRAW, RouteTarget.END, true, false, tenantId),
                 ActionDefinition.preset("transfer", "Transfer", ActionCategory.TRANSFER, RouteTarget.CURRENT_NODE, false, true, tenantId),
+                ActionDefinition.preset("delegate", "Delegate", ActionCategory.DELEGATE, RouteTarget.CURRENT_NODE, false, true, tenantId),
                 ActionDefinition.preset("add_sign", "Add sign", ActionCategory.ADD_SIGN, RouteTarget.CURRENT_NODE, false, true, tenantId),
-                ActionDefinition.preset("reduce_sign", "Reduce sign", ActionCategory.REDUCE_SIGN, RouteTarget.CURRENT_NODE, false, true, tenantId)
+                ActionDefinition.preset("reduce_sign", "Reduce sign", ActionCategory.REDUCE_SIGN, RouteTarget.CURRENT_NODE, false, true, tenantId),
+                ActionDefinition.preset("terminate", "Terminate", ActionCategory.TERMINATE, RouteTarget.END, true, false, tenantId)
         );
     }
 }

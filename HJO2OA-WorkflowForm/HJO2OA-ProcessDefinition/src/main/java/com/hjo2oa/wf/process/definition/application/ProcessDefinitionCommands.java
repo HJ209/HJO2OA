@@ -21,13 +21,17 @@ public final class ProcessDefinitionCommands {
             String endNodeId,
             String nodes,
             String routes,
-            UUID tenantId
+            UUID tenantId,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 
     public record PublishDefinitionCommand(
             UUID definitionId,
-            UUID publishedBy
+            UUID publishedBy,
+            String idempotencyKey,
+            String requestId
     ) {
 
         public PublishDefinitionCommand {
@@ -52,7 +56,9 @@ public final class ProcessDefinitionCommands {
             boolean requireOpinion,
             boolean requireTarget,
             String uiConfig,
-            UUID tenantId
+            UUID tenantId,
+            String idempotencyKey,
+            String requestId
     ) {
     }
 

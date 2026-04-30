@@ -35,7 +35,7 @@ class ActionEngineControllerTest {
         mockMvc.perform(get("/api/v1/process/tasks/{taskId}/actions", taskId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
-                .andExpect(jsonPath("$.data", hasSize(5)));
+                .andExpect(jsonPath("$.data", hasSize(8)));
 
         Map<String, Object> body = Map.of(
                 "actionCode",

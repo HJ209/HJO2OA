@@ -22,6 +22,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-MessageCenter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>

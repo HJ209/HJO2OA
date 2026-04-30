@@ -4,6 +4,8 @@ import com.hjo2oa.msg.mobile.support.domain.MobileAppType;
 import com.hjo2oa.msg.mobile.support.domain.MobilePlatform;
 import com.hjo2oa.msg.mobile.support.domain.MobileRiskLevel;
 import java.time.Duration;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 public final class MobileSupportCommands {
@@ -71,5 +73,19 @@ public final class MobileSupportCommands {
             MobileRiskLevel riskLevel,
             String reason
     ) {
+    }
+
+    public record SavePushPreferenceCommand(
+            UUID tenantId,
+            UUID personId,
+            boolean pushEnabled,
+            LocalTime quietStartsAt,
+            LocalTime quietEndsAt,
+            List<String> mutedCategories
+    ) {
+
+        public SavePushPreferenceCommand {
+            mutedCategories = mutedCategories == null ? List.of() : List.copyOf(mutedCategories);
+        }
     }
 }

@@ -9,6 +9,7 @@ public record EventMatchView(
         String eventType,
         NotificationCategory notificationCategory,
         TargetResolverType targetResolverType,
+        String targetResolverConfig,
         String templateCode,
         NotificationPriority priority,
         boolean quietNow,

@@ -187,6 +187,7 @@ public class EventSubscriptionApplicationService {
                 query.eventType(),
                 rule.notificationCategory(),
                 rule.targetResolverType(),
+                rule.targetResolverConfig(),
                 rule.templateCode(),
                 query.eventPriority() == null ? rule.defaultPriority() : query.eventPriority(),
                 quietNow || !preferenceEnabled,

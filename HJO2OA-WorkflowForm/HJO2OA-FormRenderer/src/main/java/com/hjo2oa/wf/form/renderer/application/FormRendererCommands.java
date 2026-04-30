@@ -27,4 +27,31 @@ public final class FormRendererCommands {
             Map<String, Object> formData
     ) {
     }
+
+    public record CreateDraftCommand(
+            FormMetadataSnapshot metadataSnapshot,
+            UUID processInstanceId,
+            UUID formDataId,
+            String nodeId,
+            Map<String, Object> formData,
+            UUID submittedBy,
+            String idempotencyKey
+    ) {
+    }
+
+    public record UpdateDraftCommand(
+            UUID submissionId,
+            FormMetadataSnapshot metadataSnapshot,
+            Map<String, Object> formData,
+            String idempotencyKey
+    ) {
+    }
+
+    public record SubmitDraftCommand(
+            UUID submissionId,
+            FormMetadataSnapshot metadataSnapshot,
+            Map<String, Object> formData,
+            String idempotencyKey
+    ) {
+    }
 }

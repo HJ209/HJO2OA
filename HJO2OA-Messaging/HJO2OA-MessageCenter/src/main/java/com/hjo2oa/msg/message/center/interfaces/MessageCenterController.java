@@ -1,9 +1,12 @@
 package com.hjo2oa.msg.message.center.interfaces;
 
+import com.hjo2oa.msg.message.center.application.MessageNotificationCommandApplicationService;
 import com.hjo2oa.msg.message.center.application.MessageNotificationActionApplicationService;
+import com.hjo2oa.msg.message.center.application.MessageNotificationQuery;
 import com.hjo2oa.msg.message.center.application.MessageNotificationQueryApplicationService;
 import com.hjo2oa.msg.message.center.domain.NotificationBulkReadResult;
 import com.hjo2oa.msg.message.center.domain.NotificationDetail;
+import com.hjo2oa.msg.message.center.domain.NotificationInboxStatus;
 import com.hjo2oa.msg.message.center.domain.NotificationSummary;
 import com.hjo2oa.msg.message.center.domain.NotificationUnreadSummary;
 import com.hjo2oa.shared.kernel.BizException;
@@ -18,7 +21,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 @RestController
 @UseSharedWebContract
@@ -27,21 +32,38 @@ public class MessageCenterController {
 
     private final MessageNotificationQueryApplicationService queryApplicationService;
     private final MessageNotificationActionApplicationService actionApplicationService;
+    private final MessageNotificationCommandApplicationService commandApplicationService;
     private final ResponseMetaFactory responseMetaFactory;
 
     public MessageCenterController(
             MessageNotificationQueryApplicationService queryApplicationService,
             MessageNotificationActionApplicationService actionApplicationService,
+            MessageNotificationCommandApplicationService commandApplicationService,
             ResponseMetaFactory responseMetaFactory
     ) {
         this.queryApplicationService = queryApplicationService;
         this.actionApplicationService = actionApplicationService;
+        this.commandApplicationService = commandApplicationService;
         this.responseMetaFactory = responseMetaFactory;
     }
 
     @GetMapping("/messages")
-    public ApiResponse<List<NotificationSummary>> messages(HttpServletRequest request) {
-        return ApiResponse.success(queryApplicationService.inbox(), responseMetaFactory.create(request));
+    public ApiResponse<List<NotificationSummary>> messages(
+            @RequestParam(name = "filter[readStatus]", required = false) String readStatus,
+            @RequestParam(name = "filter[type]", required = false) String messageType,
+            @RequestParam(required = false) NotificationInboxStatus inboxStatus,
+            @RequestParam(required = false) String sourceModule,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                queryApplicationService.inbox(new MessageNotificationQuery(
+                        inboxStatus,
+                        readStatus,
+                        messageType,
+                        sourceModule
+                )),
+                responseMetaFactory.create(request)
+        );
     }
 
     @GetMapping("/messages/{notificationId}")
@@ -82,5 +104,40 @@ public class MessageCenterController {
         NotificationSummary notification = actionApplicationService.markRead(notificationId)
                 .orElseThrow(() -> new BizException(SharedErrorDescriptors.RESOURCE_NOT_FOUND, "Notification not found"));
         return ApiResponse.success(notification, responseMetaFactory.create(request));
+    }
+
+    @PostMapping("/messages/{notificationId}/archive")
+    public ApiResponse<NotificationSummary> archive(
+            @PathVariable String notificationId,
+            @RequestBody(required = false) NotificationStatusActionRequest body,
+            HttpServletRequest request
+    ) {
+        NotificationSummary notification = actionApplicationService
+                .archive(notificationId, body == null ? null : body.reason())
+                .orElseThrow(() -> new BizException(SharedErrorDescriptors.RESOURCE_NOT_FOUND, "Notification not found"));
+        return ApiResponse.success(notification, responseMetaFactory.create(request));
+    }
+
+    @PostMapping("/messages/{notificationId}/delete")
+    public ApiResponse<NotificationSummary> delete(
+            @PathVariable String notificationId,
+            @RequestBody(required = false) NotificationStatusActionRequest body,
+            HttpServletRequest request
+    ) {
+        NotificationSummary notification = actionApplicationService
+                .delete(notificationId, body == null ? null : body.reason())
+                .orElseThrow(() -> new BizException(SharedErrorDescriptors.RESOURCE_NOT_FOUND, "Notification not found"));
+        return ApiResponse.success(notification, responseMetaFactory.create(request));
+    }
+
+    @PostMapping("/internal/messages")
+    public ApiResponse<NotificationSummary> createNotification(
+            @Valid @RequestBody NotificationCreateRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                commandApplicationService.createNotification(body.toCommand()),
+                responseMetaFactory.create(request)
+        );
     }
 }

@@ -25,14 +25,16 @@ class ProcessDefinitionControllerTest {
 
     private static final Instant FIXED_TIME = Instant.parse("2026-04-24T06:00:00Z");
     private static final String TENANT_ID = "11111111-1111-1111-1111-111111111111";
+    private static final String FORM_METADATA_ID = "22222222-2222-2222-2222-222222222222";
 
     @Test
     void shouldUseSharedWebContractForDefinitionLifecycleAndActions() throws Exception {
         MockMvc mockMvc = buildMockMvc();
 
-        String createResponse = mockMvc.perform(post("/api/v1/workflow/process-definitions")
+        String createResponse = mockMvc.perform(post("/api/v1/process/definitions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-proc-def-create-1")
+                        .header("X-Idempotency-Key", "proc-def-create-1")
                         .content(definitionJson("leave", "Leave Approval")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
@@ -45,32 +47,36 @@ class ProcessDefinitionControllerTest {
                 .getContentAsString();
         String definitionId = createResponse.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1");
 
-        mockMvc.perform(put("/api/v1/workflow/process-definitions/" + definitionId)
+        mockMvc.perform(put("/api/v1/process/definitions/" + definitionId)
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Idempotency-Key", "proc-def-update-1")
                         .content(definitionJson("leave", "Leave Approval Updated")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name").value("Leave Approval Updated"));
 
-        mockMvc.perform(put("/api/v1/workflow/process-definitions/" + definitionId + "/publish")
+        mockMvc.perform(put("/api/v1/process/definitions/" + definitionId + "/publish")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Idempotency-Key", "proc-def-publish-1")
                         .content("{\"publishedBy\":\"22222222-2222-2222-2222-222222222222\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.data.publishedBy").value("22222222-2222-2222-2222-222222222222"));
 
-        mockMvc.perform(post("/api/v1/workflow/process-definitions/" + definitionId + "/versions"))
+        mockMvc.perform(post("/api/v1/process/definitions/" + definitionId + "/versions")
+                        .header("X-Idempotency-Key", "proc-def-version-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.version").value(2))
                 .andExpect(jsonPath("$.data.status").value("DRAFT"));
 
-        mockMvc.perform(get("/api/v1/workflow/process-definitions")
+        mockMvc.perform(get("/api/v1/process/definitions")
                         .param("tenantId", TENANT_ID)
                         .param("code", "leave"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(2));
 
-        String actionResponse = mockMvc.perform(post("/api/v1/workflow/process-definitions/actions")
+        String actionResponse = mockMvc.perform(post("/api/v1/process/definitions/actions")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Idempotency-Key", "proc-action-create-1")
                         .content(actionJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.code").value("approve"))
@@ -80,13 +86,13 @@ class ProcessDefinitionControllerTest {
                 .getContentAsString();
         String actionId = actionResponse.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1");
 
-        mockMvc.perform(get("/api/v1/workflow/process-definitions/actions")
+        mockMvc.perform(get("/api/v1/process/definitions/actions")
                         .param("tenantId", TENANT_ID)
                         .param("category", "APPROVE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1));
 
-        mockMvc.perform(delete("/api/v1/workflow/process-definitions/actions/" + actionId))
+        mockMvc.perform(delete("/api/v1/process/definitions/actions/" + actionId))
                 .andExpect(status().isOk());
     }
 
@@ -96,13 +102,23 @@ class ProcessDefinitionControllerTest {
                   "code":"%s",
                   "name":"%s",
                   "category":"HR",
+                  "formMetadataId":"%s",
                   "startNodeId":"start",
                   "endNodeId":"end",
-                  "nodes":[],
-                  "routes":[],
+                  "nodes":[
+                    {"nodeId":"start","type":"START","name":"Start"},
+                    {"nodeId":"approve","type":"USER_TASK","name":"Approve",
+                     "participantRule":{"type":"SPECIFIC_PERSON","ids":["person-1"]},
+                     "actionCodes":["approve"]},
+                    {"nodeId":"end","type":"END","name":"End"}
+                  ],
+                  "routes":[
+                    {"routeId":"r1","sourceNodeId":"start","targetNodeId":"approve"},
+                    {"routeId":"r2","sourceNodeId":"approve","targetNodeId":"end"}
+                  ],
                   "tenantId":"%s"
                 }
-                """.formatted(code, name, TENANT_ID);
+                """.formatted(code, name, FORM_METADATA_ID, TENANT_ID);
     }
 
     private String actionJson() {

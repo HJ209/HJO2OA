@@ -28,6 +28,9 @@ public class ProcessInstanceEntity {
     @TableField("definition_code")
     private String definitionCode;
 
+    @TableField("business_key")
+    private String businessKey;
+
     @TableField("title")
     private String title;
 
@@ -66,6 +69,9 @@ public class ProcessInstanceEntity {
 
     @TableField("tenant_id")
     private UUID tenantId;
+
+    @TableField("idempotency_key")
+    private String idempotencyKey;
 
     @TableField("created_at")
     private Instant createdAt;

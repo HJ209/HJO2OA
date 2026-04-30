@@ -23,30 +23,33 @@ public final class ProcessInstanceDtos {
     public record StartProcessRequest(
             @NotNull UUID definitionId,
             int definitionVersion,
-            @NotBlank @Size(max = 64) String definitionCode,
+            @Size(max = 64) String definitionCode,
+            @Size(max = 128) String businessKey,
             @NotBlank @Size(max = 256) String title,
             @Size(max = 64) String category,
             @NotNull UUID initiatorId,
             @NotNull UUID initiatorOrgId,
             UUID initiatorDeptId,
             @NotNull UUID initiatorPositionId,
-            @NotNull UUID formMetadataId,
+            UUID formMetadataId,
             @NotNull UUID formDataId,
-            @NotBlank @Size(max = 64) String firstNodeId,
+            @Size(max = 64) String firstNodeId,
             @Size(max = 128) String firstNodeName,
             TaskNodeType firstNodeType,
+            Map<String, Object> variables,
             @Valid List<TaskParticipantRequest> participants,
             MultiInstanceType multiInstanceType,
             @Size(max = 256) String completionCondition,
             Instant dueTime,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        ProcessInstanceCommands.StartProcessCommand toCommand() {
+        ProcessInstanceCommands.StartProcessCommand toCommand(UUID resolvedTenantId, String idempotencyKey, String requestId) {
             return new ProcessInstanceCommands.StartProcessCommand(
                     definitionId,
                     definitionVersion,
                     definitionCode,
+                    businessKey,
                     title,
                     category,
                     initiatorId,
@@ -58,18 +61,21 @@ public final class ProcessInstanceDtos {
                     firstNodeId,
                     firstNodeName,
                     firstNodeType,
+                    variables == null ? Map.of() : variables,
                     mapParticipants(participants),
                     multiInstanceType,
                     completionCondition,
                     dueTime,
-                    tenantId
+                    resolvedTenantId,
+                    idempotencyKey,
+                    requestId
             );
         }
     }
 
     public record CompleteTaskRequest(
             @NotBlank @Size(max = 64) String actionCode,
-            @NotBlank @Size(max = 128) String actionName,
+            @Size(max = 128) String actionName,
             @NotNull UUID operatorId,
             @NotNull UUID operatorOrgId,
             @NotNull UUID operatorPositionId,
@@ -86,7 +92,7 @@ public final class ProcessInstanceDtos {
             boolean endProcess
     ) {
 
-        ProcessInstanceCommands.CompleteTaskCommand toCommand(UUID taskId) {
+        ProcessInstanceCommands.CompleteTaskCommand toCommand(UUID taskId, String idempotencyKey, String requestId) {
             return new ProcessInstanceCommands.CompleteTaskCommand(
                     taskId,
                     actionCode,
@@ -104,7 +110,9 @@ public final class ProcessInstanceDtos {
                     nextDueTime,
                     mapRoutes(routeConditions),
                     formDataPatch,
-                    endProcess
+                    endProcess,
+                    idempotencyKey,
+                    requestId
             );
         }
     }
@@ -116,41 +124,105 @@ public final class ProcessInstanceDtos {
             @NotNull UUID assigneePositionId
     ) {
 
-        ProcessInstanceCommands.ClaimTaskCommand toCommand(UUID taskId) {
+        ProcessInstanceCommands.ClaimTaskCommand toCommand(UUID taskId, String idempotencyKey, String requestId) {
             return new ProcessInstanceCommands.ClaimTaskCommand(
                     taskId,
                     assigneeId,
                     assigneeOrgId,
                     assigneeDeptId,
-                    assigneePositionId
+                    assigneePositionId,
+                    idempotencyKey,
+                    requestId
             );
         }
     }
 
     public record TransferTaskRequest(
             @NotNull UUID toAssigneeId,
-            @NotNull UUID toAssigneeOrgId,
+            UUID toAssigneeOrgId,
             UUID toAssigneeDeptId,
-            @NotNull UUID toAssigneePositionId
+            UUID toAssigneePositionId
     ) {
 
-        ProcessInstanceCommands.TransferTaskCommand toCommand(UUID taskId) {
+        ProcessInstanceCommands.TransferTaskCommand toCommand(UUID taskId, String idempotencyKey, String requestId) {
             return new ProcessInstanceCommands.TransferTaskCommand(
                     taskId,
                     toAssigneeId,
                     toAssigneeOrgId,
                     toAssigneeDeptId,
-                    toAssigneePositionId
+                    toAssigneePositionId,
+                    idempotencyKey,
+                    requestId
             );
         }
     }
 
-    public record TerminateProcessRequest(
+    public record AddSignRequest(
+            @NotNull UUID operatorId,
+            @NotNull UUID operatorOrgId,
+            @NotNull UUID operatorPositionId,
+            @Valid List<TaskParticipantRequest> participants,
+            @Size(max = 1024) String opinion
+    ) {
+
+        ProcessInstanceCommands.AddSignCommand toCommand(UUID taskId, String idempotencyKey, String requestId) {
+            return new ProcessInstanceCommands.AddSignCommand(
+                    taskId,
+                    operatorId,
+                    operatorOrgId,
+                    operatorPositionId,
+                    mapParticipants(participants),
+                    opinion,
+                    idempotencyKey,
+                    requestId
+            );
+        }
+    }
+
+    public record ControlProcessRequest(
+            @NotNull UUID operatorId,
             @Size(max = 512) String reason
     ) {
 
-        ProcessInstanceCommands.TerminateProcessCommand toCommand(UUID instanceId) {
-            return new ProcessInstanceCommands.TerminateProcessCommand(instanceId, reason);
+        ProcessInstanceCommands.TerminateProcessCommand toTerminateCommand(
+                UUID instanceId,
+                String idempotencyKey,
+                String requestId
+        ) {
+            return new ProcessInstanceCommands.TerminateProcessCommand(
+                    instanceId,
+                    operatorId,
+                    reason,
+                    idempotencyKey,
+                    requestId
+            );
+        }
+
+        ProcessInstanceCommands.SuspendProcessCommand toSuspendCommand(
+                UUID instanceId,
+                String idempotencyKey,
+                String requestId
+        ) {
+            return new ProcessInstanceCommands.SuspendProcessCommand(
+                    instanceId,
+                    operatorId,
+                    reason,
+                    idempotencyKey,
+                    requestId
+            );
+        }
+
+        ProcessInstanceCommands.ResumeProcessCommand toResumeCommand(
+                UUID instanceId,
+                String idempotencyKey,
+                String requestId
+        ) {
+            return new ProcessInstanceCommands.ResumeProcessCommand(
+                    instanceId,
+                    operatorId,
+                    idempotencyKey,
+                    requestId
+            );
         }
     }
 
@@ -205,6 +277,7 @@ public final class ProcessInstanceDtos {
             UUID definitionId,
             int definitionVersion,
             String definitionCode,
+            String businessKey,
             String title,
             String category,
             UUID initiatorId,
@@ -218,6 +291,7 @@ public final class ProcessInstanceDtos {
             Instant startTime,
             Instant endTime,
             UUID tenantId,
+            String idempotencyKey,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -263,10 +337,40 @@ public final class ProcessInstanceDtos {
     ) {
     }
 
+    public record NodeHistoryResponse(
+            UUID id,
+            UUID instanceId,
+            UUID taskId,
+            String nodeId,
+            String nodeName,
+            TaskNodeType nodeType,
+            String status,
+            String actionCode,
+            UUID operatorId,
+            Instant occurredAt,
+            UUID tenantId
+    ) {
+    }
+
+    public record VariableHistoryResponse(
+            UUID id,
+            UUID instanceId,
+            UUID taskId,
+            String variableName,
+            String oldValue,
+            String newValue,
+            UUID operatorId,
+            Instant occurredAt,
+            UUID tenantId
+    ) {
+    }
+
     public record InstanceDetailResponse(
             ProcessInstanceResponse instance,
             List<TaskInstanceResponse> tasks,
-            List<TaskActionResponse> actions
+            List<TaskActionResponse> actions,
+            List<NodeHistoryResponse> nodeHistory,
+            List<VariableHistoryResponse> variableHistory
     ) {
     }
 

@@ -34,6 +34,7 @@ public class ActionEngineApplicationService {
     private final TaskActionRepository taskActionRepository;
     private final DomainEventPublisher domainEventPublisher;
     private final TaskCompletionGateway taskCompletionGateway;
+    private final TaskActionPolicy taskActionPolicy;
     private final Clock clock;
     @Autowired
     public ActionEngineApplicationService(
@@ -41,10 +42,13 @@ public class ActionEngineApplicationService {
             ActionDefinitionRepository actionDefinitionRepository,
             TaskActionRepository taskActionRepository,
             DomainEventPublisher domainEventPublisher,
-            ObjectProvider<TaskCompletionGateway> taskCompletionGateway
+            ObjectProvider<TaskCompletionGateway> taskCompletionGateway,
+            ObjectProvider<TaskActionPolicy> taskActionPolicy
     ) {
         this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
-                taskCompletionGateway.getIfAvailable(TaskCompletionGateway::noop), Clock.systemUTC());
+                taskCompletionGateway.getIfAvailable(TaskCompletionGateway::noop),
+                taskActionPolicy.getIfAvailable(TaskActionPolicy::allowAll),
+                Clock.systemUTC());
     }
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
@@ -53,7 +57,7 @@ public class ActionEngineApplicationService {
             DomainEventPublisher domainEventPublisher
     ) {
         this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
-                TaskCompletionGateway.noop(), Clock.systemUTC());
+                TaskCompletionGateway.noop(), TaskActionPolicy.allowAll(), Clock.systemUTC());
     }
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
@@ -63,7 +67,7 @@ public class ActionEngineApplicationService {
             Clock clock
     ) {
         this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
-                TaskCompletionGateway.noop(), clock);
+                TaskCompletionGateway.noop(), TaskActionPolicy.allowAll(), clock);
     }
     public ActionEngineApplicationService(
             TaskInstanceGateway taskInstanceGateway,
@@ -73,17 +77,32 @@ public class ActionEngineApplicationService {
             TaskCompletionGateway taskCompletionGateway,
             Clock clock
     ) {
+        this(taskInstanceGateway, actionDefinitionRepository, taskActionRepository, domainEventPublisher,
+                taskCompletionGateway, TaskActionPolicy.allowAll(), clock);
+    }
+    public ActionEngineApplicationService(
+            TaskInstanceGateway taskInstanceGateway,
+            ActionDefinitionRepository actionDefinitionRepository,
+            TaskActionRepository taskActionRepository,
+            DomainEventPublisher domainEventPublisher,
+            TaskCompletionGateway taskCompletionGateway,
+            TaskActionPolicy taskActionPolicy,
+            Clock clock
+    ) {
         this.taskInstanceGateway = taskInstanceGateway;
         this.actionDefinitionRepository = actionDefinitionRepository;
         this.taskActionRepository = taskActionRepository;
         this.domainEventPublisher = domainEventPublisher;
         this.taskCompletionGateway = taskCompletionGateway;
+        this.taskActionPolicy = taskActionPolicy;
         this.clock = clock;
     }
 
     public List<ActionDefinition> availableActions(UUID taskId) {
         TaskInstanceSnapshot task = loadPendingTask(taskId);
-        return actionDefinitionRepository.findAvailableActions(task);
+        return actionDefinitionRepository.findAvailableActions(task).stream()
+                .filter(action -> taskActionPolicy.isAllowed(task, action.code()))
+                .toList();
     }
 
     public ActionExecutionResult approve(ActionEngineCommands.ExecuteActionCommand command) {
@@ -120,6 +139,9 @@ public class ActionEngineApplicationService {
     ) {
         TaskInstanceSnapshot task = loadPendingTask(command.taskId());
         ActionExecutionRequest request = command.toExecutionRequest();
+        if (!taskActionPolicy.isAllowed(task, request.actionCode())) {
+            throw new BizException(SharedErrorDescriptors.CONFLICT, "Process action is not available for current node");
+        }
         ActionDefinition definition = actionDefinitionRepository
                 .findAvailableAction(task, request.actionCode())
                 .orElseThrow(() -> new BizException(
@@ -142,12 +164,16 @@ public class ActionEngineApplicationService {
             ActionExecutionRequest request
     ) {
         Instant now = clock.instant();
-        TaskStatus nextStatus = updateTask(task, definition, request);
-        taskCompletionGateway.apply(task, definition, request, nextStatus);
+        TaskStatus gatewayStatus = taskCompletionGateway.apply(task, definition, request, null);
+        boolean gatewayHandled = gatewayStatus != null;
+        TaskStatus nextStatus = gatewayStatus;
+        if (!gatewayHandled) {
+            nextStatus = updateTask(task, definition, request);
+        }
         TaskAction action = taskActionRepository.save(
                 TaskAction.create(task, definition, request, ActionResultStatus.SUCCESS, now)
         );
-        publishTaskEvents(task, action, nextStatus, now);
+        publishTaskEvents(task, action, nextStatus, now, !gatewayHandled);
         return new ActionExecutionResult(action, nextStatus);
     }
 
@@ -158,7 +184,7 @@ public class ActionEngineApplicationService {
     ) {
         return switch (definition.category()) {
             case APPROVE -> taskInstanceGateway.updateStatus(task.taskId(), TaskStatus.COMPLETED).status();
-            case REJECT, RETURN, TERMINATE -> taskInstanceGateway.updateStatus(task.taskId(), TaskStatus.REJECTED).status();
+            case REJECT, RETURN, WITHDRAW, TERMINATE -> taskInstanceGateway.updateStatus(task.taskId(), TaskStatus.REJECTED).status();
             case TRANSFER, DELEGATE -> taskInstanceGateway.transfer(task.taskId(), firstAssignee(request)).status();
             case ADD_SIGN -> taskInstanceGateway.addSign(task.taskId(), firstAssignee(request)).status();
             case REDUCE_SIGN -> taskInstanceGateway.reduceSign(task.taskId(), firstAssignee(request)).status();
@@ -170,8 +196,13 @@ public class ActionEngineApplicationService {
             TaskInstanceSnapshot before,
             TaskAction action,
             TaskStatus taskStatus,
-            Instant occurredAt
+            Instant occurredAt,
+            boolean publishLifecycleEvent
     ) {
+        if (!publishLifecycleEvent) {
+            domainEventPublisher.publish(ProcessTaskActionExecutedEvent.from(action, taskStatus, occurredAt));
+            return;
+        }
         if (taskStatus == TaskStatus.COMPLETED) {
             domainEventPublisher.publish(ProcessTaskCompletedEvent.from(action, occurredAt));
         } else if (taskStatus == TaskStatus.TRANSFERRED) {
