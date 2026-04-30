@@ -1,5 +1,6 @@
 package com.hjo2oa.data.connector.interfaces;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -144,6 +145,33 @@ class ConnectorControllerTest {
                         .param("checkedFrom", "2026-04-24T02:59:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].checkType").value("HEALTH_CHECK"));
+    }
+
+    @Test
+    void shouldReturnEmptyHealthOverviewBeforeAnyHealthSnapshot() throws Exception {
+        ConnectorDefinitionApplicationService applicationService = applicationService();
+        MockMvc mockMvc = buildMockMvc(applicationService, new InMemoryApiIdempotencyStore());
+
+        mockMvc.perform(put("/api/v1/data/connectors/http-empty-health")
+                        .header(ConnectorController.IDEMPOTENCY_KEY_HEADER, "idem-empty-health")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code":"http-empty-health",
+                                  "name":"HTTP Empty Health",
+                                  "connectorType":"HTTP",
+                                  "vendor":"demo",
+                                  "protocol":"https",
+                                  "authMode":"NONE"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/data/connectors/http-empty-health/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.connectorId").value("http-empty-health"))
+                .andExpect(jsonPath("$.data.latestHealthSnapshot").value(nullValue()))
+                .andExpect(jsonPath("$.data.sampleSize").value(0));
     }
 
     @Test

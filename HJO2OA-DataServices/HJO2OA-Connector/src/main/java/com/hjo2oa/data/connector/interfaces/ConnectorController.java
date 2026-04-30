@@ -121,7 +121,7 @@ public class ConnectorController {
             HttpServletRequest request
     ) {
         ConnectorHealthOverviewView latestHealthOverview = applicationService.latestHealthOverview(connectorId)
-                .orElseThrow(() -> new BizException(SharedErrorDescriptors.RESOURCE_NOT_FOUND, "暂无连接器健康快照"));
+                .orElseGet(() -> new ConnectorHealthOverviewView(connectorId, null, null, 0, 0, 0, 0));
         return ApiResponse.success(latestHealthOverview, responseMetaFactory.create(request));
     }
 
