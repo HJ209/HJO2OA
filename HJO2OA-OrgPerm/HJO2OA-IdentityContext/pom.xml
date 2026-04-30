@@ -29,6 +29,24 @@
 
         <dependency>
             <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-OrgStructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-PositionAssignment</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
+            <artifactId>HJO2OA-RoleResourceAuth</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hjo2oa</groupId>
             <artifactId>HJO2OA-Security</artifactId>
             <version>${project.version}</version>
         </dependency>

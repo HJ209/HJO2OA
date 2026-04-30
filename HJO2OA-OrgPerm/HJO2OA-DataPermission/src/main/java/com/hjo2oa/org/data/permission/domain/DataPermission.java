@@ -28,11 +28,11 @@ public record DataPermission(
         Objects.requireNonNull(effect, "effect must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
-        if (scopeType == DataScopeType.CONDITION && conditionExpr == null) {
-            throw new IllegalArgumentException("conditionExpr must be provided for CONDITION scope");
+        if ((scopeType == DataScopeType.CONDITION || scopeType == DataScopeType.CUSTOM) && conditionExpr == null) {
+            throw new IllegalArgumentException("conditionExpr must be provided for CONDITION or CUSTOM scope");
         }
-        if (scopeType != DataScopeType.CONDITION && conditionExpr != null) {
-            throw new IllegalArgumentException("conditionExpr is only supported for CONDITION scope");
+        if (scopeType != DataScopeType.CONDITION && scopeType != DataScopeType.CUSTOM && conditionExpr != null) {
+            throw new IllegalArgumentException("conditionExpr is only supported for CONDITION or CUSTOM scope");
         }
     }
 

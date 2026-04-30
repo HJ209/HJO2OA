@@ -7,6 +7,7 @@ public record DataPermissionDecisionView(
         boolean allowed,
         DataScopeType scopeType,
         String conditionExpr,
+        String sqlCondition,
         PermissionEffect effect,
         List<DataPermissionView> matchedPolicies
 ) {

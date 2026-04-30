@@ -91,7 +91,7 @@ public record Organization(
         );
     }
 
-    public Organization move(UUID parentId, int level, String path, Instant now) {
+    public Organization move(UUID parentId, int level, String path, int sortOrder, Instant now) {
         return new Organization(
                 id,
                 code,

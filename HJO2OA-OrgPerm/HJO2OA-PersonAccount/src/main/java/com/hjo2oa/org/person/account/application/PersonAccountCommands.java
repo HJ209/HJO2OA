@@ -30,7 +30,8 @@ public final class PersonAccountCommands {
             String mobile,
             String email,
             UUID organizationId,
-            UUID departmentId
+            UUID departmentId,
+            UUID tenantId
     ) {
     }
 
@@ -40,26 +41,30 @@ public final class PersonAccountCommands {
             String credential,
             AccountType accountType,
             boolean primaryAccount,
-            boolean mustChangePassword
+            boolean mustChangePassword,
+            UUID tenantId
     ) {
     }
 
     public record UpdateAccountCredentialCommand(
             UUID accountId,
             String credential,
-            boolean mustChangePassword
+            boolean mustChangePassword,
+            UUID tenantId
     ) {
     }
 
     public record LockAccountCommand(
             UUID accountId,
-            Instant lockedUntil
+            Instant lockedUntil,
+            UUID tenantId
     ) {
     }
 
     public record RecordLoginCommand(
             UUID accountId,
-            String loginIp
+            String loginIp,
+            UUID tenantId
     ) {
     }
 }

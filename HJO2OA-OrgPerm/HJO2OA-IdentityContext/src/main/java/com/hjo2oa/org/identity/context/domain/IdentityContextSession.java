@@ -45,6 +45,7 @@ public record IdentityContextSession(
                 currentAssignment.departmentName(),
                 currentAssignment.assignmentType(),
                 currentAssignment.roleIds(),
+                currentAssignment.permissions(),
                 permissionSnapshotVersion,
                 effectiveAt
         );

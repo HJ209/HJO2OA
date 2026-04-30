@@ -83,7 +83,7 @@ public record Department(
         );
     }
 
-    public Department move(UUID parentId, int level, String path, Instant now) {
+    public Department move(UUID parentId, int level, String path, int sortOrder, Instant now) {
         return new Department(
                 id,
                 code,

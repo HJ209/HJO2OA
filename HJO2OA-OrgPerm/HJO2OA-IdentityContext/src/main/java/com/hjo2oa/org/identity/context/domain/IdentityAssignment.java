@@ -15,6 +15,7 @@ public record IdentityAssignment(
         IdentityAssignmentType assignmentType,
         boolean active,
         List<String> roleIds,
+        List<String> permissions,
         String unavailableReason
 ) {
 
@@ -22,12 +23,13 @@ public record IdentityAssignment(
         assignmentId = requireText(assignmentId, "assignmentId");
         positionId = requireText(positionId, "positionId");
         organizationId = requireText(organizationId, "organizationId");
-        departmentId = requireText(departmentId, "departmentId");
+        departmentId = normalize(departmentId);
         positionName = requireText(positionName, "positionName");
         organizationName = requireText(organizationName, "organizationName");
-        departmentName = requireText(departmentName, "departmentName");
+        departmentName = normalize(departmentName);
         Objects.requireNonNull(assignmentType, "assignmentType must not be null");
         roleIds = List.copyOf(new LinkedHashSet<>(Objects.requireNonNullElse(roleIds, List.of())));
+        permissions = List.copyOf(new LinkedHashSet<>(Objects.requireNonNullElse(permissions, List.of())));
         unavailableReason = normalize(unavailableReason);
     }
 

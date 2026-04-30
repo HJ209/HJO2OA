@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.hjo2oa.org.data.permission.application.DataPermissionApplicationService;
+import com.hjo2oa.org.data.permission.domain.FieldPermissionRuntimeMasker;
 import com.hjo2oa.org.data.permission.infrastructure.InMemoryDataPermissionRepository;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.SharedGlobalExceptionHandler;
@@ -29,7 +30,7 @@ class DataPermissionControllerTest {
         String roleId = "11111111-1111-1111-1111-111111111111";
         String personId = "22222222-2222-2222-2222-222222222222";
 
-        String rowResponse = mockMvc.perform(post("/api/org-perm/data-permissions/row-policies")
+        String rowResponse = mockMvc.perform(post("/api/v1/org/data-permissions/row-policies")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(ResponseMetaFactory.REQUEST_ID_HEADER, "req-row-1")
                         .content("""
@@ -51,7 +52,7 @@ class DataPermissionControllerTest {
                 .getContentAsString();
         String rowPolicyId = rowResponse.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1");
 
-        mockMvc.perform(post("/api/org-perm/data-permissions/row-policies")
+        mockMvc.perform(post("/api/v1/org/data-permissions/row-policies")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -65,7 +66,7 @@ class DataPermissionControllerTest {
                                 """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/api/org-perm/data-permissions/decisions/row")
+        mockMvc.perform(post("/api/v1/org/data-permissions/decisions/row")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -78,14 +79,15 @@ class DataPermissionControllerTest {
                                 """.formatted(roleId, personId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.allowed").value(false))
+                .andExpect(jsonPath("$.data.sqlCondition").value("1 = 0"))
                 .andExpect(jsonPath("$.data.effect").value("DENY"))
                 .andExpect(jsonPath("$.data.matchedPolicies.length()").value(2));
 
-        mockMvc.perform(get("/api/org-perm/data-permissions/row-policies/" + rowPolicyId))
+        mockMvc.perform(get("/api/v1/org/data-permissions/row-policies/" + rowPolicyId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.scopeType").value("ALL"));
 
-        mockMvc.perform(post("/api/org-perm/data-permissions/field-policies")
+        mockMvc.perform(post("/api/v1/org/data-permissions/field-policies")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -101,7 +103,7 @@ class DataPermissionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.fieldCode").value("mobile"));
 
-        mockMvc.perform(post("/api/org-perm/data-permissions/decisions/field")
+        mockMvc.perform(post("/api/v1/org/data-permissions/decisions/field")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -116,7 +118,7 @@ class DataPermissionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.fieldEffects.mobile.DESENSITIZED").value("ALLOW"));
 
-        mockMvc.perform(delete("/api/org-perm/data-permissions/row-policies/" + rowPolicyId))
+        mockMvc.perform(delete("/api/v1/org/data-permissions/row-policies/" + rowPolicyId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
     }
@@ -129,7 +131,12 @@ class DataPermissionControllerTest {
         );
         DataPermissionDtoMapper dtoMapper = new DataPermissionDtoMapper();
         return MockMvcBuilders.standaloneSetup(
-                        new DataPermissionController(applicationService, dtoMapper, responseMetaFactory)
+                        new DataPermissionController(
+                                applicationService,
+                                dtoMapper,
+                                new FieldPermissionRuntimeMasker(),
+                                responseMetaFactory
+                        )
                 )
                 .setControllerAdvice(new SharedGlobalExceptionHandler(responseMetaFactory))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter())

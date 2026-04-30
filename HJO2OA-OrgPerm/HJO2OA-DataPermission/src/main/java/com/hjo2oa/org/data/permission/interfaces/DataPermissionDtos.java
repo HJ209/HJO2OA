@@ -1,6 +1,7 @@
 package com.hjo2oa.org.data.permission.interfaces;
 
 import com.hjo2oa.org.data.permission.application.DataPermissionCommands;
+import com.hjo2oa.org.data.permission.domain.DataPermissionIdentityContext;
 import com.hjo2oa.org.data.permission.domain.DataScopeType;
 import com.hjo2oa.org.data.permission.domain.FieldPermissionAction;
 import com.hjo2oa.org.data.permission.domain.PermissionEffect;
@@ -13,6 +14,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public final class DataPermissionDtos {
@@ -80,17 +84,40 @@ public final class DataPermissionDtos {
         }
     }
 
+    public record IdentityContextRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID personId,
+            UUID organizationId,
+            UUID departmentId,
+            @NotNull UUID positionId,
+            List<@NotNull UUID> roleIds
+    ) {
+
+        public DataPermissionIdentityContext toContext() {
+            return new DataPermissionIdentityContext(
+                    tenantId,
+                    personId,
+                    organizationId,
+                    departmentId,
+                    positionId,
+                    roleIds == null ? List.of() : roleIds
+            );
+        }
+    }
+
     public record RowDecisionRequest(
             @NotBlank @Size(max = 128) String businessObject,
             UUID tenantId,
-            @NotEmpty List<@Valid SubjectRequest> subjects
+            IdentityContextRequest identityContext,
+            List<@Valid SubjectRequest> subjects
     ) {
 
         public DataPermissionCommands.RowDecisionQuery toQuery() {
+            List<SubjectReference> resolvedSubjects = resolveSubjects(identityContext, subjects);
             return new DataPermissionCommands.RowDecisionQuery(
                     businessObject,
-                    tenantId,
-                    subjects.stream().map(SubjectRequest::toReference).toList()
+                    identityContext == null ? tenantId : identityContext.tenantId(),
+                    resolvedSubjects
             );
         }
     }
@@ -99,17 +126,19 @@ public final class DataPermissionDtos {
             @NotBlank @Size(max = 128) String businessObject,
             @NotBlank @Size(max = 64) String usageScenario,
             UUID tenantId,
+            IdentityContextRequest identityContext,
             List<@NotBlank @Size(max = 128) String> fieldCodes,
-            @NotEmpty List<@Valid SubjectRequest> subjects
+            List<@Valid SubjectRequest> subjects
     ) {
 
         public DataPermissionCommands.FieldDecisionQuery toQuery() {
+            List<SubjectReference> resolvedSubjects = resolveSubjects(identityContext, subjects);
             return new DataPermissionCommands.FieldDecisionQuery(
                     businessObject,
                     usageScenario,
-                    tenantId,
+                    identityContext == null ? tenantId : identityContext.tenantId(),
                     fieldCodes == null ? List.of() : fieldCodes,
-                    subjects.stream().map(SubjectRequest::toReference).toList()
+                    resolvedSubjects
             );
         }
     }
@@ -149,6 +178,7 @@ public final class DataPermissionDtos {
             boolean allowed,
             DataScopeType scopeType,
             String conditionExpr,
+            String sqlCondition,
             PermissionEffect effect,
             List<RowPolicyResponse> matchedPolicies
     ) {
@@ -158,7 +188,35 @@ public final class DataPermissionDtos {
             String businessObject,
             String usageScenario,
             Object fieldEffects,
+            Set<String> hiddenFields,
+            Set<String> desensitizedFields,
             List<FieldPolicyResponse> matchedPolicies
     ) {
+    }
+
+    public record FieldMaskRequest(
+            @NotBlank @Size(max = 128) String businessObject,
+            @NotBlank @Size(max = 64) String usageScenario,
+            @NotNull IdentityContextRequest identityContext,
+            @NotNull Map<String, Object> row
+    ) {
+    }
+
+    public record FieldMaskResponse(
+            Map<String, Object> row,
+            FieldDecisionResponse decision
+    ) {
+    }
+
+    private static List<SubjectReference> resolveSubjects(
+            IdentityContextRequest identityContext,
+            List<SubjectRequest> subjects
+    ) {
+        if (identityContext != null) {
+            return identityContext.toContext().toSubjects();
+        }
+        return Objects.requireNonNullElse(subjects, List.<SubjectRequest>of()).stream()
+                .map(SubjectRequest::toReference)
+                .toList();
     }
 }

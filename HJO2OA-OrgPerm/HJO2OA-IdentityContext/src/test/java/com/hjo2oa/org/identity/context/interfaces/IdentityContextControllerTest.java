@@ -23,7 +23,7 @@ class IdentityContextControllerTest {
     void shouldReturnRecoveredRefreshOutcome() throws Exception {
         MockMvc mockMvc = mockMvc(new InMemoryIdentityContextSessionRepository());
 
-        mockMvc.perform(post("/api/org-perm/identity-context/refresh")
+        mockMvc.perform(post("/api/v1/org/identity-context/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -55,7 +55,7 @@ class IdentityContextControllerTest {
         );
         MockMvc mockMvc = mockMvc(sessionRepository);
 
-        mockMvc.perform(post("/api/org-perm/identity-context/refresh")
+        mockMvc.perform(post("/api/v1/org/identity-context/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -80,7 +80,7 @@ class IdentityContextControllerTest {
     void shouldReturnReloginRequiredOutcome() throws Exception {
         MockMvc mockMvc = mockMvc(new InMemoryIdentityContextSessionRepository());
 
-        mockMvc.perform(post("/api/org-perm/identity-context/refresh")
+        mockMvc.perform(post("/api/v1/org/identity-context/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -105,7 +105,7 @@ class IdentityContextControllerTest {
     void shouldRejectInvalidRefreshRequest() throws Exception {
         MockMvc mockMvc = mockMvc(new InMemoryIdentityContextSessionRepository());
 
-        mockMvc.perform(post("/api/org-perm/identity-context/refresh")
+        mockMvc.perform(post("/api/v1/org/identity-context/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

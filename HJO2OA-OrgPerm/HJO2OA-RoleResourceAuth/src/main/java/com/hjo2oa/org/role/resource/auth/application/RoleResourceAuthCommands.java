@@ -2,6 +2,7 @@ package com.hjo2oa.org.role.resource.auth.application;
 
 import com.hjo2oa.org.role.resource.auth.domain.PermissionEffect;
 import com.hjo2oa.org.role.resource.auth.domain.ResourceAction;
+import com.hjo2oa.org.role.resource.auth.domain.ResourceStatus;
 import com.hjo2oa.org.role.resource.auth.domain.ResourceType;
 import com.hjo2oa.org.role.resource.auth.domain.RoleCategory;
 import com.hjo2oa.org.role.resource.auth.domain.RoleScope;
@@ -13,6 +14,17 @@ import java.util.UUID;
 public final class RoleResourceAuthCommands {
 
     private RoleResourceAuthCommands() {
+    }
+
+    public record SaveResourceCommand(
+            ResourceType resourceType,
+            String resourceCode,
+            String name,
+            String parentCode,
+            int sortOrder,
+            ResourceStatus status,
+            UUID tenantId
+    ) {
     }
 
     public record CreateRoleCommand(
@@ -57,6 +69,24 @@ public final class RoleResourceAuthCommands {
             UUID roleId,
             String reason,
             Instant expiresAt
+    ) {
+    }
+
+    public record BindPositionRolesCommand(
+            UUID tenantId,
+            UUID positionId,
+            List<UUID> roleIds,
+            String reason
+    ) {
+    }
+
+    public record ResourceDecisionQuery(
+            UUID tenantId,
+            UUID personId,
+            UUID positionId,
+            ResourceType resourceType,
+            String resourceCode,
+            ResourceAction action
     ) {
     }
 }

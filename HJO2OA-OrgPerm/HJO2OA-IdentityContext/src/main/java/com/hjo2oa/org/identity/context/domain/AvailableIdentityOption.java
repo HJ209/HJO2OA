@@ -20,10 +20,10 @@ public record AvailableIdentityOption(
         assignmentId = requireText(assignmentId, "assignmentId");
         positionId = requireText(positionId, "positionId");
         organizationId = requireText(organizationId, "organizationId");
-        departmentId = requireText(departmentId, "departmentId");
+        departmentId = normalize(departmentId);
         positionName = requireText(positionName, "positionName");
         organizationName = requireText(organizationName, "organizationName");
-        departmentName = requireText(departmentName, "departmentName");
+        departmentName = normalize(departmentName);
         Objects.requireNonNull(assignmentType, "assignmentType must not be null");
         unavailableReason = normalize(unavailableReason);
     }

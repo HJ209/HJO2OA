@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/org-perm/identity-context")
+@RequestMapping({"/api/v1/org/identity-context", "/api/v1/org-perm/identity-context", "/api/org-perm/identity-context"})
 public class IdentityContextController {
 
     private final IdentityContextQueryApplicationService queryApplicationService;

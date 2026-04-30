@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/auth")
+@RequestMapping({"/api/v1/auth", "/api/auth"})
 public class AuthController {
 
     private final PersonAccountApplicationService personAccountApplicationService;
@@ -52,17 +52,18 @@ public class AuthController {
                 request.password(),
                 clientIp(servletRequest)
         );
-        IdentityContextView identityContext;
-        try {
-            identityContext = identityContextAuthenticationApplicationService.establish(account);
-        } catch (Exception e) {
-            identityContext = identityContextAuthenticationApplicationService.establishFallback(account);
-        }
+        IdentityContextView identityContext = identityContextAuthenticationApplicationService.establish(account);
         String token = jwtTokenProvider.generateToken(
                 identityContext.personId(),
                 account.username(),
                 identityContext.roleIds(),
-                identityContext.tenantId()
+                identityContext.tenantId(),
+                identityContext.accountId(),
+                identityContext.currentAssignmentId(),
+                identityContext.currentPositionId(),
+                identityContext.currentOrganizationId(),
+                identityContext.currentDepartmentId(),
+                identityContext.permissionSnapshotVersion()
         );
         JwtClaims claims = jwtTokenProvider.extractClaims(token);
         return ApiResponse.success(

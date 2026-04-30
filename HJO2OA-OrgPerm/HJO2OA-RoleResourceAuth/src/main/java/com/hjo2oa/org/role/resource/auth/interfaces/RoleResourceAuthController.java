@@ -1,6 +1,8 @@
 package com.hjo2oa.org.role.resource.auth.interfaces;
 
 import com.hjo2oa.org.role.resource.auth.application.RoleResourceAuthApplicationService;
+import com.hjo2oa.org.role.resource.auth.domain.ResourceStatus;
+import com.hjo2oa.org.role.resource.auth.domain.ResourceType;
 import com.hjo2oa.org.role.resource.auth.domain.RoleCategory;
 import com.hjo2oa.org.role.resource.auth.domain.RoleScope;
 import com.hjo2oa.org.role.resource.auth.domain.RoleStatus;
@@ -23,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/v1/org-perm")
+@RequestMapping({"/api/v1/org", "/api/v1/org-perm", "/api/org-perm"})
 public class RoleResourceAuthController {
 
     private final RoleResourceAuthApplicationService applicationService;
@@ -38,6 +40,38 @@ public class RoleResourceAuthController {
         this.applicationService = applicationService;
         this.dtoMapper = dtoMapper;
         this.responseMetaFactory = responseMetaFactory;
+    }
+
+    @PostMapping("/resources")
+    public ApiResponse<RoleResourceAuthDtos.ResourceResponse> saveResource(
+            @Valid @RequestBody RoleResourceAuthDtos.SaveResourceRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toResourceResponse(applicationService.saveResource(body.toCommand())),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/resources")
+    public ApiResponse<List<RoleResourceAuthDtos.ResourceResponse>> queryResources(
+            @RequestParam UUID tenantId,
+            @RequestParam(required = false) ResourceType resourceType,
+            @RequestParam(required = false) ResourceStatus status,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.queryResources(tenantId, resourceType, status).stream()
+                        .map(dtoMapper::toResourceResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @DeleteMapping("/resources/{resourceId}")
+    public ApiResponse<Void> deleteResource(@PathVariable UUID resourceId, HttpServletRequest request) {
+        applicationService.deleteResource(resourceId);
+        return ApiResponse.success(null, responseMetaFactory.create(request));
     }
 
     @PostMapping("/roles")
@@ -147,6 +181,16 @@ public class RoleResourceAuthController {
         );
     }
 
+    @PostMapping("/persons/{personId}/roles/{roleId}/revoke")
+    public ApiResponse<Void> revokePersonRoleByPost(
+            @PathVariable UUID personId,
+            @PathVariable UUID roleId,
+            HttpServletRequest request
+    ) {
+        applicationService.revokePersonRole(personId, roleId);
+        return ApiResponse.success(null, responseMetaFactory.create(request));
+    }
+
     @GetMapping("/persons/{personId}/roles/direct")
     public ApiResponse<List<RoleResourceAuthDtos.PersonRoleResponse>> queryDirectPersonRoles(
             @PathVariable UUID personId,
@@ -169,5 +213,70 @@ public class RoleResourceAuthController {
     ) {
         applicationService.revokePersonRole(personId, roleId);
         return ApiResponse.success(null, responseMetaFactory.create(request));
+    }
+
+    @PostMapping("/positions/{positionId}/roles")
+    public ApiResponse<List<RoleResourceAuthDtos.PositionRoleResponse>> bindPositionRoles(
+            @PathVariable UUID positionId,
+            @Valid @RequestBody RoleResourceAuthDtos.BindPositionRolesRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.bindPositionRoles(body.toCommand(positionId)).stream()
+                        .map(dtoMapper::toPositionRoleResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @GetMapping("/positions/{positionId}/roles")
+    public ApiResponse<List<RoleResourceAuthDtos.PositionRoleResponse>> queryPositionRoles(
+            @PathVariable UUID positionId,
+            @RequestParam UUID tenantId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                applicationService.queryPositionRoles(tenantId, positionId).stream()
+                        .map(dtoMapper::toPositionRoleResponse)
+                        .toList(),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @DeleteMapping("/positions/{positionId}/roles/{roleId}")
+    public ApiResponse<Void> unbindPositionRole(
+            @PathVariable UUID positionId,
+            @PathVariable UUID roleId,
+            @RequestParam UUID tenantId,
+            HttpServletRequest request
+    ) {
+        applicationService.unbindPositionRole(tenantId, positionId, roleId);
+        return ApiResponse.success(null, responseMetaFactory.create(request));
+    }
+
+    @GetMapping("/permissions/snapshot")
+    public ApiResponse<RoleResourceAuthDtos.PermissionSnapshotResponse> calculatePermissions(
+            @RequestParam UUID tenantId,
+            @RequestParam UUID personId,
+            @RequestParam UUID positionId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                RoleResourceAuthDtos.PermissionSnapshotResponse.fromSnapshot(
+                        applicationService.calculatePermissions(tenantId, personId, positionId)
+                ),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/permissions/decisions/resource")
+    public ApiResponse<RoleResourceAuthDtos.PermissionDecisionResponse> decideResource(
+            @Valid @RequestBody RoleResourceAuthDtos.PermissionDecisionRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                dtoMapper.toPermissionDecisionResponse(applicationService.decideResource(body.toQuery())),
+                responseMetaFactory.create(request)
+        );
     }
 }

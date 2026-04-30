@@ -31,6 +31,7 @@ public record Account(
         Objects.requireNonNull(accountType, "accountType must not be null");
         lastLoginIp = Person.normalizeNullable(lastLoginIp);
         Objects.requireNonNull(status, "status must not be null");
+        Objects.requireNonNull(tenantId, "tenantId must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }
@@ -104,6 +105,10 @@ public record Account(
 
     public Account disable(Instant now) {
         return copy(primaryAccount, true, lockedUntil, AccountStatus.DISABLED, now);
+    }
+
+    public Account activate(Instant now) {
+        return copy(primaryAccount, false, null, AccountStatus.ACTIVE, now);
     }
 
     public Account recordLogin(String loginIp, Instant now) {

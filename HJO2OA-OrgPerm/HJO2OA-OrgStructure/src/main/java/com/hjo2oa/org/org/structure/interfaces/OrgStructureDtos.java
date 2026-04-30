@@ -21,10 +21,10 @@ public final class OrgStructureDtos {
             @NotBlank @Size(max = 32) String type,
             UUID parentId,
             int sortOrder,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public OrgStructureCommands.CreateOrganizationCommand toCommand() {
+        public OrgStructureCommands.CreateOrganizationCommand toCommand(UUID requestTenantId) {
             return new OrgStructureCommands.CreateOrganizationCommand(
                     code,
                     name,
@@ -32,7 +32,7 @@ public final class OrgStructureDtos {
                     type,
                     parentId,
                     sortOrder,
-                    tenantId
+                    requestTenantId
             );
         }
     }
@@ -45,26 +45,27 @@ public final class OrgStructureDtos {
             int sortOrder
     ) {
 
-        public OrgStructureCommands.UpdateOrganizationCommand toCommand(UUID organizationId) {
+        public OrgStructureCommands.UpdateOrganizationCommand toCommand(UUID organizationId, UUID requestTenantId) {
             return new OrgStructureCommands.UpdateOrganizationCommand(
                     organizationId,
                     code,
                     name,
                     shortName,
                     type,
-                    sortOrder
+                    sortOrder,
+                    requestTenantId
             );
         }
     }
 
-    public record MoveNodeRequest(UUID parentId) {
+    public record MoveNodeRequest(UUID parentId, Integer sortOrder) {
 
-        public OrgStructureCommands.MoveOrganizationCommand toOrganizationCommand(UUID organizationId) {
-            return new OrgStructureCommands.MoveOrganizationCommand(organizationId, parentId);
+        public OrgStructureCommands.MoveOrganizationCommand toOrganizationCommand(UUID organizationId, UUID requestTenantId) {
+            return new OrgStructureCommands.MoveOrganizationCommand(organizationId, parentId, sortOrder, requestTenantId);
         }
 
-        public OrgStructureCommands.MoveDepartmentCommand toDepartmentCommand(UUID departmentId) {
-            return new OrgStructureCommands.MoveDepartmentCommand(departmentId, parentId);
+        public OrgStructureCommands.MoveDepartmentCommand toDepartmentCommand(UUID departmentId, UUID requestTenantId) {
+            return new OrgStructureCommands.MoveDepartmentCommand(departmentId, parentId, sortOrder, requestTenantId);
         }
     }
 
@@ -75,10 +76,10 @@ public final class OrgStructureDtos {
             UUID parentId,
             UUID managerId,
             int sortOrder,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public OrgStructureCommands.CreateDepartmentCommand toCommand() {
+        public OrgStructureCommands.CreateDepartmentCommand toCommand(UUID requestTenantId) {
             return new OrgStructureCommands.CreateDepartmentCommand(
                     code,
                     name,
@@ -86,7 +87,7 @@ public final class OrgStructureDtos {
                     parentId,
                     managerId,
                     sortOrder,
-                    tenantId
+                    requestTenantId
             );
         }
     }
@@ -98,15 +99,36 @@ public final class OrgStructureDtos {
             int sortOrder
     ) {
 
-        public OrgStructureCommands.UpdateDepartmentCommand toCommand(UUID departmentId) {
+        public OrgStructureCommands.UpdateDepartmentCommand toCommand(UUID departmentId, UUID requestTenantId) {
             return new OrgStructureCommands.UpdateDepartmentCommand(
                     departmentId,
                     code,
                     name,
                     managerId,
-                    sortOrder
+                    sortOrder,
+                    requestTenantId
             );
         }
+    }
+
+    public record OrgStructureExportResponse(
+            java.util.List<OrganizationResponse> organizations,
+            java.util.List<DepartmentResponse> departments
+    ) {
+    }
+
+    public record OrgStructureImportRequest(
+            java.util.List<CreateOrganizationRequest> organizations,
+            java.util.List<CreateDepartmentRequest> departments
+    ) {
+    }
+
+    public record OrgStructureImportResponse(
+            int organizationsCreated,
+            int departmentsCreated,
+            java.util.List<UUID> organizationIds,
+            java.util.List<UUID> departmentIds
+    ) {
     }
 
     public record OrganizationResponse(

@@ -47,6 +47,7 @@ public class DataPermissionDtoMapper {
                 view.allowed(),
                 view.scopeType(),
                 view.conditionExpr(),
+                view.sqlCondition(),
                 view.effect(),
                 view.matchedPolicies().stream().map(this::toRowPolicyResponse).toList()
         );
@@ -57,6 +58,8 @@ public class DataPermissionDtoMapper {
                 view.businessObject(),
                 view.usageScenario(),
                 view.fieldEffects(),
+                view.hiddenFields(),
+                view.desensitizedFields(),
                 view.matchedPolicies().stream().map(this::toFieldPolicyResponse).toList()
         );
     }

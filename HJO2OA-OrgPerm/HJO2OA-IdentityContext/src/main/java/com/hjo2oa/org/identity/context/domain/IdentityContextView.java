@@ -18,6 +18,7 @@ public record IdentityContextView(
         String currentDepartmentName,
         IdentityAssignmentType assignmentType,
         List<String> roleIds,
+        List<String> permissions,
         long permissionSnapshotVersion,
         Instant effectiveAt
 ) {
@@ -29,12 +30,13 @@ public record IdentityContextView(
         currentAssignmentId = requireText(currentAssignmentId, "currentAssignmentId");
         currentPositionId = requireText(currentPositionId, "currentPositionId");
         currentOrganizationId = requireText(currentOrganizationId, "currentOrganizationId");
-        currentDepartmentId = requireText(currentDepartmentId, "currentDepartmentId");
+        currentDepartmentId = normalize(currentDepartmentId);
         currentPositionName = requireText(currentPositionName, "currentPositionName");
         currentOrganizationName = requireText(currentOrganizationName, "currentOrganizationName");
-        currentDepartmentName = requireText(currentDepartmentName, "currentDepartmentName");
+        currentDepartmentName = normalize(currentDepartmentName);
         Objects.requireNonNull(assignmentType, "assignmentType must not be null");
         roleIds = List.copyOf(new LinkedHashSet<>(Objects.requireNonNullElse(roleIds, List.of())));
+        permissions = List.copyOf(new LinkedHashSet<>(Objects.requireNonNullElse(permissions, List.of())));
         if (permissionSnapshotVersion < 0) {
             throw new IllegalArgumentException("permissionSnapshotVersion must not be negative");
         }
@@ -47,5 +49,13 @@ public record IdentityContextView(
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
         return value;
+    }
+
+    private static String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

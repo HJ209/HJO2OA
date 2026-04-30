@@ -24,13 +24,16 @@ public final class OrgStructureCommands {
             String name,
             String shortName,
             String type,
-            int sortOrder
+            int sortOrder,
+            UUID tenantId
     ) {
     }
 
     public record MoveOrganizationCommand(
             UUID organizationId,
-            UUID parentId
+            UUID parentId,
+            Integer sortOrder,
+            UUID tenantId
     ) {
     }
 
@@ -50,13 +53,16 @@ public final class OrgStructureCommands {
             String code,
             String name,
             UUID managerId,
-            int sortOrder
+            int sortOrder,
+            UUID tenantId
     ) {
     }
 
     public record MoveDepartmentCommand(
             UUID departmentId,
-            UUID parentId
+            UUID parentId,
+            Integer sortOrder,
+            UUID tenantId
     ) {
     }
 }

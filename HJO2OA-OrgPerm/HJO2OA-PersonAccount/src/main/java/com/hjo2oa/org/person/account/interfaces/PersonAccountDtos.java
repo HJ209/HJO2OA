@@ -28,7 +28,7 @@ public final class PersonAccountDtos {
             UUID tenantId
     ) {
 
-        public PersonAccountCommands.CreatePersonCommand toCommand() {
+        public PersonAccountCommands.CreatePersonCommand toCommand(UUID requestTenantId) {
             return new PersonAccountCommands.CreatePersonCommand(
                     employeeNo,
                     name,
@@ -38,7 +38,7 @@ public final class PersonAccountDtos {
                     email,
                     organizationId,
                     departmentId,
-                    tenantId
+                    requestTenantId
             );
         }
     }
@@ -53,7 +53,7 @@ public final class PersonAccountDtos {
             UUID departmentId
     ) {
 
-        public PersonAccountCommands.UpdatePersonCommand toCommand(UUID personId) {
+        public PersonAccountCommands.UpdatePersonCommand toCommand(UUID personId, UUID requestTenantId) {
             return new PersonAccountCommands.UpdatePersonCommand(
                     personId,
                     name,
@@ -62,7 +62,8 @@ public final class PersonAccountDtos {
                     mobile,
                     email,
                     organizationId,
-                    departmentId
+                    departmentId,
+                    requestTenantId
             );
         }
     }
@@ -75,14 +76,15 @@ public final class PersonAccountDtos {
             boolean mustChangePassword
     ) {
 
-        public PersonAccountCommands.CreateAccountCommand toCommand(UUID personId) {
+        public PersonAccountCommands.CreateAccountCommand toCommand(UUID personId, UUID requestTenantId) {
             return new PersonAccountCommands.CreateAccountCommand(
                     personId,
                     username,
                     credential,
                     accountType,
                     primaryAccount,
-                    mustChangePassword
+                    mustChangePassword,
+                    requestTenantId
             );
         }
     }
@@ -92,11 +94,12 @@ public final class PersonAccountDtos {
             boolean mustChangePassword
     ) {
 
-        public PersonAccountCommands.UpdateAccountCredentialCommand toCommand(UUID accountId) {
+        public PersonAccountCommands.UpdateAccountCredentialCommand toCommand(UUID accountId, UUID requestTenantId) {
             return new PersonAccountCommands.UpdateAccountCredentialCommand(
                     accountId,
                     credential,
-                    mustChangePassword
+                    mustChangePassword,
+                    requestTenantId
             );
         }
     }
@@ -105,8 +108,8 @@ public final class PersonAccountDtos {
             Instant lockedUntil
     ) {
 
-        public PersonAccountCommands.LockAccountCommand toCommand(UUID accountId) {
-            return new PersonAccountCommands.LockAccountCommand(accountId, lockedUntil);
+        public PersonAccountCommands.LockAccountCommand toCommand(UUID accountId, UUID requestTenantId) {
+            return new PersonAccountCommands.LockAccountCommand(accountId, lockedUntil, requestTenantId);
         }
     }
 
@@ -114,9 +117,35 @@ public final class PersonAccountDtos {
             @Size(max = 64) String loginIp
     ) {
 
-        public PersonAccountCommands.RecordLoginCommand toCommand(UUID accountId) {
-            return new PersonAccountCommands.RecordLoginCommand(accountId, loginIp);
+        public PersonAccountCommands.RecordLoginCommand toCommand(UUID accountId, UUID requestTenantId) {
+            return new PersonAccountCommands.RecordLoginCommand(accountId, loginIp, requestTenantId);
         }
+    }
+
+    public record PersonAccountExportResponse(
+            List<PersonResponse> persons,
+            List<PersonAccountResponse> personAccounts
+    ) {
+    }
+
+    public record PersonAccountImportRequest(
+            List<CreatePersonRequest> persons,
+            List<AccountImportItem> accounts
+    ) {
+    }
+
+    public record AccountImportItem(
+            @NotNull UUID personId,
+            @NotNull CreateAccountRequest account
+    ) {
+    }
+
+    public record PersonAccountImportResponse(
+            int personsCreated,
+            int accountsCreated,
+            List<UUID> personIds,
+            List<UUID> accountIds
+    ) {
     }
 
     public record PersonResponse(

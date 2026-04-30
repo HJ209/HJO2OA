@@ -30,7 +30,8 @@ public final class PositionAssignmentCommands {
             UUID departmentId,
             PositionCategory category,
             Integer level,
-            int sortOrder
+            int sortOrder,
+            UUID tenantId
     ) {
     }
 

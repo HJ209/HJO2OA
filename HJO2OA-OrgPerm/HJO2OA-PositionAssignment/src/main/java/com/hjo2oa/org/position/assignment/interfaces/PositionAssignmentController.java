@@ -1,11 +1,18 @@
 package com.hjo2oa.org.position.assignment.interfaces;
 
 import com.hjo2oa.org.position.assignment.application.PositionAssignmentApplicationService;
+import com.hjo2oa.org.position.assignment.domain.AssignmentView;
+import com.hjo2oa.org.position.assignment.domain.PositionRoleView;
+import com.hjo2oa.org.position.assignment.domain.PositionView;
+import com.hjo2oa.shared.kernel.BizException;
+import com.hjo2oa.shared.kernel.SharedErrorDescriptors;
+import com.hjo2oa.shared.tenant.TenantContextHolder;
 import com.hjo2oa.shared.web.ApiResponse;
 import com.hjo2oa.shared.web.ResponseMetaFactory;
 import com.hjo2oa.shared.web.UseSharedWebContract;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -42,8 +49,9 @@ public class PositionAssignmentController {
             @Valid @RequestBody PositionAssignmentDtos.CreatePositionRequest body,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(body.tenantId());
         return ApiResponse.success(
-                dtoMapper.toPositionResponse(applicationService.createPosition(body.toCommand())),
+                dtoMapper.toPositionResponse(applicationService.createPosition(body.toCommand(tenantId))),
                 responseMetaFactory.create(request)
         );
     }
@@ -54,8 +62,9 @@ public class PositionAssignmentController {
             @Valid @RequestBody PositionAssignmentDtos.UpdatePositionRequest body,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toPositionResponse(applicationService.updatePosition(body.toCommand(positionId))),
+                dtoMapper.toPositionResponse(applicationService.updatePosition(body.toCommand(positionId, tenantId))),
                 responseMetaFactory.create(request)
         );
     }
@@ -65,8 +74,9 @@ public class PositionAssignmentController {
             @PathVariable UUID positionId,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toPositionResponse(applicationService.disablePosition(positionId)),
+                dtoMapper.toPositionResponse(applicationService.disablePosition(tenantId, positionId)),
                 responseMetaFactory.create(request)
         );
     }
@@ -76,8 +86,9 @@ public class PositionAssignmentController {
             @PathVariable UUID positionId,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toPositionResponse(applicationService.activatePosition(positionId)),
+                dtoMapper.toPositionResponse(applicationService.activatePosition(tenantId, positionId)),
                 responseMetaFactory.create(request)
         );
     }
@@ -87,21 +98,23 @@ public class PositionAssignmentController {
             @PathVariable UUID positionId,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toPositionResponse(applicationService.getPosition(positionId)),
+                dtoMapper.toPositionResponse(applicationService.getPosition(tenantId, positionId)),
                 responseMetaFactory.create(request)
         );
     }
 
     @GetMapping("/positions")
     public ApiResponse<List<PositionAssignmentDtos.PositionResponse>> listPositions(
-            @RequestParam UUID tenantId,
+            @RequestParam(required = false) UUID tenantId,
             @RequestParam(required = false) UUID organizationId,
             @RequestParam(required = false) UUID departmentId,
             HttpServletRequest request
     ) {
+        UUID requestTenantId = requestTenantId(tenantId);
         return ApiResponse.success(
-                applicationService.listPositions(tenantId, organizationId, departmentId).stream()
+                applicationService.listPositions(requestTenantId, organizationId, departmentId).stream()
                         .map(dtoMapper::toPositionResponse)
                         .toList(),
                 responseMetaFactory.create(request)
@@ -113,8 +126,9 @@ public class PositionAssignmentController {
             @Valid @RequestBody PositionAssignmentDtos.CreateAssignmentRequest body,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(body.tenantId());
         return ApiResponse.success(
-                dtoMapper.toAssignmentResponse(applicationService.createAssignment(body.toCommand())),
+                dtoMapper.toAssignmentResponse(applicationService.createAssignment(body.toCommand(tenantId))),
                 responseMetaFactory.create(request)
         );
     }
@@ -125,8 +139,9 @@ public class PositionAssignmentController {
             @Valid @RequestBody PositionAssignmentDtos.ChangeAssignmentTypeRequest body,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toAssignmentResponse(applicationService.changeAssignmentType(assignmentId, body.type())),
+                dtoMapper.toAssignmentResponse(applicationService.changeAssignmentType(tenantId, assignmentId, body.type())),
                 responseMetaFactory.create(request)
         );
     }
@@ -137,8 +152,9 @@ public class PositionAssignmentController {
             @PathVariable UUID assignmentId,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toAssignmentResponse(applicationService.changePrimaryAssignment(personId, assignmentId)),
+                dtoMapper.toAssignmentResponse(applicationService.changePrimaryAssignment(tenantId, personId, assignmentId)),
                 responseMetaFactory.create(request)
         );
     }
@@ -149,8 +165,9 @@ public class PositionAssignmentController {
             @Valid @RequestBody PositionAssignmentDtos.DeactivateAssignmentRequest body,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toAssignmentResponse(applicationService.deactivateAssignment(assignmentId, body.endDate())),
+                dtoMapper.toAssignmentResponse(applicationService.deactivateAssignment(tenantId, assignmentId, body.endDate())),
                 responseMetaFactory.create(request)
         );
     }
@@ -160,8 +177,9 @@ public class PositionAssignmentController {
             @PathVariable UUID assignmentId,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(null);
         return ApiResponse.success(
-                dtoMapper.toAssignmentResponse(applicationService.getAssignment(assignmentId)),
+                dtoMapper.toAssignmentResponse(applicationService.getAssignment(tenantId, assignmentId)),
                 responseMetaFactory.create(request)
         );
     }
@@ -169,11 +187,12 @@ public class PositionAssignmentController {
     @GetMapping("/persons/{personId}/assignments")
     public ApiResponse<List<PositionAssignmentDtos.AssignmentResponse>> listAssignmentsByPerson(
             @PathVariable UUID personId,
-            @RequestParam UUID tenantId,
+            @RequestParam(required = false) UUID tenantId,
             HttpServletRequest request
     ) {
+        UUID requestTenantId = requestTenantId(tenantId);
         return ApiResponse.success(
-                applicationService.listAssignmentsByPerson(tenantId, personId).stream()
+                applicationService.listAssignmentsByPerson(requestTenantId, personId).stream()
                         .map(dtoMapper::toAssignmentResponse)
                         .toList(),
                 responseMetaFactory.create(request)
@@ -183,11 +202,12 @@ public class PositionAssignmentController {
     @GetMapping("/positions/{positionId}/assignments")
     public ApiResponse<List<PositionAssignmentDtos.AssignmentResponse>> listAssignmentsByPosition(
             @PathVariable UUID positionId,
-            @RequestParam UUID tenantId,
+            @RequestParam(required = false) UUID tenantId,
             HttpServletRequest request
     ) {
+        UUID requestTenantId = requestTenantId(tenantId);
         return ApiResponse.success(
-                applicationService.listAssignmentsByPosition(tenantId, positionId).stream()
+                applicationService.listAssignmentsByPosition(requestTenantId, positionId).stream()
                         .map(dtoMapper::toAssignmentResponse)
                         .toList(),
                 responseMetaFactory.create(request)
@@ -200,8 +220,9 @@ public class PositionAssignmentController {
             @Valid @RequestBody PositionAssignmentDtos.AddPositionRoleRequest body,
             HttpServletRequest request
     ) {
+        UUID tenantId = requestTenantId(body.tenantId());
         return ApiResponse.success(
-                dtoMapper.toPositionRoleResponse(applicationService.addPositionRole(body.toCommand(positionId))),
+                dtoMapper.toPositionRoleResponse(applicationService.addPositionRole(body.toCommand(positionId, tenantId))),
                 responseMetaFactory.create(request)
         );
     }
@@ -210,25 +231,98 @@ public class PositionAssignmentController {
     public ApiResponse<Void> removePositionRole(
             @PathVariable UUID positionId,
             @PathVariable UUID roleId,
-            @RequestParam UUID tenantId,
+            @RequestParam(required = false) UUID tenantId,
             HttpServletRequest request
     ) {
-        applicationService.removePositionRole(tenantId, positionId, roleId);
+        applicationService.removePositionRole(requestTenantId(tenantId), positionId, roleId);
         return ApiResponse.success(null, responseMetaFactory.create(request));
     }
 
     @GetMapping("/positions/{positionId}/roles")
     public ApiResponse<List<PositionAssignmentDtos.PositionRoleResponse>> listPositionRoles(
             @PathVariable UUID positionId,
-            @RequestParam UUID tenantId,
+            @RequestParam(required = false) UUID tenantId,
             HttpServletRequest request
     ) {
+        UUID requestTenantId = requestTenantId(tenantId);
         return ApiResponse.success(
-                applicationService.listPositionRoles(tenantId, positionId).stream()
+                applicationService.listPositionRoles(requestTenantId, positionId).stream()
                         .map(dtoMapper::toPositionRoleResponse)
                         .toList(),
                 responseMetaFactory.create(request)
         );
+    }
+
+    @GetMapping("/export")
+    public ApiResponse<PositionAssignmentDtos.PositionAssignmentExportResponse> exportPositionAssignments(
+            @RequestParam(required = false) UUID organizationId,
+            @RequestParam(required = false) UUID departmentId,
+            HttpServletRequest request
+    ) {
+        UUID tenantId = requestTenantId(null);
+        List<PositionAssignmentDtos.PositionResponse> positions = applicationService
+                .listPositions(tenantId, organizationId, departmentId)
+                .stream()
+                .map(dtoMapper::toPositionResponse)
+                .toList();
+        List<PositionAssignmentDtos.AssignmentResponse> assignments = positions.stream()
+                .flatMap(position -> applicationService.listAssignmentsByPosition(tenantId, position.id()).stream())
+                .map(dtoMapper::toAssignmentResponse)
+                .toList();
+        List<PositionAssignmentDtos.PositionRoleResponse> roles = positions.stream()
+                .flatMap(position -> applicationService.listPositionRoles(tenantId, position.id()).stream())
+                .map(dtoMapper::toPositionRoleResponse)
+                .toList();
+        return ApiResponse.success(
+                new PositionAssignmentDtos.PositionAssignmentExportResponse(positions, assignments, roles),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/import")
+    public ApiResponse<PositionAssignmentDtos.PositionAssignmentImportResponse> importPositionAssignments(
+            @Valid @RequestBody PositionAssignmentDtos.PositionAssignmentImportRequest body,
+            HttpServletRequest request
+    ) {
+        UUID tenantId = requestTenantId(null);
+        List<UUID> positionIds = new ArrayList<>();
+        List<UUID> assignmentIds = new ArrayList<>();
+        if (body.positions() != null) {
+            for (PositionAssignmentDtos.CreatePositionRequest item : body.positions()) {
+                PositionView view = applicationService.createPosition(item.toCommand(requestTenantId(item.tenantId())));
+                if (!view.tenantId().equals(tenantId)) {
+                    throw new BizException(SharedErrorDescriptors.BAD_REQUEST, "Import position tenant mismatch");
+                }
+                positionIds.add(view.id());
+            }
+        }
+        if (body.assignments() != null) {
+            for (PositionAssignmentDtos.CreateAssignmentRequest item : body.assignments()) {
+                AssignmentView view = applicationService.createAssignment(item.toCommand(requestTenantId(item.tenantId())));
+                if (!view.tenantId().equals(tenantId)) {
+                    throw new BizException(SharedErrorDescriptors.BAD_REQUEST, "Import assignment tenant mismatch");
+                }
+                assignmentIds.add(view.id());
+            }
+        }
+        return ApiResponse.success(
+                new PositionAssignmentDtos.PositionAssignmentImportResponse(
+                        positionIds.size(),
+                        assignmentIds.size(),
+                        positionIds,
+                        assignmentIds
+                ),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    private UUID requestTenantId(UUID requestValue) {
+        UUID headerTenantId = TenantContextHolder.currentTenantId()
+                .orElseThrow(() -> new BizException(SharedErrorDescriptors.BAD_REQUEST, "X-Tenant-Id is required"));
+        if (requestValue != null && !requestValue.equals(headerTenantId)) {
+            throw new BizException(SharedErrorDescriptors.BAD_REQUEST, "Tenant id does not match X-Tenant-Id");
+        }
+        return headerTenantId;
     }
 
 }

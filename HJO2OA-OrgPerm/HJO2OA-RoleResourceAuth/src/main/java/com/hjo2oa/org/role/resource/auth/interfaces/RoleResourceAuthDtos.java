@@ -1,8 +1,10 @@
 package com.hjo2oa.org.role.resource.auth.interfaces;
 
 import com.hjo2oa.org.role.resource.auth.application.RoleResourceAuthCommands;
+import com.hjo2oa.org.role.resource.auth.domain.PermissionSnapshot;
 import com.hjo2oa.org.role.resource.auth.domain.PermissionEffect;
 import com.hjo2oa.org.role.resource.auth.domain.ResourceAction;
+import com.hjo2oa.org.role.resource.auth.domain.ResourceStatus;
 import com.hjo2oa.org.role.resource.auth.domain.ResourceType;
 import com.hjo2oa.org.role.resource.auth.domain.RoleCategory;
 import com.hjo2oa.org.role.resource.auth.domain.RoleScope;
@@ -18,6 +20,29 @@ import java.util.UUID;
 public final class RoleResourceAuthDtos {
 
     private RoleResourceAuthDtos() {
+    }
+
+    public record SaveResourceRequest(
+            @NotNull ResourceType resourceType,
+            @NotBlank @Size(max = 128) String resourceCode,
+            @NotBlank @Size(max = 128) String name,
+            @Size(max = 128) String parentCode,
+            int sortOrder,
+            ResourceStatus status,
+            @NotNull UUID tenantId
+    ) {
+
+        public RoleResourceAuthCommands.SaveResourceCommand toCommand() {
+            return new RoleResourceAuthCommands.SaveResourceCommand(
+                    resourceType,
+                    resourceCode,
+                    name,
+                    parentCode,
+                    sortOrder,
+                    status,
+                    tenantId
+            );
+        }
     }
 
     public record CreateRoleRequest(
@@ -96,6 +121,52 @@ public final class RoleResourceAuthDtos {
         }
     }
 
+    public record BindPositionRolesRequest(
+            @NotNull UUID tenantId,
+            @NotNull List<@NotNull UUID> roleIds,
+            @NotBlank @Size(max = 256) String reason
+    ) {
+
+        public RoleResourceAuthCommands.BindPositionRolesCommand toCommand(UUID positionId) {
+            return new RoleResourceAuthCommands.BindPositionRolesCommand(tenantId, positionId, roleIds, reason);
+        }
+    }
+
+    public record PermissionDecisionRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID personId,
+            @NotNull UUID positionId,
+            @NotNull ResourceType resourceType,
+            @NotBlank @Size(max = 128) String resourceCode,
+            @NotNull ResourceAction action
+    ) {
+
+        public RoleResourceAuthCommands.ResourceDecisionQuery toQuery() {
+            return new RoleResourceAuthCommands.ResourceDecisionQuery(
+                    tenantId,
+                    personId,
+                    positionId,
+                    resourceType,
+                    resourceCode,
+                    action
+            );
+        }
+    }
+
+    public record ResourceResponse(
+            UUID id,
+            ResourceType resourceType,
+            String resourceCode,
+            String name,
+            String parentCode,
+            int sortOrder,
+            ResourceStatus status,
+            UUID tenantId,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
     public record RoleResponse(
             UUID id,
             String code,
@@ -128,6 +199,57 @@ public final class RoleResourceAuthDtos {
             String reason,
             Instant expiresAt,
             UUID tenantId
+    ) {
+    }
+
+    public record PositionRoleResponse(
+            UUID id,
+            UUID positionId,
+            UUID roleId,
+            UUID tenantId,
+            Instant createdAt
+    ) {
+    }
+
+    public record PermissionSnapshotResponse(
+            UUID tenantId,
+            UUID personId,
+            UUID positionId,
+            List<UUID> roleIds,
+            List<ResourcePermissionResponse> resourcePermissions,
+            long version
+    ) {
+
+        public static PermissionSnapshotResponse fromSnapshot(PermissionSnapshot snapshot) {
+            return new PermissionSnapshotResponse(
+                    snapshot.tenantId(),
+                    snapshot.personId(),
+                    snapshot.positionId(),
+                    snapshot.roleIds(),
+                    snapshot.resourcePermissions().stream()
+                            .map(permission -> new ResourcePermissionResponse(
+                                    permission.id(),
+                                    permission.roleId(),
+                                    permission.resourceType(),
+                                    permission.resourceCode(),
+                                    permission.action(),
+                                    permission.effect(),
+                                    permission.tenantId()
+                            ))
+                            .toList(),
+                    snapshot.version()
+            );
+        }
+    }
+
+    public record PermissionDecisionResponse(
+            ResourceType resourceType,
+            String resourceCode,
+            ResourceAction action,
+            boolean allowed,
+            PermissionEffect effect,
+            List<ResourcePermissionResponse> matchedPermissions,
+            PermissionSnapshotResponse snapshot
     ) {
     }
 }

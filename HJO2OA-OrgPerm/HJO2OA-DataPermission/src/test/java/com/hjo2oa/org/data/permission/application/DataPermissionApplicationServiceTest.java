@@ -8,6 +8,7 @@ import com.hjo2oa.org.data.permission.domain.DataPermissionQuery;
 import com.hjo2oa.org.data.permission.domain.DataScopeType;
 import com.hjo2oa.org.data.permission.domain.FieldPermissionAction;
 import com.hjo2oa.org.data.permission.domain.FieldPermissionDecisionView;
+import com.hjo2oa.org.data.permission.domain.FieldPermissionRuntimeMasker;
 import com.hjo2oa.org.data.permission.domain.PermissionEffect;
 import com.hjo2oa.org.data.permission.domain.PermissionSubjectType;
 import com.hjo2oa.org.data.permission.domain.SubjectReference;
@@ -17,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -62,24 +64,40 @@ class DataPermissionApplicationServiceTest {
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.effect()).isEqualTo(PermissionEffect.DENY);
+        assertThat(decision.sqlCondition()).isEqualTo("1 = 0");
         assertThat(decision.scopeType()).isEqualTo(DataScopeType.SELF);
         assertThat(decision.matchedPolicies()).hasSize(2);
     }
 
     @Test
-    void shouldRejectUnsupportedCustomAndMissingCondition() {
+    void shouldSupportCustomConditionAndRejectMissingCondition() {
         DataPermissionApplicationService service = newService();
+        UUID roleId = UUID.randomUUID();
+        UUID personId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> service.createRowPolicy(new DataPermissionCommands.SaveRowPolicyCommand(
+        service.createRowPolicy(new DataPermissionCommands.SaveRowPolicyCommand(
                 PermissionSubjectType.ROLE,
-                UUID.randomUUID(),
+                roleId,
                 "content_article",
                 DataScopeType.CUSTOM,
-                null,
+                "owner_person_id = '{personId}' OR reviewer_role_id = '{roleId}'",
                 PermissionEffect.ALLOW,
                 0,
                 null
-        ))).isInstanceOf(BizException.class);
+        ));
+
+        DataPermissionDecisionView decision = service.decideRow(new DataPermissionCommands.RowDecisionQuery(
+                "content_article",
+                null,
+                List.of(
+                        new SubjectReference(PermissionSubjectType.ROLE, roleId),
+                        new SubjectReference(PermissionSubjectType.PERSON, personId)
+                )
+        ));
+
+        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.scopeType()).isEqualTo(DataScopeType.CUSTOM);
+        assertThat(decision.sqlCondition()).contains(personId.toString());
 
         assertThatThrownBy(() -> service.createRowPolicy(new DataPermissionCommands.SaveRowPolicyCommand(
                 PermissionSubjectType.ROLE,
@@ -134,6 +152,9 @@ class DataPermissionApplicationServiceTest {
                 .satisfies(actions -> assertThat(actions)
                         .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
                         .containsEntry(FieldPermissionAction.DESENSITIZED, PermissionEffect.ALLOW));
+        assertThat(decision.desensitizedFields()).containsExactly("mobile");
+        assertThat(new FieldPermissionRuntimeMasker().apply(decision, Map.of("mobile", "13812345678")))
+                .containsEntry("mobile", "138****78");
     }
 
     @Test

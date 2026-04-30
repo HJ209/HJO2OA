@@ -4,8 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hjo2oa.org.role.resource.auth.domain.PermissionEffect;
 import com.hjo2oa.org.role.resource.auth.domain.PersonRole;
+import com.hjo2oa.org.role.resource.auth.domain.PositionRoleGrant;
 import com.hjo2oa.org.role.resource.auth.domain.ResourceAction;
+import com.hjo2oa.org.role.resource.auth.domain.ResourceDefinition;
 import com.hjo2oa.org.role.resource.auth.domain.ResourcePermission;
+import com.hjo2oa.org.role.resource.auth.domain.ResourceStatus;
 import com.hjo2oa.org.role.resource.auth.domain.ResourceType;
 import com.hjo2oa.org.role.resource.auth.domain.Role;
 import com.hjo2oa.org.role.resource.auth.domain.RoleCategory;
@@ -17,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
@@ -32,31 +36,98 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
             .thenComparing(ResourcePermission::action);
 
     private final RoleMapper roleMapper;
+    private final ResourceDefinitionMapper resourceDefinitionMapper;
     private final ResourcePermissionMapper resourcePermissionMapper;
     private final PersonRoleMapper personRoleMapper;
+    private final PositionRoleGrantMapper positionRoleGrantMapper;
     private final Clock clock;
     @Autowired
     public MybatisRoleResourceAuthRepository(
             RoleMapper roleMapper,
+            ResourceDefinitionMapper resourceDefinitionMapper,
             ResourcePermissionMapper resourcePermissionMapper,
-            PersonRoleMapper personRoleMapper
+            PersonRoleMapper personRoleMapper,
+            PositionRoleGrantMapper positionRoleGrantMapper
     ) {
-        this(roleMapper, resourcePermissionMapper, personRoleMapper, Clock.systemUTC());
+        this(
+                roleMapper,
+                resourceDefinitionMapper,
+                resourcePermissionMapper,
+                personRoleMapper,
+                positionRoleGrantMapper,
+                Clock.systemUTC()
+        );
     }
 
     public MybatisRoleResourceAuthRepository(
             RoleMapper roleMapper,
+            ResourceDefinitionMapper resourceDefinitionMapper,
             ResourcePermissionMapper resourcePermissionMapper,
             PersonRoleMapper personRoleMapper,
+            PositionRoleGrantMapper positionRoleGrantMapper,
             Clock clock
     ) {
         this.roleMapper = Objects.requireNonNull(roleMapper, "roleMapper must not be null");
+        this.resourceDefinitionMapper = Objects.requireNonNull(
+                resourceDefinitionMapper,
+                "resourceDefinitionMapper must not be null"
+        );
         this.resourcePermissionMapper = Objects.requireNonNull(
                 resourcePermissionMapper,
                 "resourcePermissionMapper must not be null"
         );
         this.personRoleMapper = Objects.requireNonNull(personRoleMapper, "personRoleMapper must not be null");
+        this.positionRoleGrantMapper = Objects.requireNonNull(
+                positionRoleGrantMapper,
+                "positionRoleGrantMapper must not be null"
+        );
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
+    }
+
+    @Override
+    public Optional<ResourceDefinition> findResourceById(UUID resourceId) {
+        return Optional.ofNullable(resourceDefinitionMapper.selectById(resourceId)).map(this::toResourceDefinition);
+    }
+
+    @Override
+    public Optional<ResourceDefinition> findResourceByCode(
+            UUID tenantId,
+            ResourceType resourceType,
+            String resourceCode
+    ) {
+        LambdaQueryWrapper<ResourceDefinitionEntity> wrapper = Wrappers.<ResourceDefinitionEntity>lambdaQuery()
+                .eq(ResourceDefinitionEntity::getTenantId, tenantId)
+                .eq(ResourceDefinitionEntity::getResourceType, resourceType.name())
+                .eq(ResourceDefinitionEntity::getResourceCode, Role.requireText(resourceCode, "resourceCode"));
+        return Optional.ofNullable(resourceDefinitionMapper.selectOne(wrapper)).map(this::toResourceDefinition);
+    }
+
+    @Override
+    public List<ResourceDefinition> findResources(UUID tenantId, ResourceType resourceType, ResourceStatus status) {
+        LambdaQueryWrapper<ResourceDefinitionEntity> wrapper = Wrappers.<ResourceDefinitionEntity>lambdaQuery()
+                .eq(ResourceDefinitionEntity::getTenantId, tenantId)
+                .eq(resourceType != null, ResourceDefinitionEntity::getResourceType, resourceType == null ? null : resourceType.name())
+                .eq(status != null, ResourceDefinitionEntity::getStatus, status == null ? null : status.name())
+                .orderByAsc(ResourceDefinitionEntity::getSortOrder)
+                .orderByAsc(ResourceDefinitionEntity::getResourceCode);
+        return resourceDefinitionMapper.selectList(wrapper).stream().map(this::toResourceDefinition).toList();
+    }
+
+    @Override
+    public ResourceDefinition saveResource(ResourceDefinition resource) {
+        ResourceDefinitionEntity existing = resourceDefinitionMapper.selectById(resource.id());
+        ResourceDefinitionEntity entity = toResourceDefinitionEntity(resource, existing);
+        if (existing == null) {
+            resourceDefinitionMapper.insert(entity);
+        } else {
+            resourceDefinitionMapper.updateById(entity);
+        }
+        return findResourceById(resource.id()).orElseThrow();
+    }
+
+    @Override
+    public void deleteResource(UUID resourceId) {
+        resourceDefinitionMapper.deleteById(resourceId);
     }
 
     @Override
@@ -79,6 +150,19 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
                 .eq(category != null, RoleEntity::getCategory, category == null ? null : category.name())
                 .eq(scope != null, RoleEntity::getScope, scope == null ? null : scope.name())
                 .eq(status != null, RoleEntity::getStatus, status == null ? null : status.name())
+                .orderByAsc(RoleEntity::getCode);
+        return roleMapper.selectList(wrapper).stream().map(this::toRole).toList();
+    }
+
+    @Override
+    public List<Role> findActiveRolesByIds(UUID tenantId, Set<UUID> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return List.of();
+        }
+        LambdaQueryWrapper<RoleEntity> wrapper = Wrappers.<RoleEntity>lambdaQuery()
+                .eq(RoleEntity::getTenantId, tenantId)
+                .in(RoleEntity::getId, roleIds)
+                .eq(RoleEntity::getStatus, RoleStatus.ACTIVE.name())
                 .orderByAsc(RoleEntity::getCode);
         return roleMapper.selectList(wrapper).stream().map(this::toRole).toList();
     }
@@ -118,6 +202,23 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
     }
 
     @Override
+    public List<ResourcePermission> findResourcePermissionsByRoleIds(UUID tenantId, List<UUID> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return List.of();
+        }
+        return resourcePermissionMapper.selectList(Wrappers.<ResourcePermissionEntity>lambdaQuery()
+                        .eq(ResourcePermissionEntity::getTenantId, tenantId)
+                        .in(ResourcePermissionEntity::getRoleId, roleIds)
+                        .orderByAsc(ResourcePermissionEntity::getResourceType)
+                        .orderByAsc(ResourcePermissionEntity::getResourceCode)
+                        .orderByAsc(ResourcePermissionEntity::getAction))
+                .stream()
+                .map(this::toResourcePermission)
+                .sorted(PERMISSION_ORDER)
+                .toList();
+    }
+
+    @Override
     public List<ResourcePermission> replaceResourcePermissions(UUID roleId, List<ResourcePermission> permissions) {
         resourcePermissionMapper.delete(Wrappers.<ResourcePermissionEntity>lambdaQuery()
                 .eq(ResourcePermissionEntity::getRoleId, roleId));
@@ -125,6 +226,21 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
             resourcePermissionMapper.insert(toResourcePermissionEntity(permission, null));
         }
         return findResourcePermissions(roleId);
+    }
+
+    @Override
+    public boolean existsResourcePermission(
+            UUID tenantId,
+            ResourceType resourceType,
+            String resourceCode,
+            ResourceAction action
+    ) {
+        LambdaQueryWrapper<ResourcePermissionEntity> wrapper = Wrappers.<ResourcePermissionEntity>lambdaQuery()
+                .eq(ResourcePermissionEntity::getTenantId, tenantId)
+                .eq(ResourcePermissionEntity::getResourceType, resourceType.name())
+                .eq(ResourcePermissionEntity::getResourceCode, resourceCode)
+                .eq(ResourcePermissionEntity::getAction, action.name());
+        return resourcePermissionMapper.selectCount(wrapper) > 0;
     }
 
     @Override
@@ -138,6 +254,23 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
     @Override
     public List<PersonRole> findPersonRolesByPerson(UUID personId, boolean includeExpired) {
         LambdaQueryWrapper<PersonRoleEntity> wrapper = Wrappers.<PersonRoleEntity>lambdaQuery()
+                .eq(PersonRoleEntity::getPersonId, personId)
+                .orderByAsc(PersonRoleEntity::getRoleId);
+        List<PersonRole> personRoles = personRoleMapper.selectList(wrapper).stream()
+                .map(this::toPersonRole)
+                .toList();
+        if (includeExpired) {
+            return personRoles;
+        }
+        return personRoles.stream()
+                .filter(personRole -> !personRole.expiredAt(clock.instant()))
+                .toList();
+    }
+
+    @Override
+    public List<PersonRole> findPersonRolesByPerson(UUID tenantId, UUID personId, boolean includeExpired) {
+        LambdaQueryWrapper<PersonRoleEntity> wrapper = Wrappers.<PersonRoleEntity>lambdaQuery()
+                .eq(PersonRoleEntity::getTenantId, tenantId)
                 .eq(PersonRoleEntity::getPersonId, personId)
                 .orderByAsc(PersonRoleEntity::getRoleId);
         List<PersonRole> personRoles = personRoleMapper.selectList(wrapper).stream()
@@ -168,6 +301,79 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
         personRoleMapper.delete(Wrappers.<PersonRoleEntity>lambdaQuery()
                 .eq(PersonRoleEntity::getPersonId, personId)
                 .eq(PersonRoleEntity::getRoleId, roleId));
+    }
+
+    @Override
+    public Optional<PositionRoleGrant> findPositionRole(UUID tenantId, UUID positionId, UUID roleId) {
+        LambdaQueryWrapper<PositionRoleGrantEntity> wrapper = Wrappers.<PositionRoleGrantEntity>lambdaQuery()
+                .eq(PositionRoleGrantEntity::getTenantId, tenantId)
+                .eq(PositionRoleGrantEntity::getPositionId, positionId)
+                .eq(PositionRoleGrantEntity::getRoleId, roleId);
+        return Optional.ofNullable(positionRoleGrantMapper.selectOne(wrapper)).map(this::toPositionRoleGrant);
+    }
+
+    @Override
+    public List<PositionRoleGrant> findPositionRoles(UUID tenantId, UUID positionId) {
+        return positionRoleGrantMapper.selectList(Wrappers.<PositionRoleGrantEntity>lambdaQuery()
+                        .eq(PositionRoleGrantEntity::getTenantId, tenantId)
+                        .eq(PositionRoleGrantEntity::getPositionId, positionId)
+                        .orderByAsc(PositionRoleGrantEntity::getRoleId))
+                .stream()
+                .map(this::toPositionRoleGrant)
+                .toList();
+    }
+
+    @Override
+    public PositionRoleGrant savePositionRole(PositionRoleGrant positionRole) {
+        PositionRoleGrantEntity existing = positionRoleGrantMapper.selectById(positionRole.id());
+        PositionRoleGrantEntity entity = toPositionRoleGrantEntity(positionRole, existing);
+        if (existing == null) {
+            positionRoleGrantMapper.insert(entity);
+        } else {
+            positionRoleGrantMapper.updateById(entity);
+        }
+        return toPositionRoleGrant(positionRoleGrantMapper.selectById(positionRole.id()));
+    }
+
+    @Override
+    public void deletePositionRole(UUID tenantId, UUID positionId, UUID roleId) {
+        positionRoleGrantMapper.delete(Wrappers.<PositionRoleGrantEntity>lambdaQuery()
+                .eq(PositionRoleGrantEntity::getTenantId, tenantId)
+                .eq(PositionRoleGrantEntity::getPositionId, positionId)
+                .eq(PositionRoleGrantEntity::getRoleId, roleId));
+    }
+
+    private ResourceDefinition toResourceDefinition(ResourceDefinitionEntity entity) {
+        return new ResourceDefinition(
+                entity.getId(),
+                ResourceType.valueOf(entity.getResourceType()),
+                entity.getResourceCode(),
+                entity.getName(),
+                entity.getParentCode(),
+                entity.getSortOrder() == null ? 0 : entity.getSortOrder(),
+                ResourceStatus.valueOf(entity.getStatus()),
+                entity.getTenantId(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
+        );
+    }
+
+    private ResourceDefinitionEntity toResourceDefinitionEntity(
+            ResourceDefinition resource,
+            ResourceDefinitionEntity existing
+    ) {
+        ResourceDefinitionEntity entity = existing == null ? new ResourceDefinitionEntity() : existing;
+        entity.setId(resource.id());
+        entity.setResourceType(resource.resourceType().name());
+        entity.setResourceCode(resource.resourceCode());
+        entity.setName(resource.name());
+        entity.setParentCode(resource.parentCode());
+        entity.setSortOrder(resource.sortOrder());
+        entity.setStatus(resource.status().name());
+        entity.setTenantId(resource.tenantId());
+        entity.setCreatedAt(resource.createdAt());
+        entity.setUpdatedAt(resource.updatedAt());
+        return entity;
     }
 
     private Role toRole(RoleEntity entity) {
@@ -246,6 +452,29 @@ public class MybatisRoleResourceAuthRepository implements RoleResourceAuthReposi
         entity.setReason(personRole.reason());
         entity.setExpiresAt(personRole.expiresAt());
         entity.setTenantId(personRole.tenantId());
+        return entity;
+    }
+
+    private PositionRoleGrant toPositionRoleGrant(PositionRoleGrantEntity entity) {
+        return new PositionRoleGrant(
+                entity.getId(),
+                entity.getPositionId(),
+                entity.getRoleId(),
+                entity.getTenantId(),
+                entity.getCreatedAt()
+        );
+    }
+
+    private PositionRoleGrantEntity toPositionRoleGrantEntity(
+            PositionRoleGrant positionRole,
+            PositionRoleGrantEntity existing
+    ) {
+        PositionRoleGrantEntity entity = existing == null ? new PositionRoleGrantEntity() : existing;
+        entity.setId(positionRole.id());
+        entity.setPositionId(positionRole.positionId());
+        entity.setRoleId(positionRole.roleId());
+        entity.setTenantId(positionRole.tenantId());
+        entity.setCreatedAt(positionRole.createdAt());
         return entity;
     }
 }

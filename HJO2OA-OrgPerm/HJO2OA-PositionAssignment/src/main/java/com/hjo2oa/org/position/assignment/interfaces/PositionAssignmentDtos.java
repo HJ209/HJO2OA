@@ -25,10 +25,10 @@ public final class PositionAssignmentDtos {
             @NotNull PositionCategory category,
             Integer level,
             int sortOrder,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public PositionAssignmentCommands.CreatePositionCommand toCommand() {
+        public PositionAssignmentCommands.CreatePositionCommand toCommand(UUID requestTenantId) {
             return new PositionAssignmentCommands.CreatePositionCommand(
                     code,
                     name,
@@ -37,7 +37,7 @@ public final class PositionAssignmentDtos {
                     category,
                     level,
                     sortOrder,
-                    tenantId
+                    requestTenantId
             );
         }
     }
@@ -52,7 +52,7 @@ public final class PositionAssignmentDtos {
             int sortOrder
     ) {
 
-        public PositionAssignmentCommands.UpdatePositionCommand toCommand(UUID positionId) {
+        public PositionAssignmentCommands.UpdatePositionCommand toCommand(UUID positionId, UUID requestTenantId) {
             return new PositionAssignmentCommands.UpdatePositionCommand(
                     positionId,
                     code,
@@ -61,7 +61,8 @@ public final class PositionAssignmentDtos {
                     departmentId,
                     category,
                     level,
-                    sortOrder
+                    sortOrder,
+                    requestTenantId
             );
         }
     }
@@ -72,17 +73,17 @@ public final class PositionAssignmentDtos {
             @NotNull AssignmentType type,
             LocalDate startDate,
             LocalDate endDate,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public PositionAssignmentCommands.CreateAssignmentCommand toCommand() {
+        public PositionAssignmentCommands.CreateAssignmentCommand toCommand(UUID requestTenantId) {
             return new PositionAssignmentCommands.CreateAssignmentCommand(
                     personId,
                     positionId,
                     type,
                     startDate,
                     endDate,
-                    tenantId
+                    requestTenantId
             );
         }
     }
@@ -99,12 +100,33 @@ public final class PositionAssignmentDtos {
 
     public record AddPositionRoleRequest(
             @NotNull UUID roleId,
-            @NotNull UUID tenantId
+            UUID tenantId
     ) {
 
-        public PositionAssignmentCommands.AddPositionRoleCommand toCommand(UUID positionId) {
-            return new PositionAssignmentCommands.AddPositionRoleCommand(positionId, roleId, tenantId);
+        public PositionAssignmentCommands.AddPositionRoleCommand toCommand(UUID positionId, UUID requestTenantId) {
+            return new PositionAssignmentCommands.AddPositionRoleCommand(positionId, roleId, requestTenantId);
         }
+    }
+
+    public record PositionAssignmentExportResponse(
+            java.util.List<PositionResponse> positions,
+            java.util.List<AssignmentResponse> assignments,
+            java.util.List<PositionRoleResponse> positionRoles
+    ) {
+    }
+
+    public record PositionAssignmentImportRequest(
+            java.util.List<CreatePositionRequest> positions,
+            java.util.List<CreateAssignmentRequest> assignments
+    ) {
+    }
+
+    public record PositionAssignmentImportResponse(
+            int positionsCreated,
+            int assignmentsCreated,
+            java.util.List<UUID> positionIds,
+            java.util.List<UUID> assignmentIds
+    ) {
     }
 
     public record PositionResponse(

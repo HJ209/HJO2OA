@@ -5,6 +5,7 @@ import com.hjo2oa.org.data.permission.domain.DataPermissionQuery;
 import com.hjo2oa.org.data.permission.domain.DataScopeType;
 import com.hjo2oa.org.data.permission.domain.FieldPermissionAction;
 import com.hjo2oa.org.data.permission.domain.FieldPermissionQuery;
+import com.hjo2oa.org.data.permission.domain.FieldPermissionRuntimeMasker;
 import com.hjo2oa.org.data.permission.domain.PermissionEffect;
 import com.hjo2oa.org.data.permission.domain.PermissionSubjectType;
 import com.hjo2oa.shared.kernel.BizException;
@@ -28,20 +29,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @UseSharedWebContract
-@RequestMapping("/api/org-perm/data-permissions")
+@RequestMapping({"/api/v1/org/data-permissions", "/api/v1/org-perm/data-permissions", "/api/org-perm/data-permissions"})
 public class DataPermissionController {
 
     private final DataPermissionApplicationService applicationService;
     private final DataPermissionDtoMapper dtoMapper;
+    private final FieldPermissionRuntimeMasker fieldPermissionRuntimeMasker;
     private final ResponseMetaFactory responseMetaFactory;
 
     public DataPermissionController(
             DataPermissionApplicationService applicationService,
             DataPermissionDtoMapper dtoMapper,
+            FieldPermissionRuntimeMasker fieldPermissionRuntimeMasker,
             ResponseMetaFactory responseMetaFactory
     ) {
         this.applicationService = applicationService;
         this.dtoMapper = dtoMapper;
+        this.fieldPermissionRuntimeMasker = fieldPermissionRuntimeMasker;
         this.responseMetaFactory = responseMetaFactory;
     }
 
@@ -203,6 +207,29 @@ public class DataPermissionController {
     ) {
         return ApiResponse.success(
                 dtoMapper.toFieldDecisionResponse(applicationService.decideField(body.toQuery())),
+                responseMetaFactory.create(request)
+        );
+    }
+
+    @PostMapping("/decisions/field-mask")
+    public ApiResponse<DataPermissionDtos.FieldMaskResponse> maskFields(
+            @Valid @RequestBody DataPermissionDtos.FieldMaskRequest body,
+            HttpServletRequest request
+    ) {
+        DataPermissionDtos.FieldDecisionRequest decisionRequest = new DataPermissionDtos.FieldDecisionRequest(
+                body.businessObject(),
+                body.usageScenario(),
+                body.identityContext().tenantId(),
+                body.identityContext(),
+                body.row().keySet().stream().toList(),
+                List.of()
+        );
+        var decision = applicationService.decideField(decisionRequest.toQuery());
+        return ApiResponse.success(
+                new DataPermissionDtos.FieldMaskResponse(
+                        fieldPermissionRuntimeMasker.apply(decision, body.row()),
+                        dtoMapper.toFieldDecisionResponse(decision)
+                ),
                 responseMetaFactory.create(request)
         );
     }

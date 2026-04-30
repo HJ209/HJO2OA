@@ -22,10 +22,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -166,6 +168,7 @@ public class DataPermissionApplicationService {
                         policy.effect() == PermissionEffect.ALLOW,
                         policy.scopeType(),
                         policy.conditionExpr(),
+                        toSqlCondition(policy, subjects),
                         policy.effect(),
                         matched.stream().map(DataPermission::toView).toList()
                 ))
@@ -174,6 +177,7 @@ public class DataPermissionApplicationService {
                         false,
                         null,
                         null,
+                        "1 = 0",
                         PermissionEffect.DENY,
                         List.of()
                 ));
@@ -190,17 +194,32 @@ public class DataPermissionApplicationService {
         );
         List<String> requestedFields = query.fieldCodes() == null ? List.of() : query.fieldCodes();
         Map<String, Map<FieldPermissionAction, PermissionEffect>> effects = new LinkedHashMap<>();
+        Set<String> hiddenFields = new LinkedHashSet<>();
+        Set<String> desensitizedFields = new LinkedHashSet<>();
         for (FieldPermission policy : matched.stream().sorted(FIELD_DECISION_ORDER).toList()) {
             if (!requestedFields.isEmpty() && !requestedFields.contains(policy.fieldCode())) {
                 continue;
             }
             effects.computeIfAbsent(policy.fieldCode(), ignored -> new EnumMap<>(FieldPermissionAction.class))
                     .putIfAbsent(policy.action(), policy.effect());
+            if (policy.action() == FieldPermissionAction.HIDDEN && policy.effect() == PermissionEffect.ALLOW) {
+                hiddenFields.add(policy.fieldCode());
+            }
+            if (policy.action() == FieldPermissionAction.VISIBLE && policy.effect() == PermissionEffect.DENY) {
+                hiddenFields.add(policy.fieldCode());
+            }
+            if (policy.action() == FieldPermissionAction.DESENSITIZED
+                    && policy.effect() == PermissionEffect.ALLOW
+                    && !hiddenFields.contains(policy.fieldCode())) {
+                desensitizedFields.add(policy.fieldCode());
+            }
         }
         return new FieldPermissionDecisionView(
                 query.businessObject(),
                 query.usageScenario(),
                 effects,
+                hiddenFields,
+                desensitizedFields,
                 matched.stream().map(FieldPermission::toView).toList()
         );
     }
@@ -257,13 +276,11 @@ public class DataPermissionApplicationService {
     }
 
     private void ensureSupportedRowPolicy(DataScopeType scopeType, String conditionExpr) {
-        if (scopeType == DataScopeType.CUSTOM) {
-            throw new BizException(SharedErrorDescriptors.BUSINESS_RULE_VIOLATION, "CUSTOM scope is not supported");
-        }
-        if (scopeType == DataScopeType.CONDITION && DataPermission.normalizeNullable(conditionExpr) == null) {
+        if ((scopeType == DataScopeType.CONDITION || scopeType == DataScopeType.CUSTOM)
+                && DataPermission.normalizeNullable(conditionExpr) == null) {
             throw new BizException(
                     SharedErrorDescriptors.BUSINESS_RULE_VIOLATION,
-                    "conditionExpr is required for CONDITION scope"
+                    "conditionExpr is required for CONDITION or CUSTOM scope"
             );
         }
     }
@@ -322,8 +339,55 @@ public class DataPermissionApplicationService {
         return switch (subjectType) {
             case PERSON -> 0;
             case POSITION -> 1;
-            case ROLE -> 2;
+            case DEPARTMENT -> 2;
+            case ORGANIZATION -> 3;
+            case ROLE -> 4;
         };
+    }
+
+    private String toSqlCondition(DataPermission policy, List<SubjectReference> subjects) {
+        if (policy.effect() == PermissionEffect.DENY) {
+            return "1 = 0";
+        }
+        return switch (policy.scopeType()) {
+            case ALL -> "1 = 1";
+            case SELF -> equalityCondition("person_id", findSubject(subjects, PermissionSubjectType.PERSON));
+            case ORG_AND_CHILDREN -> equalityCondition(
+                    "organization_id",
+                    findSubject(subjects, PermissionSubjectType.ORGANIZATION)
+            );
+            case DEPT_AND_CHILDREN -> equalityCondition(
+                    "department_id",
+                    findSubject(subjects, PermissionSubjectType.DEPARTMENT)
+            );
+            case CONDITION -> substituteCondition(policy.conditionExpr(), subjects);
+            case CUSTOM -> substituteCondition(policy.conditionExpr(), subjects);
+        };
+    }
+
+    private UUID findSubject(List<SubjectReference> subjects, PermissionSubjectType subjectType) {
+        return subjects.stream()
+                .filter(subject -> subject.subjectType() == subjectType)
+                .map(SubjectReference::subjectId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String equalityCondition(String column, UUID value) {
+        return value == null ? "1 = 0" : column + " = '" + value + "'";
+    }
+
+    private String substituteCondition(String conditionExpr, List<SubjectReference> subjects) {
+        String condition = DataPermission.normalizeNullable(conditionExpr);
+        if (condition == null) {
+            return "1 = 0";
+        }
+        return condition
+                .replace("{personId}", String.valueOf(findSubject(subjects, PermissionSubjectType.PERSON)))
+                .replace("{positionId}", String.valueOf(findSubject(subjects, PermissionSubjectType.POSITION)))
+                .replace("{roleId}", String.valueOf(findSubject(subjects, PermissionSubjectType.ROLE)))
+                .replace("{departmentId}", String.valueOf(findSubject(subjects, PermissionSubjectType.DEPARTMENT)))
+                .replace("{organizationId}", String.valueOf(findSubject(subjects, PermissionSubjectType.ORGANIZATION)));
     }
 
     private Instant now() {
