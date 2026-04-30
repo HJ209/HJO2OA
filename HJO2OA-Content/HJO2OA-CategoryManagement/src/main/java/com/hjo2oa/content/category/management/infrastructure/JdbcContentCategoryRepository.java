@@ -9,6 +9,8 @@ import com.hjo2oa.content.category.management.application.ContentCategoryApplica
 import com.hjo2oa.content.category.management.application.ContentCategoryRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -172,34 +174,34 @@ public class JdbcContentCategoryRepository implements ContentCategoryRepository 
 
     private MapSqlParameterSource params(CategoryRecord category) {
         return params()
-                .addValue("id", category.id())
+                .addValue("id", category.id().toString(), Types.VARCHAR)
                 .addValue("code", category.code())
                 .addValue("name", category.name())
                 .addValue("categoryType", category.categoryType())
-                .addValue("parentId", category.parentId())
+                .addValue("parentId", uuidValue(category.parentId()), Types.VARCHAR)
                 .addValue("routePath", category.routePath())
                 .addValue("sortOrder", category.sortOrder())
                 .addValue("visibleMode", category.visibleMode())
                 .addValue("status", category.status().name())
                 .addValue("versionNo", category.versionNo())
-                .addValue("tenantId", category.tenantId())
-                .addValue("createdBy", category.createdBy())
-                .addValue("updatedBy", category.updatedBy())
-                .addValue("createdAt", category.createdAt())
-                .addValue("updatedAt", category.updatedAt());
+                .addValue("tenantId", category.tenantId().toString(), Types.VARCHAR)
+                .addValue("createdBy", uuidValue(category.createdBy()), Types.VARCHAR)
+                .addValue("updatedBy", uuidValue(category.updatedBy()), Types.VARCHAR)
+                .addValue("createdAt", timestamp(category.createdAt()), Types.TIMESTAMP)
+                .addValue("updatedAt", timestamp(category.updatedAt()), Types.TIMESTAMP);
     }
 
     private MapSqlParameterSource params(PermissionRuleRecord rule) {
         return params()
-                .addValue("id", rule.id())
-                .addValue("categoryId", rule.categoryId())
-                .addValue("tenantId", rule.tenantId())
+                .addValue("id", rule.id().toString(), Types.VARCHAR)
+                .addValue("categoryId", rule.categoryId().toString(), Types.VARCHAR)
+                .addValue("tenantId", rule.tenantId().toString(), Types.VARCHAR)
                 .addValue("subjectType", rule.subjectType().name())
-                .addValue("subjectId", rule.subjectId())
+                .addValue("subjectId", uuidValue(rule.subjectId()), Types.VARCHAR)
                 .addValue("effect", rule.effect().name())
                 .addValue("scope", rule.scope().name())
                 .addValue("sortOrder", rule.sortOrder())
-                .addValue("createdAt", rule.createdAt());
+                .addValue("createdAt", timestamp(rule.createdAt()), Types.TIMESTAMP);
     }
 
     private static MapSqlParameterSource params() {
@@ -209,6 +211,14 @@ public class JdbcContentCategoryRepository implements ContentCategoryRepository 
     private static UUID uuid(ResultSet rs, String column) throws SQLException {
         String value = rs.getString(column);
         return value == null ? null : UUID.fromString(value);
+    }
+
+    private static String uuidValue(UUID value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {

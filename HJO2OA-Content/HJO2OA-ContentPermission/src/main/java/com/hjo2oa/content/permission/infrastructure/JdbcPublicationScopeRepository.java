@@ -6,6 +6,8 @@ import com.hjo2oa.content.permission.application.ContentPermissionApplicationSer
 import com.hjo2oa.content.permission.application.PublicationScopeRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -106,16 +108,16 @@ public class JdbcPublicationScopeRepository implements PublicationScopeRepositor
 
     private MapSqlParameterSource params(PublicationScopeRuleRecord rule) {
         return params()
-                .addValue("id", rule.id())
-                .addValue("publicationId", rule.publicationId())
-                .addValue("articleId", rule.articleId())
-                .addValue("tenantId", rule.tenantId())
+                .addValue("id", uuidValue(rule.id()), Types.VARCHAR)
+                .addValue("publicationId", uuidValue(rule.publicationId()), Types.VARCHAR)
+                .addValue("articleId", uuidValue(rule.articleId()), Types.VARCHAR)
+                .addValue("tenantId", uuidValue(rule.tenantId()), Types.VARCHAR)
                 .addValue("subjectType", rule.subjectType().name())
-                .addValue("subjectId", rule.subjectId())
+                .addValue("subjectId", uuidValue(rule.subjectId()), Types.VARCHAR)
                 .addValue("effect", rule.effect().name())
                 .addValue("sortOrder", rule.sortOrder())
                 .addValue("scopeVersion", rule.scopeVersion())
-                .addValue("createdAt", rule.createdAt());
+                .addValue("createdAt", timestamp(rule.createdAt()), Types.TIMESTAMP);
     }
 
     private static MapSqlParameterSource params() {
@@ -129,5 +131,13 @@ public class JdbcPublicationScopeRepository implements PublicationScopeRepositor
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         return rs.getTimestamp(column).toInstant();
+    }
+
+    private static String uuidValue(UUID value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 }

@@ -10,6 +10,8 @@ import com.hjo2oa.content.search.application.ContentSearchApplicationService.Vis
 import com.hjo2oa.content.search.application.ContentSearchIndexRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -153,19 +155,19 @@ public class JdbcContentSearchIndexRepository implements ContentSearchIndexRepos
 
     private MapSqlParameterSource params(ContentSearchDocument document) {
         return params()
-                .addValue("articleId", document.articleId())
-                .addValue("publicationId", document.publicationId())
-                .addValue("tenantId", document.tenantId())
-                .addValue("categoryId", document.categoryId())
+                .addValue("articleId", uuidValue(document.articleId()), Types.VARCHAR)
+                .addValue("publicationId", uuidValue(document.publicationId()), Types.VARCHAR)
+                .addValue("tenantId", uuidValue(document.tenantId()), Types.VARCHAR)
+                .addValue("categoryId", uuidValue(document.categoryId()), Types.VARCHAR)
                 .addValue("title", document.title())
-                .addValue("summary", document.summary())
+                .addValue("summary", document.summary(), Types.NVARCHAR)
                 .addValue("bodyText", document.bodyText())
-                .addValue("authorId", document.authorId())
+                .addValue("authorId", uuidValue(document.authorId()), Types.VARCHAR)
                 .addValue("authorName", document.authorName())
                 .addValue("tagsJson", write(document.tags()))
                 .addValue("status", document.status().name())
-                .addValue("publishedAt", document.publishedAt())
-                .addValue("updatedAt", document.updatedAt())
+                .addValue("publishedAt", timestamp(document.publishedAt()), Types.TIMESTAMP)
+                .addValue("updatedAt", timestamp(document.updatedAt()), Types.TIMESTAMP)
                 .addValue("visibleScopeJson", write(document.visibilityRules()))
                 .addValue("hotScore", document.hotScore());
     }
@@ -197,5 +199,13 @@ public class JdbcContentSearchIndexRepository implements ContentSearchIndexRepos
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         return rs.getTimestamp(column).toInstant();
+    }
+
+    private static String uuidValue(UUID value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 }

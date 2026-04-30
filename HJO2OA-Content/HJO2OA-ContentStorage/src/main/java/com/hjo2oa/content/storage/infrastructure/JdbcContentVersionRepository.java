@@ -9,6 +9,8 @@ import com.hjo2oa.content.storage.application.ContentStorageApplicationService.C
 import com.hjo2oa.content.storage.application.ContentVersionRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -170,24 +172,24 @@ public class JdbcContentVersionRepository implements ContentVersionRepository {
 
     private MapSqlParameterSource params(ContentVersionRecord version) {
         return params()
-                .addValue("id", version.id())
-                .addValue("articleId", version.articleId())
-                .addValue("tenantId", version.tenantId())
+                .addValue("id", uuidValue(version.id()), Types.VARCHAR)
+                .addValue("articleId", uuidValue(version.articleId()), Types.VARCHAR)
+                .addValue("tenantId", uuidValue(version.tenantId()), Types.VARCHAR)
                 .addValue("versionNo", version.versionNo())
                 .addValue("title", version.title())
-                .addValue("summary", version.summary())
+                .addValue("summary", version.summary(), Types.NVARCHAR)
                 .addValue("bodyFormat", version.bodyFormat())
                 .addValue("bodyText", version.bodyText())
                 .addValue("bodyChecksum", version.bodyChecksum())
-                .addValue("coverAttachmentId", version.coverAttachmentId())
+                .addValue("coverAttachmentId", uuidValue(version.coverAttachmentId()), Types.VARCHAR)
                 .addValue("attachmentsJson", write(version.attachments()))
                 .addValue("tagsJson", write(version.tags()))
-                .addValue("editorId", version.editorId())
+                .addValue("editorId", uuidValue(version.editorId()), Types.VARCHAR)
                 .addValue("status", version.status().name())
-                .addValue("sourceVersionNo", version.sourceVersionNo())
-                .addValue("idempotencyKey", version.idempotencyKey())
-                .addValue("createdAt", version.createdAt())
-                .addValue("updatedAt", version.updatedAt());
+                .addValue("sourceVersionNo", version.sourceVersionNo(), Types.INTEGER)
+                .addValue("idempotencyKey", version.idempotencyKey(), Types.NVARCHAR)
+                .addValue("createdAt", timestamp(version.createdAt()), Types.TIMESTAMP)
+                .addValue("updatedAt", timestamp(version.updatedAt()), Types.TIMESTAMP);
     }
 
     private <T> T read(String json, TypeReference<T> typeReference) {
@@ -229,5 +231,13 @@ public class JdbcContentVersionRepository implements ContentVersionRepository {
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         return rs.getTimestamp(column).toInstant();
+    }
+
+    private static String uuidValue(UUID value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 }

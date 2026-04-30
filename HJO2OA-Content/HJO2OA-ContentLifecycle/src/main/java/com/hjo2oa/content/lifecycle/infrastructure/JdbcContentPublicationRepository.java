@@ -9,6 +9,8 @@ import com.hjo2oa.content.lifecycle.application.ContentLifecycleApplicationServi
 import com.hjo2oa.content.lifecycle.application.ContentPublicationRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -188,37 +190,37 @@ public class JdbcContentPublicationRepository implements ContentPublicationRepos
 
     private MapSqlParameterSource params(ContentPublicationRecord publication) {
         return params()
-                .addValue("id", publication.id())
-                .addValue("articleId", publication.articleId())
-                .addValue("tenantId", publication.tenantId())
+                .addValue("id", uuidValue(publication.id()), Types.VARCHAR)
+                .addValue("articleId", uuidValue(publication.articleId()), Types.VARCHAR)
+                .addValue("tenantId", uuidValue(publication.tenantId()), Types.VARCHAR)
                 .addValue("targetVersionNo", publication.targetVersionNo())
                 .addValue("reviewMode", publication.reviewMode().name())
                 .addValue("reviewStatus", publication.reviewStatus().name())
-                .addValue("workflowInstanceId", publication.workflowInstanceId())
+                .addValue("workflowInstanceId", uuidValue(publication.workflowInstanceId()), Types.VARCHAR)
                 .addValue("publicationStatus", publication.publicationStatus().name())
-                .addValue("startAt", publication.startAt())
-                .addValue("endAt", publication.endAt())
-                .addValue("publishedAt", publication.publishedAt())
-                .addValue("publishedBy", publication.publishedBy())
-                .addValue("offlineAt", publication.offlineAt())
-                .addValue("offlineBy", publication.offlineBy())
-                .addValue("archiveAt", publication.archiveAt())
-                .addValue("archivedBy", publication.archivedBy())
-                .addValue("reason", publication.reason())
-                .addValue("createdAt", publication.createdAt())
-                .addValue("updatedAt", publication.updatedAt());
+                .addValue("startAt", timestamp(publication.startAt()), Types.TIMESTAMP)
+                .addValue("endAt", timestamp(publication.endAt()), Types.TIMESTAMP)
+                .addValue("publishedAt", timestamp(publication.publishedAt()), Types.TIMESTAMP)
+                .addValue("publishedBy", uuidValue(publication.publishedBy()), Types.VARCHAR)
+                .addValue("offlineAt", timestamp(publication.offlineAt()), Types.TIMESTAMP)
+                .addValue("offlineBy", uuidValue(publication.offlineBy()), Types.VARCHAR)
+                .addValue("archiveAt", timestamp(publication.archiveAt()), Types.TIMESTAMP)
+                .addValue("archivedBy", uuidValue(publication.archivedBy()), Types.VARCHAR)
+                .addValue("reason", publication.reason(), Types.NVARCHAR)
+                .addValue("createdAt", timestamp(publication.createdAt()), Types.TIMESTAMP)
+                .addValue("updatedAt", timestamp(publication.updatedAt()), Types.TIMESTAMP);
     }
 
     private MapSqlParameterSource params(ContentReviewRecord record) {
         return params()
-                .addValue("id", record.id())
-                .addValue("publicationId", record.publicationId())
-                .addValue("articleId", record.articleId())
-                .addValue("tenantId", record.tenantId())
+                .addValue("id", uuidValue(record.id()), Types.VARCHAR)
+                .addValue("publicationId", uuidValue(record.publicationId()), Types.VARCHAR)
+                .addValue("articleId", uuidValue(record.articleId()), Types.VARCHAR)
+                .addValue("tenantId", uuidValue(record.tenantId()), Types.VARCHAR)
                 .addValue("action", record.action().name())
-                .addValue("operatorId", record.operatorId())
-                .addValue("opinion", record.opinion())
-                .addValue("createdAt", record.createdAt());
+                .addValue("operatorId", uuidValue(record.operatorId()), Types.VARCHAR)
+                .addValue("opinion", record.opinion(), Types.NVARCHAR)
+                .addValue("createdAt", timestamp(record.createdAt()), Types.TIMESTAMP);
     }
 
     private static MapSqlParameterSource params() {
@@ -237,5 +239,13 @@ public class JdbcContentPublicationRepository implements ContentPublicationRepos
     private static Instant instantNullable(ResultSet rs, String column) throws SQLException {
         java.sql.Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toInstant();
+    }
+
+    private static String uuidValue(UUID value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 }

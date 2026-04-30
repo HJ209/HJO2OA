@@ -6,6 +6,8 @@ import com.hjo2oa.content.lifecycle.application.ContentLifecycleApplicationServi
 import com.hjo2oa.content.lifecycle.application.ContentLifecycleApplicationService.ContentArticleRecord;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -144,24 +146,24 @@ public class JdbcContentArticleRepository implements ContentArticleRepository {
 
     private MapSqlParameterSource params(ContentArticleRecord article) {
         return params()
-                .addValue("id", article.id())
+                .addValue("id", uuidValue(article.id()), Types.VARCHAR)
                 .addValue("articleNo", article.articleNo())
                 .addValue("title", article.title())
-                .addValue("summary", article.summary())
+                .addValue("summary", article.summary(), Types.NVARCHAR)
                 .addValue("contentType", article.contentType())
-                .addValue("mainCategoryId", article.mainCategoryId())
-                .addValue("authorId", article.authorId())
+                .addValue("mainCategoryId", uuidValue(article.mainCategoryId()), Types.VARCHAR)
+                .addValue("authorId", uuidValue(article.authorId()), Types.VARCHAR)
                 .addValue("authorName", article.authorName())
                 .addValue("sourceType", article.sourceType())
-                .addValue("sourceUrl", article.sourceUrl())
-                .addValue("currentDraftVersionNo", article.currentDraftVersionNo())
-                .addValue("currentPublishedVersionNo", article.currentPublishedVersionNo())
+                .addValue("sourceUrl", article.sourceUrl(), Types.NVARCHAR)
+                .addValue("currentDraftVersionNo", article.currentDraftVersionNo(), Types.INTEGER)
+                .addValue("currentPublishedVersionNo", article.currentPublishedVersionNo(), Types.INTEGER)
                 .addValue("status", article.status().name())
-                .addValue("tenantId", article.tenantId())
-                .addValue("createdBy", article.createdBy())
-                .addValue("updatedBy", article.updatedBy())
-                .addValue("createdAt", article.createdAt())
-                .addValue("updatedAt", article.updatedAt());
+                .addValue("tenantId", uuidValue(article.tenantId()), Types.VARCHAR)
+                .addValue("createdBy", uuidValue(article.createdBy()), Types.VARCHAR)
+                .addValue("updatedBy", uuidValue(article.updatedBy()), Types.VARCHAR)
+                .addValue("createdAt", timestamp(article.createdAt()), Types.TIMESTAMP)
+                .addValue("updatedAt", timestamp(article.updatedAt()), Types.TIMESTAMP);
     }
 
     private static MapSqlParameterSource params() {
@@ -180,5 +182,13 @@ public class JdbcContentArticleRepository implements ContentArticleRepository {
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         return rs.getTimestamp(column).toInstant();
+    }
+
+    private static String uuidValue(UUID value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 }
