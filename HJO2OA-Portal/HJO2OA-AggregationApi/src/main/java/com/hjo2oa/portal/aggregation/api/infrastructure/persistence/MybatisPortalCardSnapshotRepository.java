@@ -1,6 +1,5 @@
 package com.hjo2oa.portal.aggregation.api.infrastructure.persistence;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.context.annotation.Primary;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 @Primary
@@ -36,40 +36,43 @@ public class MybatisPortalCardSnapshotRepository implements PortalCardSnapshotRe
 
     @Override
     public Optional<PortalCardSnapshot<?>> findByKey(PortalAggregationSnapshotKey snapshotKey) {
-        return Optional.ofNullable(mapper.selectById(snapshotKey.asCacheKey())).map(this::toDomain);
+        return Optional.ofNullable(mapper.selectBySnapshotId(snapshotKey.asCacheKey())).map(this::toDomain);
     }
 
     @Override
     public void save(PortalCardSnapshot<?> snapshot) {
-        PortalCardSnapshotEntity existing = mapper.selectById(snapshot.snapshotKey().asCacheKey());
-        PortalCardSnapshotEntity entity = toEntity(snapshot, existing);
-        if (existing == null) {
-            mapper.insert(entity);
-        } else {
-            mapper.updateById(entity);
+        PortalCardSnapshotEntity entity = toEntity(snapshot);
+        int updated = mapper.updateSnapshot(entity);
+        if (updated == 0) {
+            try {
+                mapper.insert(entity);
+            } catch (DuplicateKeyException ex) {
+                mapper.updateSnapshot(entity);
+            }
         }
     }
 
     @Override
     public int markStale(PortalSnapshotScope scope, Set<PortalCardType> cardTypes, String reason, Instant staleAt) {
-        List<PortalCardSnapshotEntity> matches = mapper.selectList(new QueryWrapper<PortalCardSnapshotEntity>()
-                        .in(cardTypes != null && !cardTypes.isEmpty(), "card_type",
-                                cardTypes == null ? List.of() : cardTypes.stream().map(Enum::name).toList()))
+        Set<PortalCardType> normalizedCardTypes = cardTypes == null ? Set.of() : cardTypes;
+        List<PortalCardSnapshotEntity> matches = mapper.selectAllSnapshots()
                 .stream()
+                .filter(entity -> normalizedCardTypes.isEmpty()
+                        || normalizedCardTypes.contains(PortalCardType.valueOf(entity.getCardType())))
                 .filter(entity -> scope.matches(keyOf(entity)))
                 .toList();
         for (PortalCardSnapshotEntity entity : matches) {
             entity.setState(PortalCardState.STALE.name());
             entity.setMessage(reason);
             entity.setRefreshedAt(staleAt);
-            mapper.updateById(entity);
+            mapper.updateSnapshot(entity);
         }
         return matches.size();
     }
 
     @Override
     public List<PortalCardSnapshot<?>> findAll() {
-        return mapper.selectList(new QueryWrapper<PortalCardSnapshotEntity>().orderByDesc("refreshed_at"))
+        return mapper.selectAllSnapshots()
                 .stream()
                 .map(this::toDomain)
                 .toList();
@@ -98,9 +101,9 @@ public class MybatisPortalCardSnapshotRepository implements PortalCardSnapshotRe
         );
     }
 
-    private PortalCardSnapshotEntity toEntity(PortalCardSnapshot<?> snapshot, PortalCardSnapshotEntity existing) {
+    private PortalCardSnapshotEntity toEntity(PortalCardSnapshot<?> snapshot) {
         PortalAggregationSnapshotKey key = snapshot.snapshotKey();
-        PortalCardSnapshotEntity entity = existing == null ? new PortalCardSnapshotEntity() : existing;
+        PortalCardSnapshotEntity entity = new PortalCardSnapshotEntity();
         entity.setSnapshotId(key.asCacheKey());
         entity.setTenantId(key.tenantId());
         entity.setPersonId(key.personId());

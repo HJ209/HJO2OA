@@ -1,12 +1,16 @@
 package com.hjo2oa.portal.aggregation.api.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hjo2oa.portal.aggregation.api.domain.PortalAggregationSnapshotKey;
+import com.hjo2oa.portal.aggregation.api.domain.PortalCardSnapshot;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardState;
 import com.hjo2oa.portal.aggregation.api.domain.PortalCardType;
 import com.hjo2oa.portal.aggregation.api.domain.PortalIdentityCard;
@@ -19,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 
 class MybatisPortalCardSnapshotRepositoryTest {
 
@@ -103,10 +108,34 @@ class MybatisPortalCardSnapshotRepositoryTest {
         assertThat(((PortalMessageCard) data).topItems()).hasSize(1);
     }
 
+    @Test
+    void shouldSaveSnapshotWithUpdateFirstUpsert() {
+        PortalCardSnapshotMapper mapper = mock(PortalCardSnapshotMapper.class);
+        when(mapper.updateSnapshot(any(PortalCardSnapshotEntity.class))).thenReturn(1);
+        MybatisPortalCardSnapshotRepository repository = new MybatisPortalCardSnapshotRepository(mapper, objectMapper);
+
+        repository.save(PortalCardSnapshot.ready(key(PortalCardType.IDENTITY), PortalCardType.IDENTITY, identityCard(), FIXED_TIME));
+
+        verify(mapper).updateSnapshot(any(PortalCardSnapshotEntity.class));
+    }
+
+    @Test
+    void shouldRecoverWhenConcurrentInsertCreatesSnapshotFirst() {
+        PortalCardSnapshotMapper mapper = mock(PortalCardSnapshotMapper.class);
+        when(mapper.updateSnapshot(any(PortalCardSnapshotEntity.class))).thenReturn(0, 1);
+        when(mapper.insert(any(PortalCardSnapshotEntity.class))).thenThrow(new DuplicateKeyException("duplicate"));
+        MybatisPortalCardSnapshotRepository repository = new MybatisPortalCardSnapshotRepository(mapper, objectMapper);
+
+        repository.save(PortalCardSnapshot.ready(key(PortalCardType.IDENTITY), PortalCardType.IDENTITY, identityCard(), FIXED_TIME));
+
+        verify(mapper).insert(any(PortalCardSnapshotEntity.class));
+        verify(mapper, times(2)).updateSnapshot(any(PortalCardSnapshotEntity.class));
+    }
+
     private MybatisPortalCardSnapshotRepository repositoryReturning(PortalCardType cardType, String dataJson) {
         PortalCardSnapshotMapper mapper = mock(PortalCardSnapshotMapper.class);
         PortalAggregationSnapshotKey key = key(cardType);
-        when(mapper.selectById(key.asCacheKey())).thenReturn(entity(key, dataJson));
+        when(mapper.selectBySnapshotId(key.asCacheKey())).thenReturn(entity(key, dataJson));
         return new MybatisPortalCardSnapshotRepository(mapper, objectMapper);
     }
 
@@ -133,6 +162,23 @@ class MybatisPortalCardSnapshotRepositoryTest {
                 "position-1",
                 PortalSceneType.HOME,
                 cardType
+        );
+    }
+
+    private PortalIdentityCard identityCard() {
+        return new PortalIdentityCard(
+                "tenant-1",
+                "person-1",
+                "account-1",
+                "assignment-1",
+                "position-1",
+                "organization-1",
+                "department-1",
+                "Chief Clerk",
+                "Head Office",
+                "General Office",
+                "PRIMARY",
+                FIXED_TIME
         );
     }
 }
