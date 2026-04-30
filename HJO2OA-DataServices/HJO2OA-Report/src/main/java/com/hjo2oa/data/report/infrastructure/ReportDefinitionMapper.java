@@ -46,4 +46,13 @@ public interface ReportDefinitionMapper extends BaseMapper<ReportDefinitionDO>, 
             @Param("status") String status,
             @Param("now") Instant now
     );
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            SELECT tenant_id
+              FROM dbo.data_report_def
+             WHERE id = #{reportId}
+               AND deleted = 0
+            """)
+    String selectTenantIdByReportId(@Param("reportId") String reportId);
 }

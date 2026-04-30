@@ -1,5 +1,6 @@
 package com.hjo2oa.data.report.domain;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -14,7 +15,9 @@ public record ReportSnapshot(
         ReportRefreshTriggerMode triggerMode,
         String triggerReason,
         String errorMessage
-) {
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     public static final String GLOBAL_SCOPE = "GLOBAL";
 

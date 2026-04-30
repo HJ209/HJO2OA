@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hjo2oa.data.report.domain.DataReportRefreshedEvent;
 import com.hjo2oa.data.report.domain.ReportAnalysisQuery;
+import com.hjo2oa.data.report.domain.ReportCardProtocol;
+import com.hjo2oa.data.report.domain.ReportCardType;
 import com.hjo2oa.data.report.domain.ReportRefreshMode;
 import com.hjo2oa.data.report.domain.ReportRefreshTriggerMode;
 import com.hjo2oa.data.report.domain.ReportStatus;
@@ -78,5 +80,44 @@ class ReportRefreshApplicationServiceTest {
         assertEquals("volume", card.summaryMetric().metricCode());
         assertEquals(2, card.trend().size());
         assertEquals(2, card.ranking().size());
+
+        var timeOnlyBase = ReportTestSupport.sampleCommand("task-pressure-by-day", ReportRefreshMode.ON_DEMAND);
+        var timeOnlyCommand = new SaveReportDefinitionCommand(
+                timeOnlyBase.code(),
+                timeOnlyBase.name(),
+                timeOnlyBase.reportType(),
+                timeOnlyBase.sourceScope(),
+                timeOnlyBase.refreshMode(),
+                timeOnlyBase.visibilityMode(),
+                timeOnlyBase.tenantId(),
+                timeOnlyBase.caliberDefinition(),
+                timeOnlyBase.refreshConfig(),
+                new ReportCardProtocol(
+                        "task-pressure-by-day",
+                        "task-pressure-by-day",
+                        ReportCardType.MIXED,
+                        "volume",
+                        "volume",
+                        "volume",
+                        "day",
+                        5
+                ),
+                timeOnlyBase.metrics(),
+                java.util.List.of(timeOnlyBase.dimensions().get(0))
+        );
+        definitionApplicationService.create(timeOnlyCommand);
+        definitionApplicationService.changeStatus("task-pressure-by-day", ReportStatus.ACTIVE);
+        refreshApplicationService.refreshByCode(
+                "task-pressure-by-day",
+                ReportRefreshTriggerMode.MANUAL,
+                "unit-test",
+                "batch-2"
+        );
+        var timeOnlyRanking = queryApplicationService.ranking(
+                "task-pressure-by-day",
+                new ReportAnalysisQuery(null, null, null, null, null, null)
+        );
+        assertEquals("day", timeOnlyRanking.dimensionCode());
+        assertEquals(2, timeOnlyRanking.items().size());
     }
 }

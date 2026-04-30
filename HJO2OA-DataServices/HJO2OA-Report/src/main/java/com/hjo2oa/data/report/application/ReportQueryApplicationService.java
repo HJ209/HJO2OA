@@ -102,17 +102,19 @@ public class ReportQueryApplicationService {
         ReportDefinition reportDefinition = getByCode(code);
         SnapshotHolder snapshotHolder = loadSnapshot(reportDefinition);
         String metricCode = resolveMetricCode(reportDefinition, query.metricCode(), false);
-        String dimensionCode = query.dimensionCode() == null || query.dimensionCode().isBlank()
-                ? reportDefinition.dimensions().stream()
-                .filter(dimension -> !dimension.timeDimension())
-                .findFirst()
-                .map(dimension -> dimension.dimensionCode())
-                .orElse(null)
-                : query.dimensionCode();
+        String dimensionCode = resolveRankingDimensionCode(reportDefinition, query.dimensionCode());
+        ReportAnalysisQuery resolvedQuery = new ReportAnalysisQuery(
+                query.from(),
+                query.to(),
+                dimensionCode,
+                metricCode,
+                query.topN(),
+                query.filters()
+        );
         List<ReportRankingItem> items = reportAnalysisEngine.ranking(
                 reportDefinition,
                 snapshotHolder.snapshot().payload().rows(),
-                query
+                resolvedQuery
         );
         return new ReportRankingView(
                 reportDefinition.code(),
@@ -254,6 +256,23 @@ public class ReportQueryApplicationService {
                 .findFirst()
                 .map(ReportMetricDefinition::metricCode)
                 .orElse(reportDefinition.metrics().get(0).metricCode());
+    }
+
+    private String resolveRankingDimensionCode(ReportDefinition reportDefinition, String requestedDimensionCode) {
+        if (requestedDimensionCode != null && !requestedDimensionCode.isBlank()) {
+            return requestedDimensionCode;
+        }
+        if (reportDefinition.cardProtocol() != null
+                && reportDefinition.cardProtocol().rankDimensionCode() != null
+                && !reportDefinition.cardProtocol().rankDimensionCode().isBlank()) {
+            return reportDefinition.cardProtocol().rankDimensionCode();
+        }
+        return reportDefinition.dimensions().stream()
+                .filter(dimension -> !dimension.timeDimension())
+                .findFirst()
+                .or(() -> reportDefinition.dimensions().stream().findFirst())
+                .map(dimension -> dimension.dimensionCode())
+                .orElse(null);
     }
 
     private List<String> exportHeaders(List<ReportDataRecord> rows) {

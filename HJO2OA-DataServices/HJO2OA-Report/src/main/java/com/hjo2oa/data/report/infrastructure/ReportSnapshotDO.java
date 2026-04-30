@@ -19,6 +19,9 @@ public class ReportSnapshotDO {
     @TableField("report_id")
     private String reportId;
 
+    @TableField("tenant_id")
+    private String tenantId;
+
     @TableField("snapshot_at")
     private Instant snapshotAt;
 

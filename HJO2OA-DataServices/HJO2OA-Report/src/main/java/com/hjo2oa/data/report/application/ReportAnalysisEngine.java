@@ -202,6 +202,7 @@ public class ReportAnalysisEngine {
         return reportDefinition.dimensions().stream()
                 .filter(dimension -> !dimension.timeDimension())
                 .findFirst()
+                .or(() -> reportDefinition.dimensions().stream().findFirst())
                 .orElseThrow(() -> new IllegalArgumentException("report definition does not define a ranking dimension"));
     }
 

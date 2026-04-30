@@ -7,7 +7,7 @@ import com.hjo2oa.data.report.domain.ReportSnapshot;
 import com.hjo2oa.data.report.domain.ReportSnapshotPage;
 import com.hjo2oa.data.report.domain.ReportSnapshotPayload;
 import com.hjo2oa.data.report.domain.ReportSnapshotRepository;
-import javax.sql.DataSource;
+import com.hjo2oa.shared.tenant.TenantContextHolder;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -21,13 +21,18 @@ import org.springframework.stereotype.Repository;
 public class MybatisPlusReportSnapshotRepository implements ReportSnapshotRepository {
 
     private final ReportSnapshotMapper reportSnapshotMapper;
+    private final ReportDefinitionMapper reportDefinitionMapper;
     private final ReportJsonCodec reportJsonCodec;
 
     public MybatisPlusReportSnapshotRepository(
             ReportSnapshotMapper reportSnapshotMapper,
+            ReportDefinitionMapper reportDefinitionMapper,
             ReportJsonCodec reportJsonCodec
     ) {
         this.reportSnapshotMapper = Objects.requireNonNull(reportSnapshotMapper, "reportSnapshotMapper must not be null");
+        this.reportDefinitionMapper = Objects.requireNonNull(
+                reportDefinitionMapper,
+                "reportDefinitionMapper must not be null");
         this.reportJsonCodec = Objects.requireNonNull(reportJsonCodec, "reportJsonCodec must not be null");
     }
 
@@ -37,6 +42,7 @@ public class MybatisPlusReportSnapshotRepository implements ReportSnapshotReposi
         ReportSnapshotDO snapshotDO = new ReportSnapshotDO()
                 .setId(snapshot.id() == null ? UUID.randomUUID().toString() : snapshot.id())
                 .setReportId(snapshot.reportId())
+                .setTenantId(resolveTenantId(snapshot.reportId()))
                 .setSnapshotAt(snapshot.snapshotAt())
                 .setRefreshBatch(snapshot.refreshBatch())
                 .setScopeSignature(snapshot.scopeSignature())
@@ -50,6 +56,18 @@ public class MybatisPlusReportSnapshotRepository implements ReportSnapshotReposi
                 .setUpdatedAt(now);
         reportSnapshotMapper.insert(snapshotDO);
         return toDomain(snapshotDO);
+    }
+
+    private String resolveTenantId(String reportId) {
+        return TenantContextHolder.currentTenantId()
+                .map(UUID::toString)
+                .orElseGet(() -> {
+                    String tenantId = reportDefinitionMapper.selectTenantIdByReportId(reportId);
+                    if (tenantId == null || tenantId.isBlank()) {
+                        throw new IllegalStateException("report definition tenant not found: " + reportId);
+                    }
+                    return tenantId;
+                });
     }
 
     @Override

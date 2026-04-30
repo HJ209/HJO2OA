@@ -244,7 +244,7 @@ public class MybatisPlusReportDefinitionRepository implements ReportDefinitionRe
 
     private ReportMetricDefinitionDO toMetricDO(String reportId, ReportMetricDefinition metricDefinition, Instant now) {
         return new ReportMetricDefinitionDO()
-                .setId(metricDefinition.id() == null ? UUID.randomUUID().toString() : metricDefinition.id())
+                .setId(UUID.randomUUID().toString())
                 .setReportId(reportId)
                 .setMetricCode(metricDefinition.metricCode())
                 .setMetricName(metricDefinition.metricName())
@@ -267,7 +267,7 @@ public class MybatisPlusReportDefinitionRepository implements ReportDefinitionRe
             Instant now
     ) {
         return new ReportDimensionDefinitionDO()
-                .setId(dimensionDefinition.id() == null ? UUID.randomUUID().toString() : dimensionDefinition.id())
+                .setId(UUID.randomUUID().toString())
                 .setReportId(reportId)
                 .setDimensionCode(dimensionDefinition.dimensionCode())
                 .setDimensionName(dimensionDefinition.dimensionName())
